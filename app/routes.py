@@ -184,6 +184,78 @@ async def get_featured_campsites():
     except Exception as e:
         return {"error": str(e), "message": "Could not fetch featured campsites"}
 
+# ============ Wishlist ============
+
+@router.post("/users/{user_id}/wishlist", response_model=schemas.WishlistOut, status_code=201)
+async def add_to_wishlist(user_id: int, wishlist: schemas.WishlistCreate, db: Session = Depends(get_db)):
+    """Add a campsite to user's wishlist for booking alerts."""
+    # Check if already in wishlist
+    existing = db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.campsite_id == wishlist.campsite_id
+    ).first()
+    if existing:
+        # Update notification hours
+        existing.notification_hours_before = wishlist.notification_hours_before
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    db_wishlist = models.Wishlist(user_id=user_id, **wishlist.model_dump())
+    db.add(db_wishlist)
+    db.commit()
+    db.refresh(db_wishlist)
+    return db_wishlist
+
+@router.get("/users/{user_id}/wishlist")
+async def get_wishlist(user_id: int, db: Session = Depends(get_db)):
+    """Get user's campsite wishlist with availability windows."""
+    wishlist_items = db.query(models.Wishlist).filter(models.Wishlist.user_id == user_id).all()
+    result = []
+    for item in wishlist_items:
+        campsite = db.query(models.Campsite).filter(models.Campsite.id == item.campsite_id).first()
+        if campsite:
+            park = db.query(models.Park).filter(models.Park.id == campsite.park_id).first()
+            result.append({
+                "wishlist_id": item.id,
+                "campsite": schemas.CampsiteOut.model_validate(campsite),
+                "park": schemas.ParkOut.model_validate(park) if park else None,
+                "notification_hours_before": item.notification_hours_before,
+                "days_until_booking": (item.campsite.booking_opens - datetime.utcnow()).days if item.campsite.booking_opens else None,
+                "booking_opens": item.campsite.booking_opens,
+                "added_date": item.created_at
+            })
+    return sorted(result, key=lambda x: x['booking_opens'] if x['booking_opens'] else datetime.max)
+
+@router.put("/users/{user_id}/wishlist/{campsite_id}")
+async def update_wishlist_preferences(user_id: int, campsite_id: int, notification_hours: int, db: Session = Depends(get_db)):
+    """Update notification preferences for a wishlist item."""
+    wishlist = db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.campsite_id == campsite_id
+    ).first()
+    if not wishlist:
+        raise HTTPException(status_code=404, detail="Wishlist item not found")
+    
+    wishlist.notification_hours_before = notification_hours
+    db.commit()
+    db.refresh(wishlist)
+    return {"message": "Notification preferences updated", "campsite_id": campsite_id, "notification_hours": notification_hours}
+
+@router.delete("/users/{user_id}/wishlist/{campsite_id}")
+async def remove_from_wishlist(user_id: int, campsite_id: int, db: Session = Depends(get_db)):
+    """Remove a campsite from user's wishlist."""
+    wishlist = db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.campsite_id == campsite_id
+    ).first()
+    if not wishlist:
+        raise HTTPException(status_code=404, detail="Wishlist item not found")
+    
+    db.delete(wishlist)
+    db.commit()
+    return {"message": "Removed from wishlist"}
+
 # ============ Camping Trips ============
 
 @router.post("/users/{user_id}/camping", response_model=schemas.CampingTripOut, status_code=201)

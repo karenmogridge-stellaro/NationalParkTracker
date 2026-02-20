@@ -39,6 +39,13 @@ export const parkAPI = {
   addCampsite: (parkId, data) => api.post(`/parks/${parkId}/campsites`, data),
   getCampsites: (parkId) => api.get(`/parks/${parkId}/campsites`),
   
+  // Wishlist
+  addToWishlist: (userId, data) => api.post(`/users/${userId}/wishlist`, data),
+  getWishlist: (userId) => api.get(`/users/${userId}/wishlist`),
+  updateWishlistPreferences: (userId, campsiteId, notificationHours) => 
+    api.put(`/users/${userId}/wishlist/${campsiteId}?notification_hours=${notificationHours}`),
+  removeFromWishlist: (userId, campsiteId) => api.delete(`/users/${userId}/wishlist/${campsiteId}`),
+  
   // Camping
   logCampingTrip: (userId, data) => api.post(`/users/${userId}/camping`, data),
   getCampingTrips: (userId) => api.get(`/users/${userId}/camping`),

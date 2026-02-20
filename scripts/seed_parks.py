@@ -2,6 +2,7 @@
 import json
 import os
 from pathlib import Path
+from datetime import datetime, timedelta
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -103,34 +104,36 @@ def seed_parks():
     print(f"✅ Seeded trails for parks")
     
     # Seed campsites for parks
+    # Calculate booking opens dates (5-6 months from now)
+    base_date = datetime(2026, 8, 1)  # August 2026 openings
     campsites_data = {
         "Yellowstone": [
-            {"name": "Madison Campground", "elevation": 6800, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Scenic campground along the Madison River with good wildlife viewing opportunities."},
-            {"name": "Bridge Bay Campground", "elevation": 7800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Located near Yellowstone Lake with marina and fishing access."},
-            {"name": "Grant Village Campground", "elevation": 7800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Modern campground on the south shore of Yellowstone Lake."},
-            {"name": "Old Faithful Campground", "elevation": 7403, "has_water": True, "has_toilets": True, "max_occupancy": 5, "description": "Popular campground near Old Faithful geyser with visitor facilities."},
-            {"name": "Mammoth Hot Springs Campground", "elevation": 6240, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Year-round campground at the gateway to the park's northern section."},
+            {"name": "Madison Campground", "elevation": 6800, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Scenic campground along the Madison River with good wildlife viewing opportunities.", "booking_opens": base_date + timedelta(days=5)},
+            {"name": "Bridge Bay Campground", "elevation": 7800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Located near Yellowstone Lake with marina and fishing access.", "booking_opens": base_date + timedelta(days=10)},
+            {"name": "Grant Village Campground", "elevation": 7800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Modern campground on the south shore of Yellowstone Lake.", "booking_opens": base_date + timedelta(days=15)},
+            {"name": "Old Faithful Campground", "elevation": 7403, "has_water": True, "has_toilets": True, "max_occupancy": 5, "description": "Popular campground near Old Faithful geyser with visitor facilities.", "booking_opens": base_date + timedelta(days=0)},
+            {"name": "Mammoth Hot Springs Campground", "elevation": 6240, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Year-round campground at the gateway to the park's northern section.", "booking_opens": base_date + timedelta(days=20)},
         ],
         "Grand Canyon": [
-            {"name": "Mather Campground", "elevation": 6800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Large developed campground on the South Rim with full amenities."},
-            {"name": "Desert View Campground", "elevation": 7000, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Smaller campground on the eastern South Rim with scenic desert views."},
-            {"name": "North Rim Campground", "elevation": 8200, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "The only campground on the North Rim, seasonal operation."},
-            {"name": "Ten-X Campground", "elevation": 6400, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Smaller BLM campground near the park with basic amenities."},
-            {"name": "Tusayan Camper Village", "elevation": 6500, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Private RV and tent campground just outside the park."},
+            {"name": "Mather Campground", "elevation": 6800, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Large developed campground on the South Rim with full amenities.", "booking_opens": base_date + timedelta(days=8)},
+            {"name": "Desert View Campground", "elevation": 7000, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Smaller campground on the eastern South Rim with scenic desert views.", "booking_opens": base_date + timedelta(days=12)},
+            {"name": "North Rim Campground", "elevation": 8200, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "The only campground on the North Rim, seasonal operation.", "booking_opens": base_date + timedelta(days=3)},
+            {"name": "Ten-X Campground", "elevation": 6400, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Smaller BLM campground near the park with basic amenities.", "booking_opens": base_date + timedelta(days=7)},
+            {"name": "Tusayan Camper Village", "elevation": 6500, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Private RV and tent campground just outside the park.", "booking_opens": base_date + timedelta(days=14)},
         ],
         "Yosemite": [
-            {"name": "Valley Loop Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Popular campground with multiple sites throughout Yosemite Valley."},
-            {"name": "Tuolumne Meadows Campground", "elevation": 8600, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "High country campground with access to alpine hiking and backpacking."},
-            {"name": "Wawona Campground", "elevation": 4400, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Campground south of Yosemite Valley near the Mariposa Grove."},
-            {"name": "Hodgdon Meadow Campground", "elevation": 4900, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Gateway campground near Hetch Hetchy with moderate elevation."},
-            {"name": "Half Dome Village", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 4, "description": "Historic campground in Yosemite Valley with shower and laundry facilities."},
+            {"name": "Valley Loop Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Popular campground with multiple sites throughout Yosemite Valley.", "booking_opens": base_date + timedelta(days=1)},
+            {"name": "Tuolumne Meadows Campground", "elevation": 8600, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "High country campground with access to alpine hiking and backpacking.", "booking_opens": base_date + timedelta(days=6)},
+            {"name": "Wawona Campground", "elevation": 4400, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Campground south of Yosemite Valley near the Mariposa Grove.", "booking_opens": base_date + timedelta(days=9)},
+            {"name": "Hodgdon Meadow Campground", "elevation": 4900, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Gateway campground near Hetch Hetchy with moderate elevation.", "booking_opens": base_date + timedelta(days=11)},
+            {"name": "Half Dome Village", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 4, "description": "Historic campground in Yosemite Valley with shower and laundry facilities.", "booking_opens": base_date + timedelta(days=2)},
         ],
         "Zion": [
-            {"name": "Watchman Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Popular campground at the south entrance of Zion Canyon with ranger programs."},
-            {"name": "South Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Smaller campground near the visitor center with scenic canyon views."},
-            {"name": "Lava Point Campground", "elevation": 7890, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Remote high-elevation campground with minimal facilities and stunning views."},
-            {"name": "Driftwood Campground", "elevation": 3600, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Private RV and tent campground west of Zion near Springdale."},
-            {"name": "East Zion Resorts", "elevation": 4300, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Campground near the east entrance with access to scenic byways."},
+            {"name": "Watchman Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Popular campground at the south entrance of Zion Canyon with ranger programs.", "booking_opens": base_date + timedelta(days=4)},
+            {"name": "South Campground", "elevation": 4000, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Smaller campground near the visitor center with scenic canyon views.", "booking_opens": base_date + timedelta(days=13)},
+            {"name": "Lava Point Campground", "elevation": 7890, "has_water": False, "has_toilets": True, "max_occupancy": 6, "description": "Remote high-elevation campground with minimal facilities and stunning views.", "booking_opens": base_date + timedelta(days=18)},
+            {"name": "Driftwood Campground", "elevation": 3600, "has_water": True, "has_toilets": True, "max_occupancy": 6, "description": "Private RV and tent campground west of Zion near Springdale.", "booking_opens": base_date + timedelta(days=16)},
+            {"name": "East Zion Resorts", "elevation": 4300, "has_water": True, "has_toilets": True, "max_occupancy": 8, "description": "Campground near the east entrance with access to scenic byways.", "booking_opens": base_date + timedelta(days=19)},
         ],
     }
     

@@ -96,6 +96,7 @@ class CampsiteBase(BaseModel):
     has_toilets: bool
     max_occupancy: int
     description: str
+    booking_opens: Optional[datetime] = None
 
 class CampsiteCreate(CampsiteBase):
     pass
@@ -103,6 +104,20 @@ class CampsiteCreate(CampsiteBase):
 class CampsiteOut(CampsiteBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
+    created_at: datetime
+
+class WishlistBase(BaseModel):
+    campsite_id: int
+    notification_hours_before: int = 1
+
+class WishlistCreate(WishlistBase):
+    pass
+
+class WishlistOut(WishlistBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    campsite: CampsiteOut
     created_at: datetime
 
 class CampingTripCreate(BaseModel):

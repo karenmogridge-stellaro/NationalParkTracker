@@ -85,6 +85,16 @@ class Campsite(Base):
     has_toilets = Column(Boolean, default=False)
     max_occupancy = Column(Integer)
     description = Column(Text)
+    booking_opens = Column(DateTime, nullable=True)  # When bookings open (e.g., 5 months ahead)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class Wishlist(Base):
+    __tablename__ = "wishlist"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    campsite_id = Column(Integer, ForeignKey("campsites.id"), index=True)
+    notification_hours_before = Column(Integer, default=1)  # Notify X hours before booking opens
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class CampingTrip(Base):
