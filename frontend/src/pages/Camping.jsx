@@ -6,7 +6,7 @@ import { useUser } from '../utils/UserContext'
 export default function Camping() {
   const { user } = useUser()
   const [parks, setParks] = useState([])
-  const [campsites, setCampsites] = useState([])
+  const [allCampsites, setAllCampsites] = useState([])
   const [wishlist, setWishlist] = useState([])
   const [selectedPark, setSelectedPark] = useState(null)
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0])
@@ -20,13 +20,25 @@ export default function Camping() {
 
   useEffect(() => {
     if (selectedPark) {
-      loadCampsites()
+      filterCampsites()
     }
-  }, [selectedPark])
+  }, [selectedPark, allCampsites])
   const loadData = async () => {
     try {
-      const data = await parkAPI.listParks()
-      setParks(data.slice(0, 12))
+      const parksData = await parkAPI.listParks()
+      setParks(parksData.slice(0, 12))
+      
+      // Load campsites from first 4 parks (main demo parks)
+      const allCamps = []
+      for (let i = 1; i <= 4; i++) {
+        try {
+          const camps = await parkAPI.getCampsites(i)
+          allCamps.push(...camps)
+        } catch (e) {
+          console.warn(`Failed to load campsites for park ${i}`)
+        }
+      }
+      setAllCampsites(allCamps)
       
       if (user?.id) {
         await loadWishlist()
@@ -38,14 +50,15 @@ export default function Camping() {
     }
   }
 
-  const loadCampsites = async () => {
-    try {
-      const data = await parkAPI.getCampsites(selectedPark)
-      setCampsites(data)
-    } catch (error) {
-      console.error('Error loading campsites:', error)
-      setCampsites([])
+  const filterCampsites = () => {
+    // This will trigger when selectedPark changes, updating display via useffect
+  }
+
+  const getCampsitesToDisplay = () => {
+    if (selectedPark) {
+      return allCampsites.filter(cs => cs.park_id === selectedPark)
     }
+    return allCampsites
   }
 
   const loadWishlist = async () => {
@@ -143,9 +156,14 @@ export default function Camping() {
         <p className="text-gray-600">Search for campsites and manage your wishlist</p>
       </div>
 
-      {/* Search Section */}
+      {/* Search & Booking Section */}
       <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-        <h2 className="text-xl font-bold">Search Campsites</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold">Booking Dates</h2>
+            <p className="text-sm text-gray-600">(Optional - for booking reference)</p>
+          </div>
+        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -177,10 +195,31 @@ export default function Camping() {
         </div>
       </div>
 
-      {/* Park Selection */}
+      {/* Park Selection (Optional) */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Browse Parks</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold">Filter by Park</h2>
+          {selectedPark && (
+            <button
+              onClick={() => setSelectedPark(null)}
+              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+            >
+              <X className="w-4 h-4" />
+              Clear filter
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <button
+            onClick={() => setSelectedPark(null)}
+            className={`p-4 rounded-lg font-medium text-center transition-all text-sm ${
+              selectedPark === null
+                ? 'bg-park text-white shadow-lg'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            All Parks
+          </button>
           {parks.map(park => (
             <button
               key={park.id}
@@ -198,27 +237,30 @@ export default function Camping() {
       </div>
 
       {/* Campsites Grid */}
-      {selectedPark && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Available Campsites</h2>
-          
-          {loading ? (
-            <div className="text-center text-gray-500 py-8">Loading campsites...</div>
-          ) : campsites.length === 0 ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-yellow-900">No campsites found</p>
-                <p className="text-sm text-yellow-800">There are no campsites listed for this park yet.</p>
-              </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">
+          {selectedPark 
+            ? `Campsites - ${parks.find(p => p.id === selectedPark)?.name || 'All Parks'}`
+            : 'All Campsites'}
+        </h2>
+        
+        {loading ? (
+          <div className="text-center text-gray-500 py-8">Loading campsites...</div>
+        ) : getCampsitesToDisplay().length === 0 ? (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-yellow-900">No campsites found</p>
+              <p className="text-sm text-yellow-800">There are no campsites listed in this selection.</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {campsites.map(campsite => {
-                const isWishlisted = isCampsiteWishlisted(campsite.id)
-                const daysUntilBooking = calculateDaysUntilBooking(campsite.booking_opens)
-                const bookingStatus = getBookingStatus(campsite)
-                const bookingOpensDate = campsite.booking_opens ? new Date(campsite.booking_opens) : null
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {getCampsitesToDisplay().map(campsite => {
+              const isWishlisted = isCampsiteWishlisted(campsite.id)
+              const daysUntilBooking = calculateDaysUntilBooking(campsite.booking_opens)
+              const bookingStatus = getBookingStatus(campsite)
+              const bookingOpensDate = campsite.booking_opens ? new Date(campsite.booking_opens) : null
                 
                 return (
                   <div
@@ -318,9 +360,8 @@ export default function Camping() {
                 )
               })}
             </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Wishlist Section */}
       <div className="space-y-4">
