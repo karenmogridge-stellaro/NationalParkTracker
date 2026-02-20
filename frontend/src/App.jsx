@@ -3,6 +3,7 @@ import { UserProvider, useUser } from './utils/UserContext'
 import Dashboard from './pages/Dashboard'
 import ParkDirectory from './pages/ParkDirectory'
 import MyHikes from './pages/MyHikes'
+import Camping from './pages/Camping'
 import Auth from './pages/Auth'
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
@@ -30,6 +31,7 @@ function AppContent() {
     { path: '/dashboard', label: 'Dashboard', icon: '🏕️' },
     { path: '/parks', label: 'Park Directory', icon: '🗺️' },
     { path: '/hikes', label: 'My Hikes', icon: '🥾' },
+    { path: '/camping', label: 'Camping', icon: '⛺' },
   ]
 
   return (
@@ -90,6 +92,7 @@ function AppContent() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/parks" element={<ParkDirectory />} />
             <Route path="/hikes" element={<MyHikes />} />
+            <Route path="/camping" element={<Camping />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </div>

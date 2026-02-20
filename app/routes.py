@@ -147,6 +147,43 @@ async def get_campsites(park_id: int, db: Session = Depends(get_db)):
     campsites = db.query(models.Campsite).filter(models.Campsite.park_id == park_id).all()
     return campsites
 
+@router.get("/parks/{park_id}/campsites/search")
+async def search_availability(park_id: int, start_date: str, end_date: str):
+    """Search campsite availability on Recreation.gov for a park and date range."""
+    try:
+        service = RecreationGovService()
+        # Search by park name
+        park_db = db.query(models.Park).filter(models.Park.id == park_id).first()
+        if not park_db:
+            return {"error": "Park not found"}
+        
+        availability = await service.search_and_get_availability(park_db.name, start_date, end_date)
+        return availability
+    except Exception as e:
+        return {"error": str(e), "message": "Could not fetch Recreation.gov data"}
+
+@router.get("/campsites/featured")
+async def get_featured_campsites():
+    """Get featured campsites across parks."""
+    try:
+        service = RecreationGovService()
+        # Get popular parks and their availability
+        featured_parks = ["Yellowstone", "Grand Canyon", "Yosemite", "Zion"]
+        results = []
+        for park in featured_parks:
+            try:
+                availability = await service.search_and_get_availability(park, None, None)
+                if availability.get("campsites"):
+                    results.append({
+                        "park": park,
+                        "campsites": availability.get("campsites", [])[:3]  # Top 3
+                    })
+            except:
+                continue
+        return results
+    except Exception as e:
+        return {"error": str(e), "message": "Could not fetch featured campsites"}
+
 # ============ Camping Trips ============
 
 @router.post("/users/{user_id}/camping", response_model=schemas.CampingTripOut, status_code=201)
