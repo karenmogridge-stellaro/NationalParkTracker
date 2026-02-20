@@ -26,14 +26,15 @@ export default function Camping() {
   const loadData = async () => {
     try {
       const parksData = await parkAPI.listParks()
-      setParks(parksData.slice(0, 12))
+      setParks(parksData.data?.slice(0, 12) || parksData.slice(0, 12) || [])
       
       // Load campsites from first 4 parks (main demo parks)
       const allCamps = []
       for (let i = 1; i <= 4; i++) {
         try {
-          const camps = await parkAPI.getCampsites(i)
-          allCamps.push(...camps)
+          const campsitesResp = await parkAPI.getCampsites(i)
+          const campsites = campsitesResp.data || campsitesResp
+          allCamps.push(...campsites)
         } catch (e) {
           console.warn(`Failed to load campsites for park ${i}`)
         }
@@ -64,8 +65,8 @@ export default function Camping() {
   const loadWishlist = async () => {
     if (!user?.id) return
     try {
-      const data = await parkAPI.getWishlist(user.id)
-      setWishlist(data)
+      const response = await parkAPI.getWishlist(user.id)
+      setWishlist(response.data || response || [])
     } catch (error) {
       console.error('Error loading wishlist:', error)
     }
@@ -97,9 +98,7 @@ export default function Camping() {
     if (!user?.id) return
     
     try {
-      await parkAPI.updateWishlistPreferences(user.id, campsiteId, {
-        notification_hours_before: hours
-      })
+      await parkAPI.updateWishlistPreferences(user.id, campsiteId, hours)
       await loadWishlist()
     } catch (error) {
       console.error('Error updating notification preferences:', error)
