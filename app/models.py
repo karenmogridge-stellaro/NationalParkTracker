@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, Numeric
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
 
@@ -96,6 +97,9 @@ class Wishlist(Base):
     campsite_id = Column(Integer, ForeignKey("campsites.id"), index=True)
     notification_hours_before = Column(Integer, default=1)  # Notify X hours before booking opens
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    campsite = relationship("Campsite")
 
 class CampingTrip(Base):
     __tablename__ = "camping_trips"

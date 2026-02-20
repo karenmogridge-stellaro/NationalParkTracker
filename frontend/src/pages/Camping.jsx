@@ -77,20 +77,28 @@ export default function Camping() {
   }
 
   const handleToggleWishlist = async (campsite) => {
-    if (!user?.id) return
+    if (!user?.id) {
+      alert('Please log in to add campsites to your wishlist')
+      return
+    }
     
     try {
+      console.log('Toggling wishlist for campsite:', campsite.id, 'User:', user.id)
       if (isCampsiteWishlisted(campsite.id)) {
+        console.log('Removing from wishlist')
         await parkAPI.removeFromWishlist(user.id, campsite.id)
       } else {
+        console.log('Adding to wishlist with', notificationHours, 'hours')
         await parkAPI.addToWishlist(user.id, {
           campsite_id: campsite.id,
           notification_hours_before: notificationHours
         })
       }
       await loadWishlist()
+      console.log('Wishlist updated successfully')
     } catch (error) {
       console.error('Error toggling wishlist:', error)
+      alert('Error updating wishlist: ' + (error.response?.data?.detail || error.message))
     }
   }
 
@@ -386,14 +394,14 @@ export default function Camping() {
               const isAvailable = daysUntil === 0 || !item.booking_opens
               
               return (
-                <div key={item.id} className="bg-white border border-yellow-200 rounded-lg p-4">
+                <div key={item.wishlist_id} className="bg-white border border-yellow-200 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h3 className="font-bold text-lg">{item.campsite_name}</h3>
-                      <p className="text-sm text-gray-600">{item.park_name}</p>
+                      <h3 className="font-bold text-lg">{item.campsite?.name}</h3>
+                      <p className="text-sm text-gray-600">{item.park?.name}</p>
                     </div>
                     <button
-                      onClick={() => handleToggleWishlist({ id: item.campsite_id })}
+                      onClick={() => handleToggleWishlist({ id: item.campsite?.id })}
                       className="text-gray-400 hover:text-gray-600 p-1 flex-shrink-0"
                       title="Remove from wishlist"
                     >
@@ -439,7 +447,7 @@ export default function Camping() {
                     </label>
                     <select
                       value={item.notification_hours_before || 1}
-                      onChange={(e) => handleUpdateNotification(item.campsite_id, parseInt(e.target.value))}
+                      onChange={(e) => handleUpdateNotification(item.campsite?.id, parseInt(e.target.value))}
                       className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-park"
                     >
                       <option value={1}>1 hour before</option>

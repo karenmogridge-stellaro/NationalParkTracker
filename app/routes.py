@@ -186,7 +186,7 @@ async def get_featured_campsites():
 
 # ============ Wishlist ============
 
-@router.post("/users/{user_id}/wishlist", response_model=schemas.WishlistOut, status_code=201)
+@router.post("/users/{user_id}/wishlist", status_code=201)
 async def add_to_wishlist(user_id: int, wishlist: schemas.WishlistCreate, db: Session = Depends(get_db)):
     """Add a campsite to user's wishlist for booking alerts."""
     # Check if already in wishlist
@@ -199,13 +199,13 @@ async def add_to_wishlist(user_id: int, wishlist: schemas.WishlistCreate, db: Se
         existing.notification_hours_before = wishlist.notification_hours_before
         db.commit()
         db.refresh(existing)
-        return existing
+        return {"id": existing.id, "campsite_id": existing.campsite_id, "notification_hours_before": existing.notification_hours_before}
     
     db_wishlist = models.Wishlist(user_id=user_id, **wishlist.model_dump())
     db.add(db_wishlist)
     db.commit()
     db.refresh(db_wishlist)
-    return db_wishlist
+    return {"id": db_wishlist.id, "campsite_id": db_wishlist.campsite_id, "notification_hours_before": db_wishlist.notification_hours_before}
 
 @router.get("/users/{user_id}/wishlist")
 async def get_wishlist(user_id: int, db: Session = Depends(get_db)):
