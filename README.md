@@ -27,10 +27,10 @@ Track your national park adventures with gamification, fitness tracker integrati
 - **Leaderboards** – Global rankings by parks, miles, or points
 
 ### Fitness Integration 💪
-- **Garmin Connect** – Auto-sync activities and biometrics
-- **Strava** – Import cycling and running activities
-- **Apple Health** – Connect iPhone health data
-- **Automatic Tracking** – Fitness metrics pull into your hikes
+- **Garmin Connect** ✅ – OAuth flow with automatic hike import and stats tracking ([Setup Guide](./GARMIN_SETUP.md))
+- **Strava** – Coming soon
+- **Apple Health** – Coming soon
+- **Fitbit** – Coming soon
 
 ### Social Features 📱
 - **Public Profiles** – Share your achievements
@@ -122,9 +122,14 @@ API docs: http://localhost:8001/docs
 - UserChallenge – User progress on challenges
 - Streak – Consecutive action tracking
 
-**Fitness Integration**
-- FitnessTrackerAuth – Garmin/Strava/Apple credentials
-- SyncLog – Sync history and status
+**Fitness Integration** ✅
+- `GET /api/v1/users/{user_id}/garmin/auth-url` – Get Garmin OAuth authorization URL
+- `POST /api/v1/users/{user_id}/garmin/token` – Exchange auth code for access token
+- `GET /api/v1/users/{user_id}/garmin/status` – Check Garmin connection status
+- `POST /api/v1/users/{user_id}/garmin/import` – Import hiking activities from Garmin
+- `DELETE /api/v1/users/{user_id}/garmin/disconnect` – Disconnect Garmin account
+
+See [GARMIN_SETUP.md](./GARMIN_SETUP.md) for setup instructions.
 
 ## 🧪 Testing
 
