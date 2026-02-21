@@ -13,8 +13,39 @@ export default function Fitness() {
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
 
+  // Handle OAuth callback from Garmin
   useEffect(() => {
+    const handleGarminCallback = async () => {
+      const params = new URLSearchParams(window.location.search)
+      const authCode = params.get('code')
+      const state = params.get('state')
+
+      if (authCode && user?.id) {
+        try {
+          setLoading(true)
+          setError(null)
+          
+          // Exchange auth code for tokens
+          const response = await parkAPI.saveGarminToken(user.id, authCode)
+          
+          setGarminConnected(true)
+          setSuccessMessage('Successfully connected to Garmin!')
+          
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname)
+          
+          setTimeout(() => setSuccessMessage(null), 5000)
+          await checkGarminStatus()
+        } catch (err) {
+          console.error('Error handling Garmin callback:', err)
+          setError(err.response?.data?.detail || 'Failed to connect to Garmin account. Please try again.')
+          window.history.replaceState({}, document.title, window.location.pathname)
+        }
+      }
+    }
+
     if (user?.id) {
+      handleGarminCallback()
       checkGarminStatus()
     }
   }, [user])
