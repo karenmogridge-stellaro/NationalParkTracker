@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import ParkDirectory from './pages/ParkDirectory'
 import MyHikes from './pages/MyHikes'
 import Camping from './pages/Camping'
+import Fitness from './pages/Fitness'
 import Auth from './pages/Auth'
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
@@ -32,6 +33,7 @@ function AppContent() {
     { path: '/parks', label: 'Park Directory', icon: '🗺️' },
     { path: '/hikes', label: 'My Hikes', icon: '🥾' },
     { path: '/camping', label: 'Camping', icon: '⛺' },
+    { path: '/fitness', label: 'Fitness Tracker', icon: '⚡' },
   ]
 
   return (
@@ -93,6 +95,7 @@ function AppContent() {
             <Route path="/parks" element={<ParkDirectory />} />
             <Route path="/hikes" element={<MyHikes />} />
             <Route path="/camping" element={<Camping />} />
+            <Route path="/fitness" element={<Fitness />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </div>

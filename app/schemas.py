@@ -243,3 +243,29 @@ class LeaderboardEntry(BaseModel):
     miles_hiked: float
     total_points: int
     rank: int
+# Garmin Integration
+class GarminAuthOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    garmin_user_id: Optional[str]
+    connected: bool
+    last_sync: Optional[datetime] = None
+    created_at: datetime
+
+class GarminActivityImport(BaseModel):
+    activity_id: str
+    activity_name: str
+    activity_date: str
+    duration_minutes: int
+    distance_miles: Optional[float]
+    elevation_gain: Optional[int]
+    calories: Optional[int]
+    avg_pace: Optional[str]
+
+class GarminImportStats(BaseModel):
+    total_activities: int
+    imported_hikes: int
+    skipped_activities: int
+    total_distance: float
+    total_elevation: int

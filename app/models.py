@@ -223,3 +223,16 @@ class SyncLog(Base):
     sync_date = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class GarminAuth(Base):
+    __tablename__ = "garmin_auth"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, index=True)
+    access_token = Column(Text)  # Encrypted in production
+    refresh_token = Column(Text, nullable=True)
+    token_expires_at = Column(DateTime)
+    garmin_user_id = Column(String, nullable=True)
+    connected = Column(Boolean, default=True)
+    last_sync = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -597,3 +597,154 @@ async def update_user_profile(user_id: int, name: str = None, bio: str = None,
     db.refresh(user)
     return schemas.UserOut.model_validate(user)
 
+# ============ Garmin Integration ============
+
+@router.get("/users/{user_id}/garmin/auth-url")
+async def get_garmin_auth_url(user_id: int, db: Session = Depends(get_db)):
+    """Get Garmin OAuth authorization URL."""
+    from app.garmin_service import garmin_service
+    import uuid
+    
+    # Generate state for CSRF protection
+    state = str(uuid.uuid4())
+    
+    # Store state in database or cache (simplified)
+    # In production, use Redis or session storage
+    auth_url = garmin_service.get_authorize_url(state)
+    
+    return {
+        "auth_url": auth_url,
+        "state": state
+    }
+
+@router.post("/users/{user_id}/garmin/token")
+async def save_garmin_token(user_id: int, auth_code: str, db: Session = Depends(get_db)):
+    """Save Garmin OAuth token after user authorization."""
+    from app.garmin_service import garmin_service
+    from datetime import timedelta
+    
+    # Exchange code for token
+    token_data = await garmin_service.exchange_code_for_token(auth_code)
+    
+    if not token_data:
+        raise HTTPException(status_code=400, detail="Failed to authenticate with Garmin")
+    
+    # Check if user has existing Garmin auth
+    garmin_auth = db.query(models.GarminAuth).filter(
+        models.GarminAuth.user_id == user_id
+    ).first()
+    
+    access_token = token_data.get("access_token")
+    refresh_token = token_data.get("refresh_token")
+    expires_in = token_data.get("expires_in", 3600)
+    token_expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+    
+    if garmin_auth:
+        # Update existing
+        garmin_auth.access_token = access_token
+        garmin_auth.refresh_token = refresh_token
+        garmin_auth.token_expires_at = token_expires_at
+        garmin_auth.connected = True
+        garmin_auth.updated_at = datetime.utcnow()
+    else:
+        # Create new
+        garmin_auth = models.GarminAuth(
+            user_id=user_id,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_expires_at=token_expires_at
+        )
+        db.add(garmin_auth)
+    
+    db.commit()
+    db.refresh(garmin_auth)
+    return schemas.GarminAuthOut.model_validate(garmin_auth)
+
+@router.get("/users/{user_id}/garmin/status")
+async def get_garmin_connection_status(user_id: int, db: Session = Depends(get_db)):
+    """Get Garmin connection status for the user."""
+    garmin_auth = db.query(models.GarminAuth).filter(
+        models.GarminAuth.user_id == user_id
+    ).first()
+    
+    if not garmin_auth:
+        return {"connected": False}
+    
+    return schemas.GarminAuthOut.model_validate(garmin_auth)
+
+@router.post("/users/{user_id}/garmin/import")
+async def import_garmin_hikes(user_id: int, limit: int = 50, db: Session = Depends(get_db)):
+    """Import hikes from Garmin Connect."""
+    from app.garmin_service import garmin_service
+    
+    # Get user's Garmin auth
+    garmin_auth = db.query(models.GarminAuth).filter(
+        models.GarminAuth.user_id == user_id
+    ).first()
+    
+    if not garmin_auth or not garmin_auth.connected:
+        raise HTTPException(status_code=404, detail="Garmin not connected. Please authorize first.")
+    
+    # Fetch activities from Garmin
+    activities = await garmin_service.get_activities(garmin_auth.access_token, limit=limit)
+    
+    # Filter to hiking/running activities
+    hiking_activities = garmin_service.filter_hiking_activities(activities)
+    
+    # Import hikes
+    imported_count = 0
+    total_distance = 0
+    total_elevation = 0
+    
+    for activity in hiking_activities:
+        # Check if already imported
+        existing = db.query(models.TrailHike).filter(
+            models.TrailHike.user_id == user_id,
+            models.TrailHike.fitness_tracker_source == "garmin",
+            models.TrailHike.notes.contains(activity.get("id"))
+        ).first()
+        
+        if existing:
+            continue  # Skip already imported activities
+        
+        # Convert to hike record
+        hike_data = garmin_service.parse_activity_to_hike(activity, user_id)
+        
+        if hike_data:
+            hike = models.TrailHike(**hike_data)
+            db.add(hike)
+            imported_count += 1
+            if hike_data.get("distance_miles"):
+                total_distance += hike_data["distance_miles"]
+            if hike_data.get("elevation_gain"):
+                total_elevation += hike_data["elevation_gain"]
+    
+    db.commit()
+    
+    # Update last sync time
+    garmin_auth.last_sync = datetime.utcnow()
+    db.commit()
+    
+    return {
+        "total_activities": len(activities),
+        "hiking_activities": len(hiking_activities),
+        "imported_hikes": imported_count,
+        "total_distance_miles": round(total_distance, 2),
+        "total_elevation_ft": int(total_elevation)
+    }
+
+@router.delete("/users/{user_id}/garmin/disconnect")
+async def disconnect_garmin(user_id: int, db: Session = Depends(get_db)):
+    """Disconnect Garmin account from user profile."""
+    garmin_auth = db.query(models.GarminAuth).filter(
+        models.GarminAuth.user_id == user_id
+    ).first()
+    
+    if not garmin_auth:
+        raise HTTPException(status_code=404, detail="Garmin account not connected")
+    
+    garmin_auth.connected = False
+    db.commit()
+    
+    return {"message": "Garmin account disconnected"}
+

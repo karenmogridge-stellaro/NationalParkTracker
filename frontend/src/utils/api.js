@@ -57,6 +57,12 @@ export const parkAPI = {
   // Stats
   getPassport: (userId) => api.get(`/users/${userId}/passport`),
   getUserStats: (userId) => api.get(`/users/${userId}/stats`),
-}
+  
+  // Garmin Integration
+  getGarminAuthUrl: (userId) => api.get(`/users/${userId}/garmin/auth-url`),
+  saveGarminToken: (userId, authCode) => api.post(`/users/${userId}/garmin/token`, { auth_code: authCode }),
+  getGarminStatus: (userId) => api.get(`/users/${userId}/garmin/status`),
+  importGarminHikes: (userId, limit = 50) => api.post(`/users/${userId}/garmin/import`, { limit }),
+  disconnectGarmin: (userId) => api.delete(`/users/${userId}/garmin/disconnect`),}
 
 export default api
