@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ const journeys = [
     quote: '"Steady climb past Vernal Falls. Nevada Fall was unparalleled."',
     stats: [{ icon: 'routes', value: '5.4 mi', color: C.secondary }, { icon: 'elevation-rise', value: '+2,191 ft', color: C.tertiary }],
     daysAgo: '3 DAYS AGO',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Mist_trail_yosemite.jpg/640px-Mist_trail_yosemite.jpg',
   },
   {
     id: '2',
@@ -24,6 +26,7 @@ const journeys = [
     quote: '"Silent morning among the giants. Perfect solitude."',
     stats: [{ icon: 'routes', value: '3.1 mi', color: C.secondary }, { icon: 'timer-outline', value: '1h 45m', color: C.tertiary }],
     daysAgo: '1 WEEK AGO',
+    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Clouds_on_Mount_Tamalpais.jpg/640px-Above_Clouds_on_Mount_Tamalpais.jpg',
   },
 ];
 
@@ -40,10 +43,14 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Ionicons name="menu" size={24} color={C.primary} />
+          <TouchableOpacity activeOpacity={0.7}>
+            <Ionicons name="menu" size={26} color={C.onPrimary} />
+          </TouchableOpacity>
           <Text style={styles.headerBrand}>ParkAtlas</Text>
         </View>
-        <View style={styles.avatar} />
+        <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
+          <Ionicons name="person" size={20} color={C.onPrimary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -53,7 +60,14 @@ export default function HomeScreen() {
       >
         {/* Welcome */}
         <View style={styles.section}>
-          <Text style={styles.welcomeTitle}>Welcome back,{'\n'}Elias.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <Image
+              source={require('../../assets/images/parkatlas-logo.png')}
+              style={styles.welcomeLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.welcomeTitle}>Welcome back, Karen.</Text>
+          </View>
         </View>
 
         {/* Stats */}
@@ -96,21 +110,79 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* Progress by Region */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialCommunityIcons name="map-marker-outline" size={18} color={C.primary} />
+              <Text style={styles.sectionTitle}>PROGRESS BY REGION</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingVertical: 8, rowGap: 20 }}>
+            {[
+              { name: 'Alaska',    visited: 0,  total: 1,  color: '#9e9e9e' },
+              { name: 'Northeast', visited: 1,  total: 8,  color: '#e91e8c' },
+              { name: 'Pacific',   visited: 1,  total: 15, color: '#3f51b5' },
+              { name: 'Rockies',   visited: 1,  total: 12, color: '#9c27b0' },
+              { name: 'Southeast', visited: 0,  total: 11, color: '#9e9e9e' },
+              { name: 'Southwest', visited: 1,  total: 20, color: '#ff6d00' },
+            ].map((r) => {
+              const pct = r.total > 0 ? r.visited / r.total : 0;
+              const SIZE = 64;
+              const STROKE = 5;
+              const R = (SIZE - STROKE) / 2;
+              const CIRC = 2 * Math.PI * R;
+              const dash = pct * CIRC;
+              return (
+                <View key={r.name} style={{ alignItems: 'center', gap: 6, width: '30%' }}>
+                  <View style={{ width: SIZE, height: SIZE }}>
+                    {/* background ring */}
+                    <View style={{
+                      position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
+                      borderWidth: STROKE, borderColor: C.surfaceContainerHighest,
+                    }} />
+                    {/* progress arc via border trick — use a thin colored top border */}
+                    {pct > 0 && (
+                      <View style={{
+                        position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
+                        borderWidth: STROKE,
+                        borderTopColor: r.color,
+                        borderRightColor: pct > 0.25 ? r.color : 'transparent',
+                        borderBottomColor: pct > 0.5 ? r.color : 'transparent',
+                        borderLeftColor: pct > 0.75 ? r.color : 'transparent',
+                        transform: [{ rotate: '-90deg' }],
+                      }} />
+                    )}
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: C.onSurface }}>{r.visited}/{r.total}</Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 12, color: C.onSurfaceVariant }}>{r.name}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
         {/* My Journeys */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>MY JOURNEYS</Text>
+            <Text style={styles.sectionTitle}>ACTIVITY</Text>
             <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6}>
-              <Text style={styles.sectionLinkText}>VIEW ARCHIVE</Text>
+              <Text style={styles.sectionLinkText}>VIEW ALL</Text>
               <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
             </TouchableOpacity>
           </View>
 
           {journeys.map((j) => (
             <TouchableOpacity key={j.id} style={styles.journeyCard} activeOpacity={0.7}>
-              <View style={styles.journeyThumb}>
-                <MaterialCommunityIcons name="image-outline" size={26} color={C.outlineVariant} />
-              </View>
+              {j.image ? (
+                <Image source={{ uri: j.image }} style={styles.journeyThumb} />
+              ) : (
+                <View style={styles.journeyThumb}>
+                  <MaterialCommunityIcons name="image-outline" size={26} color={C.outlineVariant} />
+                </View>
+              )}
               <View style={styles.journeyBody}>
                 <View style={styles.journeyTop}>
                   <Text style={styles.journeyTitle} numberOfLines={1}>{j.title}</Text>
@@ -130,7 +202,7 @@ export default function HomeScreen() {
           ))}
 
           <TouchableOpacity style={styles.dashedButton} activeOpacity={0.6}>
-            <Text style={styles.dashedButtonText}>LOG NEW OUTING</Text>
+            <Text style={styles.dashedButtonText}>+ LOG NEW OUTING</Text>
           </TouchableOpacity>
         </View>
 
@@ -207,9 +279,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 14,
-    backgroundColor: C.background,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: `${C.surfaceContainerHighest}80`,
+    backgroundColor: C.primary,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -217,18 +287,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerBrand: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '700',
-    color: C.onSurface,
+    color: C.onPrimary,
     letterSpacing: -0.3,
   },
+  headerLogo: {
+    width: 110,
+    height: 34,
+  },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: C.surfaceContainerHighest,
-    borderWidth: 1,
-    borderColor: `${C.outlineVariant}50`,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scroll: {
     flex: 1,
@@ -242,25 +318,29 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   journalLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 2.5,
     color: `${C.primary}99`,
   },
   welcomeTitle: {
-    fontSize: 48,
+    fontSize: 25,
     fontWeight: '700',
-    color: C.onSurface,
-    lineHeight: 58,
+    color: C.primary,
     letterSpacing: -0.5,
+  },
+  welcomeLogo: {
+    width: 90,
+    height: 90,
   },
   statsSection: {
     paddingHorizontal: 24,
     paddingTop: 28,
     paddingBottom: 28,
+    backgroundColor: C.surfaceContainerLow,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: `${C.surfaceContainerHighest}66`,
+    borderColor: C.surfaceContainerHighest,
     marginTop: 12,
   },
   statsGrid: {
@@ -283,19 +363,19 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   statValue: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     color: C.primary,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1.8,
     color: `${C.onSurface}66`,
     marginTop: 1,
   },
   statLabelInline: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: `${C.onSurface}66`,
   },
@@ -317,7 +397,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '700',
     letterSpacing: 2,
     color: C.primary,
@@ -328,7 +408,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   sectionLinkText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 2,
     color: `${C.primary}b3`,
@@ -351,6 +431,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    overflow: 'hidden',
   },
   journeyBody: {
     flex: 1,
@@ -363,19 +444,19 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   journeyTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '700',
     color: C.primary,
     flex: 1,
   },
   journeyDate: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.5,
     color: `${C.onSurface}66`,
   },
   journeyQuote: {
-    fontSize: 14,
+    fontSize: 16,
     color: `${C.onSurface}99`,
     fontStyle: 'italic',
     fontWeight: '300',
@@ -391,23 +472,21 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   journeyStatText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1.5,
   },
   dashedButton: {
     paddingVertical: 16,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: `${C.primary}33`,
+    backgroundColor: C.primary,
     borderRadius: 12,
     alignItems: 'center',
   },
   dashedButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     letterSpacing: 2.5,
-    color: `${C.primary}99`,
+    color: C.background,
   },
   milestonesGrid: {
     flexDirection: 'row',
@@ -441,7 +520,7 @@ const styles = StyleSheet.create({
     backgroundColor: `${C.surfaceContainerHighest}80`,
   },
   milestoneLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1.5,
     color: `${C.onSurface}b3`,
@@ -460,7 +539,7 @@ const styles = StyleSheet.create({
     gap: 0,
   },
   devicesTitle: {
-    fontSize: 17,
+    fontSize: 19,
     fontWeight: '700',
     color: C.primary,
     letterSpacing: 0.5,
@@ -483,13 +562,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   deviceName: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     letterSpacing: 1.5,
     color: C.onSurface,
   },
   deviceStatus: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 1,
     color: `${C.onSurface}66`,
@@ -509,7 +588,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   pairButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 2,
     color: `${C.primary}99`,
