@@ -1,5 +1,9 @@
 {
   "devDependencies": {
     "babel-plugin-module-resolver": "^5.0.0"
+  },
+  "dependencies": {
+    "expo": "^55.0.8",
+    "expo-location": "~55.1.4"
   }
 }
