@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -37,26 +38,39 @@ const NEARBY = [
 
 export default function DirectoryScreen() {
   const [progress] = useState(65);
+  const [searchText, setSearchText] = useState('');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/images/parkatlas-logo.png')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-          <Text style={styles.headerBrand}>Park Atlas</Text>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Ionicons name="menu" size={26} color={C.onPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerBrand}>ParkAtlas</Text>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon} activeOpacity={0.7}>
-            <Ionicons name="search" size={20} color={C.onPrimary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-            <Ionicons name="person" size={18} color={C.onPrimary} />
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
+          <Ionicons name="person" size={20} color={C.onPrimary} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color={C.outline} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search trails..."
+            placeholderTextColor={C.outline}
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
+              <Ionicons name="close-circle" size={18} color={C.outline} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -234,42 +248,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     backgroundColor: C.primary,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  headerLogo: {
-    width: 28,
-    height: 28,
+    gap: 12,
   },
   headerBrand: {
-    fontSize: 17,
+    fontSize: 24,
     fontWeight: '700',
     color: C.onPrimary,
-    letterSpacing: -0.2,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  headerIcon: {
-    padding: 4,
+    letterSpacing: -0.3,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+    backgroundColor: C.background,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: C.onSurface,
   },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 48 },

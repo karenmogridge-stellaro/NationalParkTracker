@@ -18,7 +18,6 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const FILTERS = [
   { key: 'near',     label: 'Near Me' },
   { key: 'national', label: 'National Parks' },
-  { key: 'pet',      label: 'Pet Friendly' },
   { key: 'easy',     label: 'Easy Trails' },
   { key: 'camping',  label: 'Camping' },
 ] as const;
@@ -58,12 +57,10 @@ export default function ExploreScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Image
-            source={require('../../assets/images/parkatlas-logo.png')}
-            style={styles.headerLogo}
-            resizeMode="contain"
-          />
-          <Text style={styles.headerBrand}>Park Atlas</Text>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Ionicons name="menu" size={26} color={C.onPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerBrand}>ParkAtlas</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
           <Ionicons name="person" size={20} color={C.onPrimary} />
@@ -150,18 +147,6 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         ))}
 
-        {/* CTA Card */}
-        <View style={styles.ctaCard}>
-          <View style={styles.ctaIconWrap}>
-            <MaterialCommunityIcons name="compass-outline" size={20} color="rgba(255,255,255,0.6)" />
-          </View>
-          <Text style={styles.ctaTitle}>Ready for the Ridge?</Text>
-          <Text style={styles.ctaBody}>Our new high-altitude gear guide is live for professional explorers.</Text>
-          <TouchableOpacity style={styles.ctaButton} activeOpacity={0.8}>
-            <Text style={styles.ctaButtonText}>READ JOURNAL</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Browse by Terrain */}
         <View style={styles.terrainSection}>
           <View style={styles.terrainHeaderRow}>
@@ -211,29 +196,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     backgroundColor: C.primary,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  headerLogo: {
-    width: 32,
-    height: 32,
+    gap: 12,
   },
   headerBrand: {
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: '700',
     color: C.onPrimary,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.4)',
@@ -372,48 +353,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2,
-  },
-  ctaCard: {
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: C.primary,
-    borderRadius: 16,
-    padding: 24,
-    gap: 10,
-  },
-  ctaIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#c8e6c9',
-    letterSpacing: -0.3,
-  },
-  ctaBody: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.75)',
-    lineHeight: 20,
-  },
-  ctaButton: {
-    alignSelf: 'flex-start',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.6)',
-    borderRadius: 8,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    marginTop: 4,
-  },
-  ctaButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 1.5,
   },
   terrainSection: {
     paddingTop: 32,
