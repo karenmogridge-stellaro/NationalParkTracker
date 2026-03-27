@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-container": "#6d4820",
+              "error-container": "#ffdad6",
+              "on-secondary-container": "#4e6e00",
+              "outline": "#72796e",
+              "on-surface-variant": "#42493e",
+              "surface-container-low": "#f6f3ec",
+              "surface-container-high": "#ebe8e1",
+              "primary": "#154212",
+              "surface-dim": "#dcdad3",
+              "on-background": "#1c1c18",
+              "inverse-on-surface": "#f3f0e9",
+              "surface-tint": "#3b6934",
+              "error": "#ba1a1a",
+              "background": "#fcf9f2",
+              "primary-fixed-dim": "#a1d494",
+              "on-surface": "#1c1c18",
+              "on-secondary": "#ffffff",
+              "on-primary-fixed": "#002201",
+              "on-secondary-fixed": "#131f00",
+              "on-tertiary-container": "#ecb987",
+              "surface-variant": "#e5e2db",
+              "surface": "#fcf9f2",
+              "on-primary-container": "#9dd090",
+              "on-error": "#ffffff",
+              "inverse-surface": "#31312c",
+              "surface-bright": "#fcf9f2",
+              "secondary-container": "#c8f17a",
+              "secondary": "#496800",
+              "on-tertiary-fixed": "#2c1600",
+              "primary-container": "#154212",
+              "tertiary": "#52320b",
+              "on-primary-fixed-variant": "#23501e",
+              "surface-container-highest": "#e5e2db",
+              "primary-fixed": "#bcf0ae",
+              "inverse-primary": "#a1d494",
+              "secondary-fixed": "#c8f17a",
+              "on-secondary-fixed-variant": "#364e00",
+              "tertiary-fixed-dim": "#f0bd8b",
+              "on-tertiary-fixed-variant": "#623f18",
+              "on-primary": "#ffffff",
+              "outline-variant": "#c2c9bb",
+              "secondary-fixed-dim": "#add461",
+              "on-error-container": "#93000a",
+              "surface-container": "#f1eee7",
+              "tertiary-fixed": "#ffdcbd",
+              "surface-container-lowest": "#ffffff",
+              "on-tertiary": "#ffffff"
+            },
+            fontFamily: {
+              "headline": ["Open Sans"],
+              "body": ["Open Sans"],
+              "label": ["Open Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        body {
+          min-height: max(884px, 100dvh);
+          font-family: 'Open Sans', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-secondary-container">
+<!-- TopAppBar - Using Component 23 Style -->
+<header class="sticky top-0 z-50 bg-[#fcf9f2] dark:bg-stone-950 flex justify-between items-center w-full px-6 py-4">
+<div class="flex items-center gap-2">
+<img alt="Park Atlas Logo" class="w-8 h-8 object-contain" src="https://lh3.googleusercontent.com/aida/ADBb0ugi1a1OWtfJWMDH2rhruXQoyex8QY9r8uhfWXYpL-mp4yelvHddxM9IdDeE8WzuowyZZGDgK1TIeo-Ajg9Z1ft8nR9PwHAaaVtoqoI06BUgM-HHlR3Jq_AclTOPUuh4JuXDxgzDrp2ccZ0PJa3SW4B_zK7mNrMEw7FePahZ8jg605J0ZfIgc7bTT-JHdh0qF67mrbmvHVM8FwNytmtg9AIU5ld8K5M7L-Un46Hajv0dRhK1wN5Q5ecUMV7rbvn7OWK3QE-5w1TakWo"/>
+<h1 class="font-['Open_Sans'] font-bold tracking-tight text-[#1c1c18] dark:text-[#fcf9f2] text-xl">Park Atlas</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#e5e2db] dark:hover:bg-stone-800 transition-colors">
+<span class="material-symbols-outlined text-[#1c1c18] dark:text-[#fcf9f2]">account_circle</span>
+</button>
+</div>
+</header>
+<main class="pb-24 max-w-4xl mx-auto px-6">
+<!-- Search Section -->
+<section class="mt-8 mb-10">
+<div class="relative group">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline">search</span>
+</div>
+<input class="w-full bg-surface-container-low border-none border-b-2 border-outline-variant focus:border-primary focus:ring-0 py-4 pl-12 pr-4 font-body text-lg transition-all rounded-t-lg" placeholder="Find your next expedition..." type="text"/>
+</div>
+<div class="flex gap-2 mt-4 overflow-x-auto pb-2">
+<span class="px-4 py-1.5 bg-secondary text-on-secondary rounded-full text-sm font-medium whitespace-nowrap">Near Me</span>
+<span class="px-4 py-1.5 bg-surface-container-high text-on-surface-variant rounded-full text-sm font-medium whitespace-nowrap">National Parks</span>
+<span class="px-4 py-1.5 bg-surface-container-high text-on-surface-variant rounded-full text-sm font-medium whitespace-nowrap">Pet Friendly</span>
+<span class="px-4 py-1.5 bg-surface-container-high text-on-surface-variant rounded-full text-sm font-medium whitespace-nowrap">Beginner Friendly</span>
+</div>
+</section>
+<!-- Seasonal Highlights -->
+<section class="mb-12">
+<div class="flex items-baseline justify-between mb-6">
+<h2 class="font-headline text-3xl font-extrabold tracking-tight text-[#154212]">Seasonal Highlights</h2>
+<span class="font-label text-xs font-bold uppercase tracking-widest text-outline">Autumn '24</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[500px]">
+<!-- Main Feature Card -->
+<div class="md:col-span-7 relative overflow-hidden group cursor-pointer">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="misty mountain lake surrounded by dense evergreen forest and autumnal orange maples" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgLWETiPmgYo16TI9H_uspo9D40ZztJNnDxssuo4d7ALMyWZSsD5v6NhiWieige1hqbxE34VRkRBpy6tDZs1pnSkx_7M02_ji6ota8ZDlmgQ9YWTlXbP_W-CsE2PqCPa_8tnJNINZPffzdttqUTr2JEttAcIbyuvvUigsQovqJDYo5LN86m61JpSIZVkbFbvd5dKP9gyqHmfdOUdwovA6cp6DdLz5IQajHnAuWz93QmLWb4IFDxuYX20skxFijn12mwmtLF2n2ze0E"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+<div class="absolute bottom-0 p-8">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest mb-3 inline-block">Editor's Choice</span>
+<h3 class="font-headline text-4xl text-white font-bold mb-2">Emerald Peak Basin</h3>
+<p class="text-white/80 font-body text-sm max-w-sm">Experience the rhythmic transition of gold and green in the heart of the Cascades.</p>
+</div>
+</div>
+<!-- Secondary Cards Stack -->
+<div class="md:col-span-5 grid grid-rows-2 gap-6">
+<div class="relative overflow-hidden group cursor-pointer">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="sunlight streaming through giant redwood trees" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLVIF_Uv-UtUzYLPLJyOa2IKpFSs-VaDReN1ifGIyJW51c9SvGvPIEsyM8gifQsyAHwzbozGtLwstrj1ienV3Pupzk4QfbRwt1IPBo7dxHV0ZAXs-iVdrVLkgSsRvALIi5_wBrK-0rH3BqkMC_H-PeMpVeXQDFQCvLc6AKXj2hxjvzoEMbPMO7lce217AD2U7WNlMTHEdtV10wXfJuKHTMLvcZOfJdbdwMheJW0jihATYIS6BUMqEltqCcfXKM-2un0LmO8pv9qT5Q"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute bottom-0 p-6">
+<h4 class="font-headline text-xl text-white font-bold">Old Growth Redwoods</h4>
+<p class="text-white/70 text-xs font-label uppercase tracking-widest">Coastal California</p>
+</div>
+</div>
+<div class="bg-primary-container p-8 flex flex-col justify-center relative overflow-hidden">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-primary-fixed text-4xl mb-4" data-icon="explore">explore</span>
+<h4 class="font-headline text-2xl text-on-primary-container font-bold mb-2">Ready for the Ridge?</h4>
+<p class="text-white/70 text-sm mb-6">Our new high-altitude gear guide is live for professional explorers.</p>
+<button class="bg-secondary-fixed text-on-secondary-fixed px-6 py-2 font-bold text-sm uppercase tracking-tighter hover:bg-white transition-colors">Read Journal</button>
+</div>
+<div class="absolute -right-10 -bottom-10 opacity-10">
+<span class="material-symbols-outlined text-[180px]" data-icon="terrain">terrain</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Browse by Terrain -->
+<section class="mb-12">
+<h2 class="font-headline text-2xl font-bold tracking-tight text-on-surface mb-8 border-l-4 border-secondary pl-4">Browse by Terrain</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="bg-surface-container-low p-6 flex flex-col items-center justify-center text-center hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[#154212]" data-icon="waves">waves</span>
+</div>
+<span class="font-label text-sm font-bold text-on-surface tracking-tight">Coastline</span>
+<span class="text-[10px] text-outline font-medium mt-1 uppercase">124 Parks</span>
+</div>
+<div class="bg-surface-container-low p-6 flex flex-col items-center justify-center text-center hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[#154212]" data-icon="landscape">landscape</span>
+</div>
+<span class="font-label text-sm font-bold text-on-surface tracking-tight">Alpine</span>
+<span class="text-[10px] text-outline font-medium mt-1 uppercase">89 Parks</span>
+</div>
+<div class="bg-surface-container-low p-6 flex flex-col items-center justify-center text-center hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[#154212]" data-icon="forest">forest</span>
+</div>
+<span class="font-label text-sm font-bold text-on-surface tracking-tight">Woodland</span>
+<span class="text-[10px] text-outline font-medium mt-1 uppercase">312 Parks</span>
+</div>
+<div class="bg-surface-container-low p-6 flex flex-col items-center justify-center text-center hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[#154212]" data-icon="dry">dry</span>
+</div>
+<span class="font-label text-sm font-bold text-on-surface tracking-tight">Desert</span>
+<span class="text-[10px] text-outline font-medium mt-1 uppercase">56 Parks</span>
+</div>
+</div>
+</section>
+<!-- Expedition Progress Snippet -->
+<section class="bg-surface-container-lowest p-8 rounded-xl shadow-[0_24px_48px_-12px_rgba(28,28,24,0.06)] mb-12 border border-outline-variant/10">
+<div class="flex items-center gap-4 mb-6">
+<div class="bg-primary p-3 rounded-lg">
+<span class="material-symbols-outlined text-white" data-icon="military_tech">military_tech</span>
+</div>
+<div>
+<h3 class="font-headline text-lg font-bold">Fall Hiker Challenge</h3>
+<p class="text-on-surface-variant text-sm">4 of 10 parks visited this season</p>
+</div>
+</div>
+<div class="w-full h-3 bg-primary-fixed rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[40%] rounded-full"></div>
+</div>
+<div class="mt-4 flex justify-between">
+<span class="text-[10px] font-bold uppercase tracking-widest text-outline">Beginner</span>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">6 to go for Badge</span>
+</div>
+</section>
+</main>
+<!-- BottomNavBar - Consistent with Component 23 Style -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe pt-2 bg-[#fcf9f2] dark:bg-stone-950 border-t border-[#e5e2db]/30 shadow-[0_-4px_24px_rgba(28,28,24,0.04)]">
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/40 px-3 py-1 hover:text-[#154212] dark:hover:text-[#c8f17a] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Open_Sans'] text-[10px] font-bold uppercase tracking-widest">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-[#e5e2db] dark:bg-stone-800 text-[#154212] dark:text-[#c8f17a] rounded-lg px-3 py-1 scale-95 active:scale-90 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="explore" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="font-['Open_Sans'] text-[10px] font-bold uppercase tracking-widest">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/40 px-3 py-1 hover:text-[#154212] dark:hover:text-[#c8f17a] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="terrain">terrain</span>
+<span class="font-['Open_Sans'] text-[10px] font-bold uppercase tracking-widest">Trails</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/40 px-3 py-1 hover:text-[#154212] dark:hover:text-[#c8f17a] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-['Open_Sans'] text-[10px] font-bold uppercase tracking-widest">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/40 px-3 py-1 hover:text-[#154212] dark:hover:text-[#c8f17a] transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Open_Sans'] text-[10px] font-bold uppercase tracking-widest">Settings</span>
+</a>
+</nav>
+</body></html>

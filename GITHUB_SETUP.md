@@ -15,7 +15,7 @@ Your git repository is now configured with your personal account and ready to co
 
 1. Go to https://github.com/new
 2. Enter repository name: **NationalParkTracker**
-3. Description: `Track your national park adventures with gamification, fitness integration, and leaderboards`
+3. Description: `The Atlas of Your Adventures - Track national parks, hikes, camping, and wildlife sightings`
 4. Choose **Private** or **Public** (your preference)
 5. Do NOT initialize with README (we already have one)
 6. Click "Create repository"

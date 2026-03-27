@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
@@ -88,6 +88,80 @@ async def get_visits(user_id: int, visited_only: bool = True, db: Session = Depe
         models.Visit.visited == visited_only
     ).order_by(models.Visit.visit_date.desc()).all()
     return visits
+
+# ============ Visit Tags ============
+
+@router.post("/users/{user_id}/visits/{visit_id}/tag", response_model=schemas.VisitTagOut, status_code=201)
+async def tag_friend_on_visit(user_id: int, visit_id: int, tag: schemas.VisitTagCreate, db: Session = Depends(get_db)):
+    """Tag a friend on a park visit."""
+    # Verify the visit belongs to the user
+    visit = db.query(models.Visit).filter(
+        models.Visit.id == visit_id,
+        models.Visit.user_id == user_id
+    ).first()
+    
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visit not found")
+    
+    # Check if the tagged user exists
+    tagged_user = db.query(models.User).filter(models.User.id == tag.tagged_user_id).first()
+    if not tagged_user:
+        raise HTTPException(status_code=404, detail="Tagged user not found")
+    
+    # Check if already tagged
+    existing_tag = db.query(models.VisitTag).filter(
+        models.VisitTag.visit_id == visit_id,
+        models.VisitTag.tagged_user_id == tag.tagged_user_id
+    ).first()
+    
+    if existing_tag:
+        raise HTTPException(status_code=400, detail="User already tagged on this visit")
+    
+    db_tag = models.VisitTag(visit_id=visit_id, tagged_user_id=tag.tagged_user_id)
+    db.add(db_tag)
+    db.commit()
+    db.refresh(db_tag)
+    return db_tag
+
+@router.delete("/users/{user_id}/visits/{visit_id}/tag/{tagged_user_id}", status_code=204)
+async def remove_tag_from_visit(user_id: int, visit_id: int, tagged_user_id: int, db: Session = Depends(get_db)):
+    """Remove a friend's tag from a park visit."""
+    # Verify the visit belongs to the user
+    visit = db.query(models.Visit).filter(
+        models.Visit.id == visit_id,
+        models.Visit.user_id == user_id
+    ).first()
+    
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visit not found")
+    
+    tag = db.query(models.VisitTag).filter(
+        models.VisitTag.visit_id == visit_id,
+        models.VisitTag.tagged_user_id == tagged_user_id
+    ).first()
+    
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    
+    db.delete(tag)
+    db.commit()
+
+@router.get("/users/{user_id}/visits/{visit_id}/tags", response_model=list[schemas.VisitTagOut])
+async def get_visit_tags(user_id: int, visit_id: int, db: Session = Depends(get_db)):
+    """Get all friends tagged on a park visit."""
+    # Verify the visit belongs to the user
+    visit = db.query(models.Visit).filter(
+        models.Visit.id == visit_id,
+        models.Visit.user_id == user_id
+    ).first()
+    
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visit not found")
+    
+    tags = db.query(models.VisitTag).filter(
+        models.VisitTag.visit_id == visit_id
+    ).all()
+    return tags
 
 # ============ Trails ============
 
@@ -346,6 +420,13 @@ async def get_user_stats(user_id: int, db: Session = Depends(get_db)):
     wishlist_parks = db.query(models.Park).filter(models.Park.id.in_([p[0] for p in wishlist_park_ids])).all()
     
     recent_visits = db.query(models.Visit).filter(models.Visit.user_id == user_id).order_by(models.Visit.visit_date.desc()).limit(5).all()
+    
+    # Add tagged_users_count to each visit
+    for visit in recent_visits:
+        visit.tagged_users_count = db.query(models.VisitTag).filter(
+            models.VisitTag.visit_id == visit.id
+        ).count()
+    
     recent_hikes = db.query(models.TrailHike).filter(models.TrailHike.user_id == user_id).order_by(models.TrailHike.hike_date.desc()).limit(5).all()
     recent_sightings = db.query(models.Sighting).filter(models.Sighting.user_id == user_id).order_by(models.Sighting.sighting_date.desc()).limit(5).all()
     
@@ -363,6 +444,87 @@ async def get_user_stats(user_id: int, db: Session = Depends(get_db)):
 async def health():
     """Health check."""
     return {"status": "ok"}
+
+# ============ Recommended Parks ============
+
+@router.get("/users/{user_id}/recommended-parks", response_model=list[schemas.ParkOut])
+async def get_recommended_parks(user_id: int, limit: int = 5, db: Session = Depends(get_db)):
+    """Get unvisited parks sorted by average rating (most recommended first)."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get IDs of parks the user has visited
+    visited_park_ids = db.query(models.Visit.park_id).filter(
+        models.Visit.user_id == user_id,
+        models.Visit.visited == True
+    ).subquery()
+    
+    # Get average rating for all parks
+    avg_ratings = db.query(
+        models.Visit.park_id,
+        func.avg(models.Visit.rating).label('avg_rating'),
+        func.count(models.Visit.id).label('visit_count')
+    ).filter(
+        models.Visit.rating.isnot(None)
+    ).group_by(models.Visit.park_id).subquery()
+    
+    # Get unvisited parks with their ratings, ordered by avg rating desc
+    recommended = db.query(models.Park).outerjoin(
+        avg_ratings, models.Park.id == avg_ratings.c.park_id
+    ).filter(
+        ~models.Park.id.in_(visited_park_ids)
+    ).order_by(
+        avg_ratings.c.avg_rating.desc().nullslast(),
+        avg_ratings.c.visit_count.desc().nullslast(),
+        models.Park.name
+    ).limit(limit).all()
+    
+    return recommended
+
+@router.get("/users/{user_id}/parks-by-region")
+async def get_parks_by_region(user_id: int, db: Session = Depends(get_db)):
+    """Get park counts by region with user's visited counts."""
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get all parks grouped by region
+    regions = db.query(
+        models.Park.region,
+        func.count(models.Park.id).label('total')
+    ).group_by(models.Park.region).all()
+    
+    # Get visited parks by region for this user
+    visited_park_ids = db.query(models.Visit.park_id).filter(
+        models.Visit.user_id == user_id,
+        models.Visit.visited == True
+    ).distinct().subquery()
+    
+    visited_by_region = db.query(
+        models.Park.region,
+        func.count(models.Park.id).label('visited')
+    ).filter(
+        models.Park.id.in_(visited_park_ids)
+    ).group_by(models.Park.region).all()
+    
+    # Build result
+    visited_dict = {r[0]: r[1] for r in visited_by_region}
+    result = []
+    for region, total in regions:
+        result.append({
+            "region": region,
+            "total": total,
+            "visited": visited_dict.get(region, 0)
+        })
+    
+    return result
+
+@router.get("/badges", response_model=list[schemas.BadgeOut])
+async def get_all_badges(db: Session = Depends(get_db)):
+    """Get all available badges."""
+    badges = db.query(models.Badge).all()
+    return badges
 
 def update_passport(user_id: int, db: Session):
     """Update passport stats based on user's activities."""
@@ -610,19 +772,27 @@ async def get_garmin_auth_url(user_id: int, db: Session = Depends(get_db)):
     
     # Store state in database or cache (simplified)
     # In production, use Redis or session storage
+    # If running in mock mode, return a local redirect URL that simulates Garmin's callback
+    if getattr(garmin_service, "mock_mode", False):
+        # Create a mock authorization code that includes the state
+        mock_code = f"mock_{state}"
+        mock_auth_url = f"{garmin_service.redirect_uri}?code={mock_code}&state={state}"
+        return {"auth_url": mock_auth_url, "state": state, "mock_mode": True}
+
     auth_url = garmin_service.get_authorize_url(state)
-    
+
     return {
         "auth_url": auth_url,
         "state": state
     }
 
 @router.post("/users/{user_id}/garmin/token")
-async def save_garmin_token(user_id: int, auth_code: str, db: Session = Depends(get_db)):
+async def save_garmin_token(user_id: int, auth_payload: dict = Body(...), db: Session = Depends(get_db)):
     """Save Garmin OAuth token after user authorization."""
     from app.garmin_service import garmin_service
     from datetime import timedelta
-    
+    auth_code = auth_payload.get("auth_code") if isinstance(auth_payload, dict) else None
+
     # Exchange code for token
     token_data = await garmin_service.exchange_code_for_token(auth_code)
     
@@ -697,13 +867,19 @@ async def import_garmin_hikes(user_id: int, limit: int = 50, db: Session = Depen
     total_elevation = 0
     
     for activity in hiking_activities:
-        # Check if already imported
-        existing = db.query(models.TrailHike).filter(
-            models.TrailHike.user_id == user_id,
-            models.TrailHike.fitness_tracker_source == "garmin",
-            models.TrailHike.notes.contains(activity.get("id"))
-        ).first()
-        
+        # Check if already imported — safely handle missing activity id
+        activity_id = activity.get("activityId") or activity.get("id") or activity.get("activity_id")
+        existing = None
+        if activity_id:
+            try:
+                existing = db.query(models.TrailHike).filter(
+                    models.TrailHike.user_id == user_id,
+                    models.TrailHike.fitness_tracker_source == "garmin",
+                    models.TrailHike.notes.contains(str(activity_id))
+                ).first()
+            except Exception:
+                existing = None
+
         if existing:
             continue  # Skip already imported activities
         
@@ -748,3 +924,62 @@ async def disconnect_garmin(user_id: int, db: Session = Depends(get_db)):
     
     return {"message": "Garmin account disconnected"}
 
+# ============ User Preferences ============
+
+@router.get("/users/{user_id}/preferences", response_model=schemas.UserPreferencesOut)
+async def get_user_preferences(user_id: int, db: Session = Depends(get_db)):
+    """Get user preferences (favorite parks, notification settings)."""
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == user_id
+    ).first()
+    
+    if not prefs:
+        # Create default preferences if they don't exist
+        prefs = models.UserPreferences(
+            user_id=user_id,
+            favorite_parks="[]",
+            notification_days_before=5
+        )
+        db.add(prefs)
+        db.commit()
+        db.refresh(prefs)
+    
+    return prefs
+
+@router.post("/users/{user_id}/preferences/favorite-parks")
+async def update_favorite_parks(user_id: int, park_ids: list = Body(...), db: Session = Depends(get_db)):
+    """Update user's favorite parks list."""
+    import json
+    
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == user_id
+    ).first()
+    
+    if not prefs:
+        prefs = models.UserPreferences(user_id=user_id)
+        db.add(prefs)
+    
+    prefs.favorite_parks = json.dumps(park_ids)
+    prefs.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(prefs)
+    
+    return prefs
+
+@router.post("/users/{user_id}/preferences/notification-days")
+async def update_notification_days(user_id: int, days: int = Body(...), db: Session = Depends(get_db)):
+    """Update notification days before campsite opens."""
+    prefs = db.query(models.UserPreferences).filter(
+        models.UserPreferences.user_id == user_id
+    ).first()
+    
+    if not prefs:
+        prefs = models.UserPreferences(user_id=user_id)
+        db.add(prefs)
+    
+    prefs.notification_days_before = days
+    prefs.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(prefs)
+    
+    return prefs

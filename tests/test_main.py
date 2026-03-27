@@ -1,4 +1,5 @@
 import pytest
+import uuid
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.database import Base, engine
@@ -14,8 +15,11 @@ async def test_health():
 
 @pytest.mark.asyncio
 async def test_create_user():
-    payload = {"name": "Hiker John", "email": "john@parks.com"}
+    # Use unique email to avoid UNIQUE constraint violations
+    unique_email = f"hiker_{uuid.uuid4().hex[:8]}@parks.com"
+    payload = {"name": "Hiker John", "email": unique_email}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         r = await ac.post("/api/v1/users", json=payload)
     assert r.status_code == 201
     assert r.json()["name"] == "Hiker John"
+

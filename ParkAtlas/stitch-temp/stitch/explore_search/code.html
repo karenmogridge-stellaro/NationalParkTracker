@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Modern Explorer - Explore &amp; Search</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,900&amp;family=Work+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-surface-variant": "#42493e",
+              "surface-container-high": "#eae8e3",
+              "surface-container": "#f0eee9",
+              "on-primary-fixed-variant": "#23501e",
+              "on-primary-fixed": "#002201",
+              "tertiary-container": "#654d00",
+              "background": "#fbf9f4",
+              "surface": "#fbf9f4",
+              "primary-fixed": "#bcf0ae",
+              "on-primary-container": "#9dd090",
+              "inverse-surface": "#30312e",
+              "surface-bright": "#fbf9f4",
+              "error": "#ba1a1a",
+              "on-tertiary-container": "#e3bf65",
+              "inverse-primary": "#a1d494",
+              "error-container": "#ffdad6",
+              "on-primary": "#ffffff",
+              "primary-fixed-dim": "#a1d494",
+              "outline-variant": "#c2c9bb",
+              "secondary-fixed": "#ffdbcf",
+              "secondary-fixed-dim": "#ffb59c",
+              "on-secondary-container": "#74290b",
+              "surface-container-highest": "#e4e2dd",
+              "primary": "#154212",
+              "outline": "#72796e",
+              "on-surface": "#1b1c19",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f2f1ec",
+              "primary-container": "#2d5a27",
+              "secondary-container": "#fd916c",
+              "on-secondary": "#ffffff",
+              "on-tertiary-fixed-variant": "#5a4400",
+              "surface-container-low": "#f5f3ee",
+              "on-tertiary": "#ffffff",
+              "on-background": "#1b1c19",
+              "on-secondary-fixed": "#390c00",
+              "on-error-container": "#93000a",
+              "on-secondary-fixed-variant": "#7b2e10",
+              "secondary": "#9a4526",
+              "surface-tint": "#3b6934",
+              "surface-dim": "#dbdad5",
+              "tertiary-fixed-dim": "#e7c268",
+              "on-tertiary-fixed": "#251a00",
+              "tertiary": "#493700",
+              "on-error": "#ffffff",
+              "surface-variant": "#e4e2dd",
+              "tertiary-fixed": "#ffdf96"
+            },
+            fontFamily: {
+              "headline": ["Epilogue"],
+              "body": ["Work Sans"],
+              "label": ["Work Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-secondary-container selection:text-on-secondary-container">
+<!-- Top App Bar (Shared Component) -->
+<header class="bg-[#fbf9f4] dark:bg-stone-950 sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-4">
+<button class="scale-95 active:scale-90 transition-transform text-[#2D5A27] dark:text-emerald-500">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h1 class="font-['Epilogue'] font-black text-[#2D5A27] dark:text-emerald-500 italic text-2xl tracking-tight">Modern Explorer</h1>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#2D5A27] dark:text-emerald-400 font-bold font-['Epilogue']" href="#">Explore</a>
+<a class="text-stone-500 dark:text-stone-400 font-['Epilogue'] hover:bg-[#f5f3ee] transition-colors rounded-lg px-2" href="#">Trails</a>
+<a class="text-stone-500 dark:text-stone-400 font-['Epilogue'] hover:bg-[#f5f3ee] transition-colors rounded-lg px-2" href="#">Progress</a>
+</nav>
+<div class="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden border-2 border-primary/10">
+<img alt="User Profile" data-alt="Close-up portrait of a woman with a warm smile, natural lighting, outdoor background with soft greenery blur" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMtRGcCgWYeZxspLX155HcimisnnzBQvhFcxII6WXJfGFihMJKp7wtVrCePsSvmxYfDU8KWLxc5RPyeNRHn3eWo5Kc8BJi09kmBLETnE-xI3_4Ywhq92egMk3AsOobzR7_CDAGOvHfzQZHA4wk4hVAqWqcgr0l52HEliwEWu_8tVuHJG0Cs6HX6nUQ0aQlXUkWH0TXkUb_f3I0ANjbuvu95Sha5QWNKo0Zcj307Dxusw-OCVY9mihq6B9HiqpLl2EdyY4Sc8HGwCnf"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-6 pb-32 pt-4">
+<!-- Hero Search Section -->
+<section class="mb-12">
+<div class="mb-8">
+<h2 class="font-headline font-bold text-4xl lg:text-5xl text-primary tracking-tight mb-4">Discover your next<br/>wilderness story.</h2>
+<p class="text-on-surface-variant max-w-xl text-lg mb-8">Unearth the secrets of the wild through curated trails and pristine national parks preserved for the curious soul.</p>
+</div>
+<!-- Search & Filters Container -->
+<div class="bg-surface-container-low p-2 rounded-xl flex flex-col md:flex-row gap-2">
+<div class="flex-grow flex items-center bg-surface-container-lowest rounded-lg px-4 py-3 gap-3">
+<span class="material-symbols-outlined text-outline">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-outline" placeholder="Search parks, trails, or landmarks..." type="text"/>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3 rounded-lg font-medium flex items-center justify-center gap-2 scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-sm">tune</span>
+                    Refine Search
+                </button>
+</div>
+</section>
+<!-- Quick Filters Chips -->
+<section class="mb-12 overflow-x-auto hide-scrollbar flex gap-3 pb-2">
+<button class="bg-primary text-on-primary px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap">All Terrain</button>
+<button class="bg-surface-container-highest text-on-surface px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap hover:bg-surface-container transition-colors">National Parks</button>
+<button class="bg-surface-container-highest text-on-surface px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap hover:bg-surface-container transition-colors">Moderate Trails</button>
+<button class="bg-surface-container-highest text-on-surface px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap hover:bg-surface-container transition-colors">Pet Friendly</button>
+<button class="bg-tertiary-fixed text-on-tertiary-fixed px-5 py-2 rounded-full text-sm font-medium whitespace-nowrap flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">wb_sunny</span>
+                Family Favorites
+            </button>
+</section>
+<!-- Featured Grid (Bento Style) -->
+<section class="mb-16">
+<div class="flex items-end justify-between mb-8">
+<div>
+<span class="text-secondary font-bold tracking-widest text-xs uppercase block mb-2">Curated for You</span>
+<h3 class="font-headline font-bold text-3xl text-primary">Seasonal Highlights</h3>
+</div>
+<a class="text-primary font-semibold flex items-center gap-1 group" href="#">
+                    Explore all 
+                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:h-[600px]">
+<!-- Main Feature -->
+<div class="md:col-span-7 group relative overflow-hidden rounded-xl bg-surface-container-highest">
+<img alt="Glacier National Park" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Majestic snow-capped mountain peaks reflecting in a crystal clear alpine lake at dawn with ethereal blue and pink light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCRni9nZv6ddPDpKTm30YpS_Y2_SBGdVvGcJJvCSTSx4fnm28Wb32V_bZnzaAU8QXzQ7SvJ4rrU3p4XXv9Prmldei0tnZUcZt1zMrBwhW7tC-bRFPxv32-8qgYxqpPsHTcUXNvpp3DGgFYfJLYc0MvGD_Z4i_Crdr2BpAHEV25pjCq5Ptu7CVrh1zW1AgXsQ-7SAdOiQAl5F3zv8GeOxacy2XiQuB8qCfcSQxbJd2SlKSiCwfP3kWZlArstZElhXE7h24kLIbA8B0DH"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent"></div>
+<div class="absolute top-6 right-6">
+<button class="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md text-white flex items-center justify-center hover:bg-white/40 transition-colors">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+<div class="absolute bottom-8 left-8 right-8">
+<div class="bg-tertiary-fixed text-on-tertiary-fixed px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest w-fit mb-3">Top Rated</div>
+<h4 class="font-headline font-bold text-4xl text-white mb-2 italic">Glacier Ridge Trail</h4>
+<div class="flex items-center gap-4 text-white/90 text-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">distance</span> 12.4 miles</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">elevation</span> 2,400 ft</span>
+</div>
+</div>
+</div>
+<!-- Secondary Features Stack -->
+<div class="md:col-span-5 flex flex-col gap-6">
+<div class="flex-grow group relative overflow-hidden rounded-xl bg-surface-container-highest">
+<img alt="Redwood Forest" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Towering ancient redwood trees with sunbeams filtering through the misty green canopy onto a lush forest floor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI3EKDBRRXzhW3IGz8K0YnyaI13f49yZB9x0oYBLGanV1ZBHzHBPyaWLzsSW3ETw_WCzSkq9zMHvmi6it2TpAkCPmzgYQtf6AJcXbjXIM3P1i1jZfPlMnZWBeUU13kaQQlATkj9QKjeGbDWwj-bcuQ6TVF4Za8zA-looBI-F1H1OKREPXGsoF-Lp1H5qzKZ42I_zKVteKSJ9lBy4upidq69FKRrFkj1DkKPz39LwKQopuIVN8SVBgiIJ4Me1xPw4jm9HWJxsNaacw7"/>
+<div class="absolute inset-0 bg-gradient-to-t from-secondary/80 to-transparent opacity-60"></div>
+<div class="absolute bottom-6 left-6">
+<h5 class="font-headline font-bold text-xl text-white">The Whispering Woods</h5>
+<p class="text-white/80 text-sm italic">California • Easy Loop</p>
+</div>
+</div>
+<div class="flex-grow group relative overflow-hidden rounded-xl bg-surface-container-highest">
+<img alt="Coastal Cliffs" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Aerial view of rugged sea cliffs and turquoise ocean waves crashing against dark rocks under a bright afternoon sun" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrIg5GsAbUNmEEFYUfEjIhWcXOlCvJhiOQgAOKqEQXq2RUV6clKw-PhtmJ2DljznhAam0ezJZALiRd9hDsBcgGx0JL--In3W5OWDaJgaRBbQyh3ehPOy1W-8SxMhb8gwEfAu4UE_b-j40REw_rHzfR6-4kmtRx-ZT8vnlQIrHiI12XNPwzdVmEcrVFlRiukBj78ADaebs9cWd6AIZ_HzUAKIf4Mp58TBtVz04fLJyEBSY0RfSY1h90sRWMTjWvITf-dQlhW4SIqlF9"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent opacity-60"></div>
+<div class="absolute bottom-6 left-6">
+<h5 class="font-headline font-bold text-xl text-white">Azure Coast Walk</h5>
+<p class="text-white/80 text-sm italic">Oregon • Moderate Hike</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Near You Section (Asymmetric) -->
+<section class="mb-16 bg-surface-container p-8 rounded-3xl overflow-hidden relative">
+<div class="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-[300px] text-primary translate-x-1/2 -translate-y-1/4">terrain</span>
+</div>
+<div class="relative z-10 flex flex-col lg:flex-row gap-12 items-center">
+<div class="lg:w-1/2">
+<span class="text-secondary font-bold tracking-widest text-xs uppercase block mb-4">Location Services</span>
+<h3 class="font-headline font-bold text-4xl text-primary mb-6">Trails currently<br/>within your reach.</h3>
+<p class="text-on-surface-variant mb-8 text-lg leading-relaxed">Based on your coordinates in <span class="text-primary font-bold">Boulder, Colorado</span>, there are 24 hidden gems waiting to be explored within a 15-mile radius.</p>
+<button class="bg-secondary text-on-secondary px-8 py-4 rounded-lg font-bold flex items-center gap-3 shadow-lg shadow-secondary/20 hover:scale-105 transition-transform">
+<span class="material-symbols-outlined">near_me</span>
+                        Open Explorer Map
+                    </button>
+</div>
+<div class="lg:w-1/2 w-full">
+<div class="bg-surface-container-lowest rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+<div class="flex items-center justify-between pb-4 border-b border-outline-variant/30">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">explore</span>
+</div>
+<div>
+<p class="font-bold text-primary">Emerald Lake Trail</p>
+<p class="text-xs text-outline">2.4 miles away • Easy</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</div>
+<div class="flex items-center justify-between pb-4 border-b border-outline-variant/30">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">terrain</span>
+</div>
+<div>
+<p class="font-bold text-primary">Bear Peak Summit</p>
+<p class="text-xs text-outline">5.1 miles away • Hard</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">nature_people</span>
+</div>
+<div>
+<p class="font-bold text-primary">Royal Arch Trail</p>
+<p class="text-xs text-outline">3.8 miles away • Moderate</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Discovery Feed -->
+<section class="mb-8">
+<h3 class="font-headline font-bold text-3xl text-primary mb-8 italic">National Treasure Spotlight</h3>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Park Card 1 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+<div class="relative h-48">
+<img alt="Yosemite" class="w-full h-full object-cover" data-alt="Iconic view of Half Dome mountain in Yosemite National Park framed by pine trees at twilight with deep indigo sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL5uR-WexVWxbzwKpv6bUiKl2MBBw3cK1uo_zevbaSHSoV7yJJDNdc5zcZ8IFB2ILUDlxU_g8ki4x0rgDWFBg-i2OzgZASYBc0jexrt9UnBTk9JfqNwkziiZBOdu6W-jGdZnXjzQx5rSAZJj_bhwj1Gli0Yx34svk6nbhGHw2FNuEEZWN71SfQWSG6OO9bz3bsUBRsKXAHMQna81QZUwZVaBZKFdUyo1HNxSR4kXHhI119MHraxLxWGWb5JzM2NUDBPWeaniJ8YOXC"/>
+<button class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+</div>
+<div class="p-5">
+<p class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">California</p>
+<h4 class="font-headline font-bold text-lg text-primary mb-2">Yosemite</h4>
+<div class="flex items-center gap-1 text-tertiary text-sm mb-4">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-bold">4.9</span>
+<span class="text-outline text-xs">(12.4k reviews)</span>
+</div>
+</div>
+</div>
+<!-- Park Card 2 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+<div class="relative h-48">
+<img alt="Zion" class="w-full h-full object-cover" data-alt="Winding deep red rock canyon walls of Zion National Park with a narrow river flowing at the base in soft daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtoeCPDo2vb6PBiywvLhIb5uZsW0L30U6-uHdTJaEKdCtVsF9LahQYfl92yZ5jTZsfe88qg42uYX9nl1mcKfDysgH6AszLgOOzsB2_MC_004mTctnBz-MwT4mxccvu8V6tBXnpcEr6f0aVN1Zfzg7Y97yhffEfp-OZp2SPJsdzLpxKfijHAIg6hvRzEszW4naXao_vBUVYwR4TU0ufz1HqbbFD7N3yR_XVVPnt5ce6maxTgzXlAA_p6TTFnyPGqi7tP3_XkMsBGLwm"/>
+<button class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+</div>
+<div class="p-5">
+<p class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">Utah</p>
+<h4 class="font-headline font-bold text-lg text-primary mb-2">Zion</h4>
+<div class="flex items-center gap-1 text-tertiary text-sm mb-4">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-bold">4.8</span>
+<span class="text-outline text-xs">(9.8k reviews)</span>
+</div>
+</div>
+</div>
+<!-- Park Card 3 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+<div class="relative h-48">
+<img alt="Banff" class="w-full h-full object-cover" data-alt="Turquoise waters of Lake Louise in Banff National Park surrounded by massive glaciers and dark evergreen forests" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSjGCChGm2oOMirA2XAMwC6fE6TykEFJWk-pv4w_PUoopwzAXsaM7BCaXUKHQlbRbXWnd_pjiFrHdBCWZ_RCq6HO_PduMQhAsiYv1-WRl1f7DzNCK42QccCSDtUuyyjiq_lg_11lwo-RuiZbC7pCTcY6mNzqwx0MgW06Ps1Dur166YbyOre5X0hrhdGW2TdH-cSQ1SuNlrHQE12pypROzgKIeA1Db-XojPEmk0Qfe4HFiWmHVoZNJ4uee1p0oTxIxI_7XRVPEdWjMm"/>
+<button class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+</div>
+<div class="p-5">
+<p class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">Alberta</p>
+<h4 class="font-headline font-bold text-lg text-primary mb-2">Banff</h4>
+<div class="flex items-center gap-1 text-tertiary text-sm mb-4">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-bold">5.0</span>
+<span class="text-outline text-xs">(15.1k reviews)</span>
+</div>
+</div>
+</div>
+<!-- Park Card 4 -->
+<div class="bg-surface-container-lowest rounded-2xl overflow-hidden group hover:translate-y-[-4px] transition-all duration-300">
+<div class="relative h-48">
+<img alt="Acadia" class="w-full h-full object-cover" data-alt="Rocky Atlantic coastline of Acadia National Park with small waves hitting pink granite rocks under a hazy morning sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt_xMDBNmYUdD9EiI06qzzbW8M85uOLs_BfFV-6sC-pV_YHtOnrBGVSi6IIjAspsPPHGKarSiMXzSohvqJbet2rNs5_zAPufV0OCMCbQ8aKMMGaiMMndylWYgoyXrS_WPn8x4h9WI1eGIs2beP4BBFgE38bMjZJwaB7akTSrlPSZO-jPtlYnlord5PIt7WPG9Tb1eDGbufQiqlk15pT7b0-BDEA47hWTv8qDDkjdgsO9X6C3BYOBLG9VsBs9VZksm603XKmhnGClqd"/>
+<button class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/30 backdrop-blur-md text-white flex items-center justify-center">
+<span class="material-symbols-outlined text-sm">favorite</span>
+</button>
+</div>
+<div class="p-5">
+<p class="text-[10px] font-bold text-secondary uppercase tracking-widest mb-1">Maine</p>
+<h4 class="font-headline font-bold text-lg text-primary mb-2">Acadia</h4>
+<div class="flex items-center gap-1 text-tertiary text-sm mb-4">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-bold">4.7</span>
+<span class="text-outline text-xs">(8.2k reviews)</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Bar (Shared Component) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-[#fbf9f4]/80 dark:bg-stone-950/80 backdrop-blur-xl border-t border-[#2D5A27]/10 dark:border-emerald-500/10 shadow-[0_-4px_24px_rgba(27,28,25,0.04)] md:hidden">
+<a class="flex flex-col items-center justify-center bg-[#2D5A27] dark:bg-emerald-800 text-[#fbf9f4] rounded-xl px-4 py-2 tap-highlight-transparent duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined">terrain</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Trails</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined">settings_input_antenna</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Settings</span>
+</a>
+</nav>
+<!-- Floating Action Button (As defined in Design System: Compass FAB) -->
+<button class="fixed bottom-28 right-6 w-16 h-16 rounded-full bg-secondary text-on-secondary shadow-xl flex items-center justify-center group scale-100 hover:scale-110 active:scale-95 transition-all z-40 md:bottom-12">
+<span class="material-symbols-outlined text-3xl">explore</span>
+<div class="absolute -top-12 right-0 bg-primary text-on-primary px-3 py-1 rounded text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">Start Exploring</div>
+</button>
+</body></html>

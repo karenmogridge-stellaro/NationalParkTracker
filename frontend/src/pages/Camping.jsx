@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { MapPin, Tent, Droplet, AlertCircle, Calendar, Users, X, Star, Clock, ExternalLink, Check } from 'lucide-react'
+import { MapPin, Tent, Droplet, AlertCircle, Calendar, Users, X, Star, Clock, ExternalLink, Check, Heart } from 'lucide-react'
 import { parkAPI } from '../utils/api'
 import { useUser } from '../utils/UserContext'
 
@@ -9,10 +9,13 @@ export default function Camping() {
   const [allCampsites, setAllCampsites] = useState([])
   const [wishlist, setWishlist] = useState([])
   const [selectedPark, setSelectedPark] = useState(null)
+  const [favoriteParks, setFavoriteParks] = useState([])
+  const [notificationDays, setNotificationDays] = useState(5)
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0])
   const [checkOutDate, setCheckOutDate] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0])
   const [notificationHours, setNotificationHours] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [showNotificationModal, setShowNotificationModal] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -23,6 +26,7 @@ export default function Camping() {
       filterCampsites()
     }
   }, [selectedPark, allCampsites])
+
   const loadData = async () => {
     try {
       const parksData = await parkAPI.listParks()
@@ -43,6 +47,7 @@ export default function Camping() {
       
       if (user?.id) {
         await loadWishlist()
+        await loadUserPreferences()
       }
       setLoading(false)
     } catch (error) {
@@ -51,15 +56,67 @@ export default function Camping() {
     }
   }
 
+  const loadUserPreferences = async () => {
+    if (!user?.id) return
+    try {
+      const prefs = await parkAPI.getUserPreferences(user.id)
+      const prefsData = prefs.data || prefs
+      setNotificationDays(prefsData.notification_days_before || 5)
+      
+      try {
+        const parsed = JSON.parse(prefsData.favorite_parks || '[]')
+        setFavoriteParks(parsed)
+      } catch {
+        setFavoriteParks([])
+      }
+    } catch (error) {
+      console.warn('Error loading user preferences:', error)
+    }
+  }
+
+  const toggleFavoritePark = async (parkId) => {
+    if (!user?.id) {
+      alert('Please log in to manage favorite parks')
+      return
+    }
+
+    const updated = favoriteParks.includes(parkId)
+      ? favoriteParks.filter(id => id !== parkId)
+      : [...favoriteParks, parkId]
+    
+    setFavoriteParks(updated)
+    
+    try {
+      await parkAPI.updateFavoriteParks(user.id, updated)
+    } catch (error) {
+      console.error('Error updating favorite parks:', error)
+      alert('Failed to update favorite parks')
+    }
+  }
+
+  const updateNotificationDays = async (days) => {
+    if (!user?.id) return
+    
+    setNotificationDays(days)
+    try {
+      await parkAPI.updateNotificationDays(user.id, days)
+    } catch (error) {
+      console.error('Error updating notification days:', error)
+    }
+  }
+
   const filterCampsites = () => {
     // This will trigger when selectedPark changes, updating display via useffect
   }
 
   const getCampsitesToDisplay = () => {
-    if (selectedPark) {
-      return allCampsites.filter(cs => cs.park_id === selectedPark)
+    // User must select a park first
+    if (!selectedPark) {
+      return []
     }
-    return allCampsites
+    
+    let campsites = allCampsites.filter(cs => cs.park_id === selectedPark)
+    return campsites.sort((a, b) => a.name.localeCompare(b.name))
   }
 
   const loadWishlist = async () => {
@@ -202,42 +259,81 @@ export default function Camping() {
         </div>
       </div>
 
-      {/* Park Selection (Optional) */}
+      {/* Park Selection with Favorite Parks */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">Filter by Park</h2>
-          {selectedPark && (
-            <button
-              onClick={() => setSelectedPark(null)}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
-            >
-              <X className="w-4 h-4" />
-              Clear filter
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">Select Your Park</h2>
           <button
-            onClick={() => setSelectedPark(null)}
-            className={`p-4 rounded-lg font-medium text-center transition-all text-sm ${
-              selectedPark === null
-                ? 'bg-park text-white shadow-lg'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            onClick={() => setShowNotificationModal(!showNotificationModal)}
+            className="text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            title="Manage notification preferences"
           >
-            All Parks
+            🔔 Preferences
           </button>
+        </div>
+
+        {/* Notification Preferences Modal */}
+        {showNotificationModal && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <h3 className="font-bold text-blue-900">Notification Preferences</h3>
+            <div>
+              <label className="block text-sm font-medium text-blue-800 mb-2">
+                Notify me when campsites open (days in advance):
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={notificationDays}
+                  onChange={(e) => updateNotificationDays(parseInt(e.target.value))}
+                  className="w-20 px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-park"
+                />
+                <span className="text-sm text-blue-800">day{notificationDays !== 1 ? 's' : ''} before</span>
+              </div>
+              <p className="text-xs text-blue-700 mt-2">You'll receive alerts when campsites open within this timeframe</p>
+            </div>
+            <button
+              onClick={() => setShowNotificationModal(false)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* All Parks Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {parks.map(park => (
             <button
               key={park.id}
               onClick={() => setSelectedPark(park.id)}
-              className={`p-4 rounded-lg font-medium text-center transition-all text-sm ${
+              className={`p-3 rounded-lg font-medium text-center transition-all text-sm relative group ${
                 selectedPark === park.id
                   ? 'bg-park text-white shadow-lg'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
+              title={`Select ${park.name}`}
             >
-              {park.name}
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex-1">{park.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    toggleFavoritePark(park.id)
+                  }}
+                  className={`p-1 rounded transition-colors flex-shrink-0 ${
+                    favoriteParks.includes(park.id)
+                      ? 'bg-yellow-200 text-yellow-600 hover:bg-yellow-300'
+                      : selectedPark === park.id
+                      ? 'bg-white/20 text-white/70 hover:bg-white/30'
+                      : 'bg-gray-200 text-gray-400 hover:bg-gray-300'
+                  }`}
+                  title={favoriteParks.includes(park.id) ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <Heart className={`w-4 h-4 ${favoriteParks.includes(park.id) ? 'fill-current' : ''}`} />
+                </button>
+              </div>
             </button>
           ))}
         </div>

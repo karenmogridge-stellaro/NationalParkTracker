@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;700;800&amp;family=Work+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error-container": "#93000a",
+              "on-error": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "on-tertiary-container": "#ecb987",
+              "on-tertiary-fixed-variant": "#623f18",
+              "on-secondary-fixed": "#131f00",
+              "on-tertiary-fixed": "#2c1600",
+              "secondary-fixed": "#c8f17a",
+              "primary": "#154212",
+              "inverse-on-surface": "#f3f0e9",
+              "surface-container-lowest": "#ffffff",
+              "secondary-container": "#c8f17a",
+              "on-primary-fixed": "#002201",
+              "surface-variant": "#e5e2db",
+              "on-primary": "#ffffff",
+              "on-background": "#1c1c18",
+              "error": "#ba1a1a",
+              "tertiary-fixed": "#ffdcbd",
+              "on-primary-fixed-variant": "#23501e",
+              "on-surface-variant": "#42493e",
+              "inverse-surface": "#31312c",
+              "on-secondary-fixed-variant": "#364e00",
+              "outline": "#72796e",
+              "surface-dim": "#dcdad3",
+              "tertiary": "#52320b",
+              "surface-container": "#f1eee7",
+              "primary-fixed-dim": "#a1d494",
+              "on-surface": "#1c1c18",
+              "surface-container-highest": "#e5e2db",
+              "surface-container-high": "#ebe8e1",
+              "surface": "#fcf9f2",
+              "surface-bright": "#fcf9f2",
+              "tertiary-fixed-dim": "#f0bd8b",
+              "surface-container-low": "#f6f3ec",
+              "tertiary-container": "#6d4820",
+              "inverse-primary": "#a1d494",
+              "error-container": "#ffdad6",
+              "surface-tint": "#3b6934",
+              "outline-variant": "#c2c9bb",
+              "on-secondary-container": "#4e6e00",
+              "background": "#fcf9f2",
+              "on-primary-container": "#9dd090",
+              "primary-fixed": "#bcf0ae",
+              "secondary-fixed-dim": "#add461",
+              "on-secondary": "#ffffff",
+              "secondary": "#496800",
+              "primary-container": "#2d5a27"
+            },
+            fontFamily: {
+              "headline": ["Epilogue"],
+              "body": ["Work Sans"],
+              "label": ["Work Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Work Sans', sans-serif; }
+        h1, h2, h3 { font-family: 'Epilogue', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="bg-[#fcf9f2] sticky top-0 z-40 flex justify-between items-center w-full px-6 py-4">
+<div class="text-xl font-bold text-[#154212] flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="nature_people">nature_people</span>
+<span class="font-['Epilogue'] font-bold tracking-tight text-[#1c1c18]">Park Atlas</span>
+</div>
+<div class="flex items-center gap-4">
+<img alt="Park Atlas Logo" class="h-8 w-8 object-contain" data-alt="minimalist organic logo with a stylized tree emblem in deep forest green and lime accents" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCchkTQ_-BwycfOgnJTQSlmC6gd40LYPAPOGLWco85Cdw2YKbTA5lKvipjYG5OFEk46OqtmsFZKkeawdytdxu4JLeUFbn2OLsBQTz45fwQOMbx1l54x37Kg9FS7jS8K3F11hJK60froeI5TilhyGW8s_2TpM-YLTzKf1BFOWgtkRWoxmH6XMCVKmn1qEEfHDXpSU_sPpDbyMK7IHuZkr2hbx3WrAHxIieVr4Wu3kaPowBvL7yh8vIjpjxkT6tVOmZBXge1dhkYFc1rT"/>
+</div>
+</header>
+<main class="max-w-2xl mx-auto px-6 pt-8 pb-12">
+<header class="mb-10">
+<h1 class="text-4xl font-extrabold tracking-tight text-on-surface mb-2">Settings</h1>
+<p class="text-on-surface-variant font-medium">Manage your expedition preferences and profile.</p>
+</header>
+<div class="space-y-12">
+<!-- Account Section -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-secondary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="person">person</span>
+                    Account
+                </h2>
+<div class="bg-surface-container-low p-1 space-y-1">
+<button class="w-full text-left p-4 hover:bg-surface-container-highest transition-colors flex justify-between items-center group">
+<div>
+<p class="font-bold text-on-surface">Edit Profile</p>
+<p class="text-xs text-on-surface-variant mt-0.5">Update your display name and avatar</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="w-full text-left p-4 hover:bg-surface-container-highest transition-colors flex justify-between items-center group">
+<div>
+<p class="font-bold text-on-surface">Change Password</p>
+<p class="text-xs text-on-surface-variant mt-0.5">Secure your account with a new password</p>
+</div>
+<span class="material-symbols-outlined text-outline-variant group-hover:text-primary" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- Device Integration (Bento Style Card) -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-secondary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="watch">watch</span>
+                    Device Integration
+                </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="bg-surface-container-low p-6 flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="water_drop">water_drop</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Connected</span>
+</div>
+<div>
+<p class="font-bold text-lg">Garmin Connect</p>
+<p class="text-xs text-on-surface-variant">Last synced: 2h ago</p>
+</div>
+</div>
+<div class="bg-surface-container-highest p-6 flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-outline text-3xl" data-icon="favorite">favorite</span>
+<button class="bg-primary text-on-primary text-[10px] font-bold uppercase tracking-widest px-3 py-1">Link</button>
+</div>
+<div>
+<p class="font-bold text-lg">Apple Health</p>
+<p class="text-xs text-on-surface-variant">Import trail activity data</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Notifications -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-secondary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="notifications">notifications</span>
+                    Notifications
+                </h2>
+<div class="bg-surface-container-low p-6 space-y-6">
+<div class="flex items-center justify-between">
+<div>
+<p class="font-bold text-on-surface">Push Notifications</p>
+<p class="text-xs text-on-surface-variant">Trail alerts and weather warnings</p>
+</div>
+<div class="w-10 h-5 bg-primary relative cursor-pointer">
+<div class="absolute right-0.5 top-0.5 bg-on-primary w-4 h-4"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div>
+<p class="font-bold text-on-surface">Email Newsletter</p>
+<p class="text-xs text-on-surface-variant">Weekly curated expeditions</p>
+</div>
+<div class="w-10 h-5 bg-outline-variant relative cursor-pointer">
+<div class="absolute left-0.5 top-0.5 bg-surface w-4 h-4"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- Units & Measures (Tab style) -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-secondary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="straighten">straighten</span>
+                    Units of Measure
+                </h2>
+<div class="flex bg-surface-container-low p-1">
+<button class="flex-1 py-3 text-xs font-bold uppercase tracking-widest bg-primary text-on-primary transition-all">Metric</button>
+<button class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-highest transition-all">Imperial</button>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-3 px-1 italic">Affects elevation, distance, and temperature displays across the atlas.</p>
+</section>
+<!-- Support -->
+<section>
+<h2 class="text-xs font-bold uppercase tracking-widest text-secondary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="help">help</span>
+                    Support
+                </h2>
+<div class="grid grid-cols-1 gap-1">
+<a class="bg-surface-container-low p-5 flex items-center gap-4 hover:bg-surface-container-highest transition-colors" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="menu_book">menu_book</span>
+<div>
+<p class="font-bold text-on-surface">Help Center</p>
+<p class="text-xs text-on-surface-variant">Guides and troubleshooting</p>
+</div>
+</a>
+<a class="bg-surface-container-low p-5 flex items-center gap-4 hover:bg-surface-container-highest transition-colors" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="policy">policy</span>
+<div>
+<p class="font-bold text-on-surface">Privacy Policy</p>
+<p class="text-xs text-on-surface-variant">How we handle your expedition data</p>
+</div>
+</a>
+</div>
+</section>
+<!-- Danger Zone -->
+<section class="pt-8">
+<button class="w-full py-4 bg-error-container text-on-error-container text-xs font-bold uppercase tracking-widest hover:opacity-90 transition-opacity">
+                    Sign Out of Park Atlas
+                </button>
+<p class="text-center text-[10px] text-on-surface-variant mt-6 uppercase tracking-[0.2em]">Version 2.4.1 (Stable)</p>
+</section>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-safe pt-2 bg-[#fcf9f2] border-t border-[#e5e2db]/30 shadow-[0_-4px_24px_rgba(28,28,24,0.04)] z-50">
+<div class="flex flex-col items-center justify-center text-[#1c1c18]/50 px-3 py-1 hover:text-[#154212] transition-transform active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Work_Sans'] text-[10px] font-bold uppercase tracking-widest mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#1c1c18]/50 px-3 py-1 hover:text-[#154212] transition-transform active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-['Work_Sans'] text-[10px] font-bold uppercase tracking-widest mt-1">Explore</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#1c1c18]/50 px-3 py-1 hover:text-[#154212] transition-transform active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="terrain">terrain</span>
+<span class="font-['Work_Sans'] text-[10px] font-bold uppercase tracking-widest mt-1">Trails</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#1c1c18]/50 px-3 py-1 hover:text-[#154212] transition-transform active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-['Work_Sans'] text-[10px] font-bold uppercase tracking-widest mt-1">Social</span>
+</div>
+<!-- ACTIVE TAB: Settings -->
+<div class="flex flex-col items-center justify-center bg-[#e5e2db] text-[#154212] rounded-lg px-3 py-1 transition-transform active:scale-90 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Work_Sans'] text-[10px] font-bold uppercase tracking-widest mt-1">Settings</span>
+</div>
+</nav>
+</body></html>

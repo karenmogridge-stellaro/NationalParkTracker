@@ -9,7 +9,8 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 700;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -22,8 +23,17 @@ body {
 }
 
 .btn-primary {
-  @apply bg-green-600 text-white hover:bg-green-700;
+  background-color: #254117; /* dark hunter green */
+  color: white;
+}
+.btn-primary:hover {
+  background-color: #1f3612;
 }
 .input-field {
-  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent;
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-transparent;
+}
+
+.input-field:focus {
+  box-shadow: 0 0 0 3px rgba(37,65,23,0.15);
+  border-color: #254117;
 }

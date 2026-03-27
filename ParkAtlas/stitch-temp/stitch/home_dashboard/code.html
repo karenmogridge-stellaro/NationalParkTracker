@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>ParkAtlas - Personal Dashboard</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@300;400;700;900&amp;family=Work_Sans:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-fixed-dim": "#add461",
+              "surface-container-highest": "#e5e2db",
+              "on-error": "#ffffff",
+              "on-surface": "#1c1c18",
+              "on-primary-container": "#9dd090",
+              "surface-tint": "#3b6934",
+              "on-primary": "#ffffff",
+              "inverse-surface": "#31312c",
+              "on-surface-variant": "#42493e",
+              "on-primary-fixed-variant": "#23501e",
+              "primary-fixed-dim": "#a1d494",
+              "outline-variant": "#c2c9bb",
+              "primary-container": "#2d5a27",
+              "surface-container-low": "#f6f3ec",
+              "on-tertiary-fixed-variant": "#623f18",
+              "background": "#fcf9f2",
+              "surface-container": "#f1eee7",
+              "tertiary-container": "#6d4820",
+              "tertiary": "#52320b",
+              "surface-container-lowest": "#ffffff",
+              "inverse-on-surface": "#f3f0e9",
+              "on-secondary": "#ffffff",
+              "secondary-fixed": "#c8f17a",
+              "on-primary-fixed": "#002201",
+              "on-error-container": "#93000a",
+              "surface": "#fcf9f2",
+              "inverse-primary": "#a1d494",
+              "on-secondary-fixed-variant": "#364e00",
+              "on-tertiary": "#ffffff",
+              "tertiary-fixed": "#ffdcbd",
+              "secondary-container": "#c8f17a",
+              "surface-container-high": "#ebe8e1",
+              "primary-fixed": "#bcf0ae",
+              "on-tertiary-container": "#ecb987",
+              "secondary": "#496800",
+              "surface-variant": "#e5e2db",
+              "surface-dim": "#dcdad3",
+              "on-secondary-fixed": "#131f00",
+              "error": "#ba1a1a",
+              "on-secondary-container": "#4e6e00",
+              "on-background": "#1c1c18",
+              "error-container": "#ffdad6",
+              "surface-bright": "#fcf9f2",
+              "primary": "#154212",
+              "outline": "#72796e",
+              "tertiary-fixed-dim": "#f0bd8b",
+              "on-tertiary-fixed": "#2c1600"
+            },
+            fontFamily: {
+              "headline": ["Epilogue"],
+              "body": ["Work Sans"],
+              "label": ["Work Sans"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .fill-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Work Sans', sans-serif; font-weight: 300; }
+        h1, h2, h3 { font-family: 'Epilogue', sans-serif; font-weight: 700; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 z-50 bg-[#fcf9f2] dark:bg-[#1c1c18] flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#154212] dark:text-[#bcf0ae] cursor-pointer" data-icon="menu">menu</span>
+<div class="flex items-center gap-2">
+<img alt="ParkAtlas" class="h-8 w-auto" data-alt="A minimalist professional logo for ParkAtlas with a stylized evergreen tree and clean geometric typography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfUmonBurl8Jcma1uqZBnvzOwCuqRsMf1m-C6L3cc37_ag4YiIbhOiov0opaNM03Or-ehaISduV4gmJ5kgLdseSR-iZanKiwnc2Nrav78dV2EqDx6f_6kDQV7SraCEKdjWBHuTt4Ed6MS5rSpW6oqRg9DVnJr8Rk1Ik59Eqwl0_VKpdAMPzckQ90cjHEFq60-H0IRhSpDZK-1SyQ-J5Wigwz_DyBdtFkM8w5K7LRXQFoTI2H4hSWjfVodDiEKZK5Vo9jmGWwRwes77"/>
+<span class="font-headline font-bold tracking-tight text-2xl uppercase tracking-tighter text-[#154212] dark:text-[#bcf0ae]">ParkAtlas</span>
+</div>
+</div>
+<div class="h-10 w-10 rounded-full overflow-hidden border border-outline-variant/20">
+<img alt="Profile" class="h-full w-full object-cover" data-alt="Close-up portrait of a man in outdoor gear, soft natural lighting, blurred forest background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOykzTmMk5AStBA4hCrb48OEQrLBgO1DCLuUjCqScQ3WK8jlmfg2z30qsM3sDmRTKmOGyZ9SF2FrwEahTlAzYBrHdALluwEVdpXWfR0PZVFRg5OSrAaRLOAifN817rcGKKpeTyE_lIDepCPlm04zo64BLQTyVHiPfc_SRITCoTx5kgP8A39-PW0Hx2dWEnLnXWNMfEeRi0a0mKkpi_Ow_LesEAsKNxVVbha8b-WqLDyBdtEpJgOmHey5S0ZRu3-GvTg8ZZsF-rawnM"/>
+</div>
+</header>
+<main class="max-w-5xl mx-auto px-6 pt-8 space-y-10">
+<!-- Welcome Header -->
+<section class="space-y-1">
+<p class="font-label text-sm uppercase tracking-widest text-secondary">Journal Entry: Oct 24</p>
+<h1 class="text-4xl md:text-5xl lg:text-6xl text-on-surface tracking-tight">Welcome back, <br/>Elias Thorne.</h1>
+</section>
+<!-- Bento Stats Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- New National Parks Card -->
+<div class="md:col-span-2 bg-surface-container-low p-8 flex flex-col justify-between min-h-[220px] rounded-lg">
+<div>
+<span class="material-symbols-outlined text-primary text-3xl mb-4" data-icon="park">park</span>
+<h3 class="font-label text-xs uppercase tracking-[0.2em] text-on-surface/60">National Parks Visited</h3>
+</div>
+<div class="flex items-baseline gap-4 mt-4">
+<span class="text-7xl font-headline font-bold text-primary">14</span>
+<span class="text-3xl text-on-surface/40 font-headline">/ 63</span>
+</div>
+<!-- Expedition Progress Bar -->
+<div class="mt-6 w-full h-3 bg-primary-fixed rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[22%]"></div>
+</div>
+</div>
+<!-- Total Miles Card -->
+<div class="bg-surface-container-highest p-8 flex flex-col justify-between rounded-lg">
+<div>
+<span class="material-symbols-outlined text-secondary text-3xl mb-4" data-icon="distance">distance</span>
+<h3 class="font-label text-xs uppercase tracking-[0.2em] text-on-surface/60">Total Trails Logged</h3>
+</div>
+<div>
+<span class="text-5xl font-headline font-bold text-on-surface">128.4</span>
+<span class="text-lg text-on-surface/60 ml-1">mi</span>
+</div>
+</div>
+<!-- Active Days Card -->
+<div class="bg-surface-container-low p-8 flex flex-col justify-between rounded-lg">
+<div>
+<span class="material-symbols-outlined text-tertiary text-3xl mb-4" data-icon="calendar_today">calendar_today</span>
+<h3 class="font-label text-xs uppercase tracking-[0.2em] text-on-surface/60">Active Streak</h3>
+</div>
+<div>
+<span class="text-5xl font-headline font-bold text-on-surface">12</span>
+<span class="text-lg text-on-surface/60 ml-1">days</span>
+</div>
+</div>
+<!-- Recent Map Snapshot -->
+<div class="md:col-span-2 relative h-48 rounded-lg overflow-hidden group">
+<img class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 transition-all duration-700" data-alt="Topographic map detail of a mountainous terrain with contour lines and forest areas in earth tones" data-location="Yosemite Valley" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwttsgWxkf8cdK802PTewFTr2UNV_Ua22fX-SL9v9Rtt0Rwi9TkD91qG2iit6NsDqpCEA2Kskm0tUAN3CkT1X4mRTHKim-5pwoFUHE04KP_UVYAR0Ghn9JsMA4jXurITSXLgH1Z2e2YR-Q2zhlgeG09ASf3mBxKk-geg55RGquhRsCtciNfOtqiKC8VFOjUPQlJTgb7vOV8JCAf6EQZWAoWUY6rR9kUr2liJWreKZkKyGyrq0-BKxtee1EmNqIIFNBeAi-D6jUCn_8"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent p-6 flex items-end">
+<div>
+<p class="font-label text-[10px] uppercase tracking-widest text-primary font-bold">Current Location</p>
+<p class="text-xl font-headline">Yosemite National Park</p>
+</div>
+</div>
+</div>
+</section>
+<!-- My Journeys -->
+<section class="space-y-6">
+<div class="flex items-end justify-between">
+<h2 class="text-2xl font-headline">My Journeys</h2>
+<button class="text-sm font-label uppercase tracking-widest text-primary hover:underline underline-offset-4">View Archive</button>
+</div>
+<div class="space-y-4">
+<!-- Journey Item 1 -->
+<div class="group flex items-center gap-6 p-4 hover:bg-surface-container-low transition-colors rounded-lg cursor-pointer">
+<div class="w-24 h-24 flex-shrink-0 bg-surface-container rounded-lg overflow-hidden">
+<img alt="Mist Trail" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Breathtaking view of a mountain waterfall with pine trees and granite cliffs in morning mist" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVWjG5h99mFWKv6xcq46t3kuYwTsAE_TSc82vh_qZsund-WMFV33fBFxO6s-eo1uud8zvB-Sw_785RUWTkDR0kF3BXjNKDHVS7ZTinLjrvqaigHXgYv05ZReJy_GUrmXaRZdKdC3wA2b0AGOYcrdO_MGdC1eeWd8unTVA0OZ4x6VGjFhsHXGTK0CnWEjPQMVrrE4AnP19-GNPBZW05OoYCb-nloHiVu9NWaK_sUh2cIKb2hvArv_A3asikfGTaoPYH618wWXuTb0ob"/>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-lg font-headline font-bold">The Mist Trail Ascent</h4>
+<span class="font-label text-xs text-on-surface/40">3 Days Ago</span>
+</div>
+<p class="text-sm text-on-surface/60 line-clamp-1 italic">"Steady climb past Vernal Falls. The granite stairs were slick but the view from the top of Nevada Fall was unparalleled."</p>
+<div class="flex gap-4 mt-3">
+<span class="flex items-center gap-1 text-[10px] font-label uppercase tracking-wider text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="route">route</span> 5.4 mi
+                            </span>
+<span class="flex items-center gap-1 text-[10px] font-label uppercase tracking-wider text-tertiary">
+<span class="material-symbols-outlined text-[14px]" data-icon="elevation">elevation</span> +2,191 ft
+                            </span>
+</div>
+</div>
+</div>
+<!-- Journey Item 2 -->
+<div class="group flex items-center gap-6 p-4 hover:bg-surface-container-low transition-colors rounded-lg cursor-pointer">
+<div class="w-24 h-24 flex-shrink-0 bg-surface-container rounded-lg overflow-hidden">
+<img alt="Redwood Grove" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" data-alt="Dense forest of giant redwoods with sunlight filtering through the canopy, creating ethereal rays" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZGnFZnD04iQ-WzxhM7P5J2qtCTsIf9PXLWqmkRORKvGqnTHX1pxJl4q2pYBcUE3qt42PGg5Pzo5L8WUdVDJhoNswSrYq8Qtsp68acLEnWM3aXInMVbgYzrghFiz_EKDi17lYTRKDAyq7QdAXBZSc9W9aH5ulUian55SB0YEXf3HGTcdbakEUf3jLgYvEySchXjwepnztvoA9a43y8pAuzwmKUM1GEJbIKv266COsVQREDt8xYK_KtCItcqhafSM4gcpHMLwi4XdMK"/>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start mb-1">
+<h4 class="text-lg font-headline font-bold">Cathedral Grove Loop</h4>
+<span class="font-label text-xs text-on-surface/40">1 Week Ago</span>
+</div>
+<p class="text-sm text-on-surface/60 line-clamp-1 italic">"Silent morning among the giants. The air smelled of damp earth and ancient wood. Perfect solitude."</p>
+<div class="flex gap-4 mt-3">
+<span class="flex items-center gap-1 text-[10px] font-label uppercase tracking-wider text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="route">route</span> 3.1 mi
+                            </span>
+<span class="flex items-center gap-1 text-[10px] font-label uppercase tracking-wider text-tertiary">
+<span class="material-symbols-outlined text-[14px]" data-icon="timer">timer</span> 1h 45m
+                            </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Earned Milestones -->
+<section class="space-y-6">
+<h2 class="text-2xl font-headline">Earned Milestones</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- Milestone 1 -->
+<div class="bg-surface-container p-6 rounded-lg text-center flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-4xl fill-icon" data-icon="workspace_premium" data-weight="fill">workspace_premium</span>
+</div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface/60 leading-tight">Glacier Peak<br/>Summit</p>
+</div>
+<!-- Milestone 2 -->
+<div class="bg-surface-container p-6 rounded-lg text-center flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-4xl fill-icon" data-icon="local_fire_department" data-weight="fill">local_fire_department</span>
+</div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface/60 leading-tight">10-Day<br/>Streak</p>
+</div>
+<!-- Milestone 3 -->
+<div class="bg-surface-container p-6 rounded-lg text-center flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-tertiary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-4xl fill-icon" data-icon="landscape" data-weight="fill">landscape</span>
+</div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface/60 leading-tight">High Sierra<br/>Pathfinder</p>
+</div>
+<!-- Milestone 4 -->
+<div class="bg-surface-container p-6 rounded-lg text-center flex flex-col items-center gap-3 grayscale opacity-40">
+<div class="w-16 h-16 rounded-full bg-on-surface/5 flex items-center justify-center border-2 border-dashed border-on-surface/20">
+<span class="material-symbols-outlined text-on-surface/20 text-4xl" data-icon="lock">lock</span>
+</div>
+<p class="font-label text-[10px] uppercase tracking-widest text-on-surface/40 leading-tight">Grand Canyon<br/>Explorer</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-3 bg-[#e5e2db]/90 dark:bg-[#2d2d2a]/90 backdrop-blur-md border-t border-[#1c1c18]/5 shadow-[0_-4px_24px_rgba(28,28,24,0.04)] z-50">
+<!-- Active: Home -->
+<a class="flex flex-col items-center justify-center bg-[#154212] dark:bg-[#bcf0ae] text-[#fcf9f2] dark:text-[#154212] rounded-lg px-4 py-2 transition-all scale-90 duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined fill-icon" data-icon="home" data-weight="fill">home</span>
+<span class="font-['Work_Sans'] font-semibold text-[10px] uppercase tracking-widest mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18] dark:text-[#fcf9f2] opacity-70 px-4 py-2 hover:bg-[#154212]/10 dark:hover:bg-[#bcf0ae]/10 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-['Work_Sans'] font-semibold text-[10px] uppercase tracking-widest mt-1">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18] dark:text-[#fcf9f2] opacity-70 px-4 py-2 hover:bg-[#154212]/10 dark:hover:bg-[#bcf0ae]/10 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="terrain">terrain</span>
+<span class="font-['Work_Sans'] font-semibold text-[10px] uppercase tracking-widest mt-1">Trails</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18] dark:text-[#fcf9f2] opacity-70 px-4 py-2 hover:bg-[#154212]/10 dark:hover:bg-[#bcf0ae]/10 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-['Work_Sans'] font-semibold text-[10px] uppercase tracking-widest mt-1">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18] dark:text-[#fcf9f2] opacity-70 px-4 py-2 hover:bg-[#154212]/10 dark:hover:bg-[#bcf0ae]/10 transition-opacity" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Work_Sans'] font-semibold text-[10px] uppercase tracking-widest mt-1">Settings</span>
+</a>
+</nav>
+<!-- FAB: Log New Trip -->
+<button class="fixed right-6 bottom-28 w-14 h-14 bg-primary text-on-primary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform active:scale-95 z-40">
+<span class="material-symbols-outlined text-2xl" data-icon="add">add</span>
+</button>
+</body></html>

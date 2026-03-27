@@ -1,7 +1,6 @@
 """Garmin Connect API integration for importing fitness data."""
 import os
 import json
-import requests
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 import httpx
@@ -11,14 +10,18 @@ GARMIN_AUTH_URL = "https://connect.garmin.com/oauthserver/oauth/authorize"
 GARMIN_TOKEN_URL = "https://connect.garmin.com/oauthserver/oauth/token"
 GARMIN_API_BASE = "https://connect.garmin.com/api/v1"
 
+# Mock mode for testing without real Garmin credentials
+MOCK_MODE = os.getenv("GARMIN_MOCK_MODE", "false").lower() == "true"
+
 class GarminConnectService:
     """Service for integrating with Garmin Connect."""
     
     def __init__(self, client_id: str = None, client_secret: str = None, redirect_uri: str = None):
         """Initialize Garmin service with OAuth credentials."""
-        self.client_id = client_id or os.getenv("GARMIN_CLIENT_ID")
-        self.client_secret = client_secret or os.getenv("GARMIN_CLIENT_SECRET")
+        self.client_id = client_id or os.getenv("GARMIN_CLIENT_ID", "mock_client_id" if MOCK_MODE else "")
+        self.client_secret = client_secret or os.getenv("GARMIN_CLIENT_SECRET", "mock_secret" if MOCK_MODE else "")
         self.redirect_uri = redirect_uri or os.getenv("GARMIN_REDIRECT_URI", "http://localhost:3001/fitness")
+        self.mock_mode = MOCK_MODE
     
     def get_authorize_url(self, state: str) -> str:
         """Get the Garmin OAuth authorization URL."""
@@ -35,6 +38,15 @@ class GarminConnectService:
     
     async def exchange_code_for_token(self, auth_code: str) -> Optional[Dict]:
         """Exchange authorization code for access token."""
+        # Mock mode for testing without real credentials
+        if self.mock_mode:
+            return {
+                "access_token": f"mock_token_{auth_code}",
+                "token_type": "Bearer",
+                "expires_in": 3600,
+                "refresh_token": "mock_refresh_token"
+            }
+        
         payload = {
             "client_id": self.client_id,
             "client_secret": self.client_secret,
@@ -57,6 +69,10 @@ class GarminConnectService:
     
     async def get_activities(self, access_token: str, limit: int = 50, start: int = 0) -> List[Dict]:
         """Fetch activities from Garmin Connect."""
+        # Mock mode for testing without real credentials
+        if self.mock_mode:
+            return self._get_mock_activities(limit)
+        
         headers = {
             "Authorization": f"Bearer {access_token}"
         }
@@ -78,6 +94,57 @@ class GarminConnectService:
         except Exception as e:
             print(f"Error fetching activities: {e}")
             return []
+    
+    def _get_mock_activities(self, limit: int = 50) -> List[Dict]:
+        """Return mock hiking activities for testing."""
+        now = datetime.utcnow()
+        mock_activities = [
+            {
+                "activityId": 1234567890,
+                "activityName": "Morning Hike - Mountain Peak",
+                "startTimeInSeconds": int((now - timedelta(days=7)).timestamp()),
+                "durationInSeconds": 3600000,  # 1 hour in milliseconds
+                "distance": 8000,  # 8 km
+                "elevationGain": 400,  # 400 meters
+                "calories": 385,
+                "activityType": {"typeKey": "hiking"},
+                "avgPace": 450  # seconds per km
+            },
+            {
+                "activityId": 1234567891,
+                "activityName": "Trail Run - Sunset Vista",
+                "startTimeInSeconds": int((now - timedelta(days=5)).timestamp()),
+                "durationInSeconds": 2400000,  # 40 min
+                "distance": 7200,  # 7.2 km
+                "elevationGain": 250,
+                "calories": 420,
+                "activityType": {"typeKey": "trail_running"},
+                "avgPace": 333
+            },
+            {
+                "activityId": 1234567892,
+                "activityName": "Weekend Hiking - Forest Trail",
+                "startTimeInSeconds": int((now - timedelta(days=2)).timestamp()),
+                "durationInSeconds": 5400000,  # 1.5 hours
+                "distance": 12000,  # 12 km
+                "elevationGain": 600,
+                "calories": 520,
+                "activityType": {"typeKey": "hiking"},
+                "avgPace": 450
+            },
+            {
+                "activityId": 1234567893,
+                "activityName": "Evening Run - Urban Park",
+                "startTimeInSeconds": int((now - timedelta(days=1)).timestamp()),
+                "durationInSeconds": 1800000,  # 30 min
+                "distance": 5000,  # 5 km
+                "elevationGain": 100,
+                "calories": 310,
+                "activityType": {"typeKey": "running"},
+                "avgPace": 360
+            },
+        ]
+        return mock_activities[:limit]
     
     async def get_activity_details(self, activity_id: str, access_token: str) -> Optional[Dict]:
         """Fetch detailed information about a specific activity."""
@@ -106,25 +173,52 @@ class GarminConnectService:
         activity_type = activity.get("activityType", {}).get("typeKey", "").lower()
         if activity_type not in ["running", "hiking", "trail_running", "outdoor_running"]:
             return None
-        
-        start_time = activity.get("startTimeInSeconds", 0)
-        duration_seconds = activity.get("duration", 0)
-        distance_meters = activity.get("distance", 0)
-        elevation_gain = activity.get("elevationGain", 0)
+
+        # Support multiple activity payload formats (Garmin real API vs. mock)
+        start_time = activity.get("startTimeInSeconds") or activity.get("start_time") or 0
+        # start_time may be in seconds or milliseconds - normalize to seconds
+        try:
+            start_time = int(start_time)
+        except Exception:
+            start_time = 0
+
+        # duration may be provided as 'duration' (seconds) or 'durationInSeconds' (ms in our mock)
+        duration_seconds = activity.get("duration") or activity.get("durationInSeconds") or 0
+        try:
+            duration_seconds = int(duration_seconds)
+        except Exception:
+            duration_seconds = 0
+
+        # If duration looks like milliseconds (greater than 1e6), convert to seconds
+        if duration_seconds > 1_000_000:
+            duration_seconds = int(duration_seconds / 1000)
+
+        distance_meters = activity.get("distance", 0) or activity.get("distance_meters", 0)
+        elevation_gain = activity.get("elevationGain", 0) or activity.get("elevation_gain", 0)
         calories = activity.get("calories", 0)
         
         # Convert to our format
+        # Normalize start_time to a Unix timestamp in seconds
+        if start_time > 1_000_000_000_000:
+            # milliseconds
+            hike_datetime = datetime.fromtimestamp(start_time / 1000)
+        elif start_time > 1_000_000_000:
+            # already seconds
+            hike_datetime = datetime.fromtimestamp(start_time)
+        else:
+            hike_datetime = datetime.utcnow()
+
         hike = {
             "user_id": user_id,
             "trail_id": trail_id,
-            "hike_date": datetime.fromtimestamp(start_time / 1000),  # Garmin uses milliseconds
-            "duration_minutes": int(duration_seconds / 60),
-            "distance_miles": distance_meters / 1609.34 if distance_meters else None,  # meters to miles
+            "hike_date": hike_datetime,
+            "duration_minutes": int(duration_seconds / 60) if duration_seconds else None,
+            "distance_miles": round(distance_meters / 1609.34, 2) if distance_meters else None,
             "elevation_gain": int(elevation_gain) if elevation_gain else None,
             "calories": int(calories) if calories else None,
-            "avg_pace": activity.get("avgPace"),  # min/mi
-            "notes": f"Imported from Garmin: {activity.get('activityName', 'Activity')}",
-            "difficulty_experienced": "moderate",  # Default; user can adjust
+            "avg_pace": activity.get("avgPace") or activity.get("avg_pace"),
+            "notes": f"Imported from Garmin: {activity.get('activityName', activity.get('activityName', 'Activity'))}",
+            "difficulty_experienced": "moderate",
             "fitness_tracker_source": "garmin"
         }
         

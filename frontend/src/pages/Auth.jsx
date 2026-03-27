@@ -69,9 +69,9 @@ export default function Auth() {
       <div className="w-full max-w-md">
         <div className="card shadow-lg">
           <div className="text-center mb-8">
-            <h1 className="text-5xl mb-2">🏞️</h1>
-            <h2 className="text-3xl font-bold text-gray-900">ParkTracker</h2>
-            <p className="text-gray-600 mt-2">Log your national park adventures</p>
+            <img src="/parkatlas-logo.svg" alt="ParkAtlas Logo" className="w-24 h-24 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-gray-900">ParkAtlas</h2>
+            <p className="text-gray-600 mt-2">The Atlas of Your Adventures</p>
           </div>
 
           {error && (

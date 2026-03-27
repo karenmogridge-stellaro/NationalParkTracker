@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Profile &amp; Progress - Modern Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:ital,wght@0,400;0,700;0,900;1,900&amp;family=Work+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#42493e",
+                        "surface-container-high": "#eae8e3",
+                        "surface-container": "#f0eee9",
+                        "on-primary-fixed-variant": "#23501e",
+                        "on-primary-fixed": "#002201",
+                        "tertiary-container": "#654d00",
+                        "background": "#fbf9f4",
+                        "surface": "#fbf9f4",
+                        "primary-fixed": "#bcf0ae",
+                        "on-primary-container": "#9dd090",
+                        "inverse-surface": "#30312e",
+                        "surface-bright": "#fbf9f4",
+                        "error": "#ba1a1a",
+                        "on-tertiary-container": "#e3bf65",
+                        "inverse-primary": "#a1d494",
+                        "error-container": "#ffdad6",
+                        "on-primary": "#ffffff",
+                        "primary-fixed-dim": "#a1d494",
+                        "outline-variant": "#c2c9bb",
+                        "secondary-fixed": "#ffdbcf",
+                        "secondary-fixed-dim": "#ffb59c",
+                        "on-secondary-container": "#74290b",
+                        "surface-container-highest": "#e4e2dd",
+                        "primary": "#154212",
+                        "outline": "#72796e",
+                        "on-surface": "#1b1c19",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-on-surface": "#f2f1ec",
+                        "primary-container": "#2d5a27",
+                        "secondary-container": "#fd916c",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#5a4400",
+                        "surface-container-low": "#f5f3ee",
+                        "on-tertiary": "#ffffff",
+                        "on-background": "#1b1c19",
+                        "on-secondary-fixed": "#390c00",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#7b2e10",
+                        "secondary": "#9a4526",
+                        "surface-tint": "#3b6934",
+                        "surface-dim": "#dbdad5",
+                        "tertiary-fixed-dim": "#e7c268",
+                        "on-tertiary-fixed": "#251a00",
+                        "tertiary": "#493700",
+                        "on-error": "#ffffff",
+                        "surface-variant": "#e4e2dd",
+                        "tertiary-fixed": "#ffdf96"
+                    },
+                    fontFamily: {
+                        "headline": ["Epilogue"],
+                        "body": ["Work Sans"],
+                        "label": ["Work Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fbf9f4;
+            color: #1b1c19;
+            font-family: 'Work Sans', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased pb-32">
+<!-- TopAppBar -->
+<header class="bg-[#fbf9f4] dark:bg-stone-950 sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-4">
+<button class="text-[#2D5A27] dark:text-emerald-500 hover:bg-[#f5f3ee] dark:hover:bg-stone-800 transition-colors p-2 rounded-full scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-['Epilogue'] font-black text-[#2D5A27] dark:text-emerald-500 italic text-2xl tracking-tight">Modern Explorer</h1>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex gap-8">
+<a class="text-[#2D5A27] dark:text-emerald-400 font-bold font-['Work_Sans']" href="#">Explore</a>
+<a class="text-stone-500 dark:text-stone-400 font-medium font-['Work_Sans']" href="#">Trails</a>
+<a class="text-stone-500 dark:text-stone-400 font-medium font-['Work_Sans']" href="#">Progress</a>
+</nav>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container">
+<img class="w-full h-full object-cover" data-alt="portrait of a rugged explorer with a kind smile, outdoor natural lighting, soft forest background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjJ9JsgWCuHq96oH14v29VHXhFBvELradsynA7Ly2pFlKg2Mxn2MJTf8KE4dT_70Yg4MKbsWnqlOIs2UHVPn3i3FIMihSzW-pvqGwjY2PUyAKZXL8jMAzK4K9zKhpuU43vyYbZg3Yje95yT67glJ7r7ssw03DM5k5g1eQX-rfyMWpJiy8c55QL1K8gZ2rBTY-hpr-pBsFBFXTxa-gcJZ8u0jS59Ce4DQuLtyS1uW0J32SygnfWv5b1xDk7MKj1CkW52ruTsdH8CVPm"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-6 pt-8 space-y-12">
+<!-- Profile Hero Section -->
+<section class="relative grid md:grid-cols-12 gap-8 items-end">
+<div class="md:col-span-8">
+<p class="font-label text-secondary uppercase tracking-[0.2em] text-sm mb-2">Member since 2021</p>
+<h2 class="font-headline font-bold text-5xl md:text-7xl text-primary leading-none tracking-tighter">Alex Rivers</h2>
+<div class="flex gap-4 mt-6">
+<div class="bg-tertiary-fixed text-on-tertiary-fixed px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Master Pathfinder</div>
+<div class="bg-surface-container-highest text-on-surface-variant px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Pacific Northwest</div>
+</div>
+</div>
+<div class="md:col-span-4 flex justify-end">
+<div class="bg-primary text-on-primary p-6 rounded-xl w-full max-w-xs shadow-sm">
+<p class="text-xs uppercase tracking-widest opacity-80 mb-1">Explorer Level</p>
+<div class="text-4xl font-headline font-black mb-4 italic">LVL 42</div>
+<div class="w-full bg-white/20 h-2 rounded-full overflow-hidden">
+<div class="bg-on-primary h-full w-[72%]"></div>
+</div>
+<p class="text-[10px] mt-2 text-right opacity-80">1,240 XP to Level 43</p>
+</div>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-surface-container-low p-8 rounded-xl flex flex-col justify-between aspect-square md:aspect-auto">
+<span class="material-symbols-outlined text-primary text-4xl" data-icon="distance">distance</span>
+<div>
+<p class="text-5xl font-headline font-bold text-primary">842</p>
+<p class="text-sm font-medium text-on-surface-variant uppercase tracking-widest">Total Miles</p>
+</div>
+</div>
+<div class="bg-surface-container-high p-8 rounded-xl flex flex-col justify-between aspect-square md:aspect-auto">
+<span class="material-symbols-outlined text-secondary text-4xl" data-icon="terrain">terrain</span>
+<div>
+<p class="text-5xl font-headline font-bold text-secondary">24</p>
+<p class="text-sm font-medium text-on-surface-variant uppercase tracking-widest">Summits Reached</p>
+</div>
+</div>
+<div class="bg-primary-container p-8 rounded-xl flex flex-col justify-between aspect-square md:aspect-auto text-on-primary-container">
+<span class="material-symbols-outlined text-4xl" data-icon="park">park</span>
+<div>
+<p class="text-5xl font-headline font-bold text-white">12</p>
+<p class="text-sm font-medium uppercase tracking-widest opacity-80">Parks Visited</p>
+</div>
+</div>
+<div class="bg-surface-container-highest p-8 rounded-xl flex flex-col justify-between aspect-square md:aspect-auto">
+<span class="material-symbols-outlined text-tertiary text-4xl" data-icon="avg_pace">avg_pace</span>
+<div>
+<p class="text-5xl font-headline font-bold text-tertiary">3.4</p>
+<p class="text-sm font-medium text-on-surface-variant uppercase tracking-widest">Avg MPH Pace</p>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+<!-- Progress & Milestones (2/3 width) -->
+<div class="lg:col-span-2 space-y-12">
+<!-- Milestones -->
+<div>
+<div class="flex justify-between items-end mb-8">
+<h3 class="font-headline font-bold text-2xl">Earned Milestones</h3>
+<a class="text-primary font-bold text-sm flex items-center gap-1 hover:underline" href="#">View All <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span></a>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest p-6 rounded-xl text-center space-y-3 group cursor-pointer hover:bg-surface-container transition-colors">
+<div class="w-16 h-16 mx-auto bg-tertiary-fixed rounded-full flex items-center justify-center text-tertiary-container group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="workspace_premium" data-weight="fill">workspace_premium</span>
+</div>
+<p class="font-bold text-xs uppercase">First Peak</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl text-center space-y-3 group cursor-pointer hover:bg-surface-container transition-colors">
+<div class="w-16 h-16 mx-auto bg-primary-fixed rounded-full flex items-center justify-center text-on-primary-fixed-variant group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="forest" data-weight="fill">forest</span>
+</div>
+<p class="font-bold text-xs uppercase">Forest Dweller</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl text-center space-y-3 group cursor-pointer hover:bg-surface-container transition-colors">
+<div class="w-16 h-16 mx-auto bg-secondary-fixed rounded-full flex items-center justify-center text-on-secondary-fixed-variant group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="local_fire_department" data-weight="fill">local_fire_department</span>
+</div>
+<p class="font-bold text-xs uppercase">10-Day Streak</p>
+</div>
+<div class="bg-surface-container-lowest p-6 rounded-xl text-center space-y-3 opacity-40 grayscale group cursor-pointer">
+<div class="w-16 h-16 mx-auto bg-surface-container-highest rounded-full flex items-center justify-center text-outline group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" data-icon="lock">lock</span>
+</div>
+<p class="font-bold text-xs uppercase italic">Locked</p>
+</div>
+</div>
+</div>
+<!-- Park Log -->
+<div>
+<h3 class="font-headline font-bold text-2xl mb-8">National Park Odyssey</h3>
+<div class="grid grid-cols-3 sm:grid-cols-6 gap-6">
+<!-- Completed -->
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-primary-container ring-offset-2 transition-transform group-hover:-translate-y-1">
+<img class="w-full h-full object-cover" data-alt="majestic rocky mountain peaks with snow caps under a blue sky, sharp focus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbBIMxNZRqnOiIG8Ux4bFNQF2tCxVTJLOQ9IqxC_Vj03rrP3tNvqfmUlh4SBPJeWrbCTN3WrmsTeJRvdeNwRF5-SNh_otEcLn2x65V4bm2WD4klHfN0b6j7QVPqI-5vEAYUX7qzwpNVRkiehdAmlMmmT7Zr9GZjA5M8yJ-QBzMXPuItW4dLO9vuhdw8oUBCWHUjjNcnZst6sOF_oEfosI8CQTpS03BhkYjLKycI1RWnOcgI6z9PY7qCmveotfF9gbXGTE_KZQ9FT1b"/>
+<div class="absolute inset-0 bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="check_circle" data-weight="fill">check_circle</span>
+</div>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight">Yosemite</p>
+</div>
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-20 h-20 rounded-2xl overflow-hidden ring-4 ring-primary-container ring-offset-2 transition-transform group-hover:-translate-y-1">
+<img class="w-full h-full object-cover" data-alt="deep red rock canyons of zion national park with winding river at bottom" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVBQEussOsKWdUWFv_b5SEx1AMtSAj1pCPKqxLuL2d22uBEMDJN0qWTEMPB0K5p4Lr9QRqKGf6vZouMCmKUTP3-H1MM6YWjvEG4KpGgsVYDCzv2xm8mbihmY12eCkxvcy7qJXS1KVCZfPC8E5d95vuFPXXq9SOgJREeI9eBX_jtFfYxegS7kShxg-uYC2xTObygPy-R_nbXxjfAeNcaWMg-uengzfogYMEAstoxw2O5vB7_Bet89kq4uuArc_EGbXcdzDxcXBfiejE"/>
+<div class="absolute inset-0 bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="check_circle" data-weight="fill">check_circle</span>
+</div>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight">Zion</p>
+</div>
+<!-- To Do -->
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-20 h-20 rounded-2xl overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="stunning blue waters of crater lake with small volcanic island, surrounded by pines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9Lb7VYYrQSzK7kj_8Yu9P4_3L1URZOeUdAG6VTVqSC-GJ7n4TW_7u0C8Y7TThtZbI2sPcUl-uSR3ymZPSF2FVJvNpHgWctdg2zVUYHbrkrZXPiduOcPBYZ5-gqE_4lxjDmRaYnrrqJtHvMZb1LpWsk2CO4RsAPJrzUrjCdMSqA97uxqPM5I2W_p25jwwrdAB4hJXym_i0D1yYf4WofV76cYCqMvQ7r5ozhJelMMhFZFwvEfBPS6xXUe9PysQcqoqXzALRRn-9LywH"/>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight text-outline">Crater Lake</p>
+</div>
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-20 h-20 rounded-2xl overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="lush green rainforest with mossy trees and misty atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZEzEwXgjVhe7YqCrCq14DbjGtWoyPpsFS7b-B8Mwusw7hqH64USnPK-i7HsZcyJMOG9dXfMPQFgYMpznYn-1HOA4STypLMq0auIEhzylLSz1A-OX1xAfH63-2KALwJ1SptNKKPV9gzEFiOhNPzkCFNKRsy2XNivuaBSO7C0gFV8ycYNAXsdJAAggYiQ5Cuclx56Cu1cwangxg5FUTDcwpXyCK60rvc0naSmCNykv_wEBluTxAfc41BXiP4qJ7fELTeoMSD7AJ1KvB"/>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight text-outline">Olympic</p>
+</div>
+<div class="flex flex-col items-center gap-2 group">
+<div class="w-20 h-20 rounded-2xl overflow-hidden grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<img class="w-full h-full object-cover" data-alt="iconic half dome rock formation in Yosemite at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJ7rEB1KlnEBQRhHh2uvtnX-3ipUVj33vtGceD7JKw6vAMOfYUWe_hxgq2HRH6rBt3j-FLJR6xNl43-5T-ZuK1t-1qqFyuYXowQqQBy_s7enUOnAeGZ4ImnuG17qFN2FRVvX6juYTAkBCgJKqmc0bo6xUDGT41Qay4Wm4CSADTdOjm7U3p1uo2rw2R7dOFR1zuML72_OWOEllHmHtKXA8EtTe5BtakYW_I16a6Y2N1FwijF1Op6cK4FPHVx2g_-inapTQp6BM1Vwar"/>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight text-outline">Grand Teton</p>
+</div>
+<div class="flex flex-col items-center gap-2">
+<div class="w-20 h-20 rounded-2xl border-2 border-dashed border-outline-variant flex items-center justify-center text-outline hover:border-primary hover:text-primary cursor-pointer transition-colors">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</div>
+<p class="text-[10px] font-bold text-center uppercase tracking-tight text-outline">Plan Next</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar (1/3 width) -->
+<div class="space-y-12">
+<!-- Connected Devices -->
+<div class="bg-surface-container-low p-8 rounded-2xl">
+<h3 class="font-headline font-bold text-xl mb-6">Connected Devices</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 flex items-center justify-center text-[#00609D]">
+<span class="material-symbols-outlined text-3xl" data-icon="watch">watch</span>
+</div>
+<div>
+<p class="font-bold text-sm">Garmin Fēnix 7</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-medium">Synced 2m ago</p>
+</div>
+</div>
+<div class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-lowest rounded-xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 flex items-center justify-center text-[#FA2D39]">
+<span class="material-symbols-outlined text-3xl" data-icon="favorite" data-weight="fill">favorite</span>
+</div>
+<div>
+<p class="font-bold text-sm">Apple Health</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-medium">Always active</p>
+</div>
+</div>
+<div class="w-3 h-3 bg-emerald-500 rounded-full"></div>
+</div>
+<button class="w-full py-3 mt-4 border-2 border-outline-variant rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-surface-container-highest transition-colors">
+                            Add New Device
+                        </button>
+</div>
+</div>
+<!-- Recent Activity -->
+<div>
+<h3 class="font-headline font-bold text-xl mb-6">Recent Hikes</h3>
+<div class="space-y-6">
+<div class="relative pl-8 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-0 before:w-0.5 before:bg-outline-variant">
+<div class="absolute left-[-5px] top-1 w-3 h-3 rounded-full bg-secondary"></div>
+<p class="text-[10px] font-bold text-secondary uppercase mb-1">Yesterday</p>
+<h4 class="font-bold text-sm">Eagle Peak Trail</h4>
+<p class="text-xs text-on-surface-variant">8.2 mi • 2,400 ft gain</p>
+</div>
+<div class="relative pl-8 before:content-[''] before:absolute before:left-0 before:top-2 before:bottom-0 before:w-0.5 before:bg-outline-variant">
+<div class="absolute left-[-5px] top-1 w-3 h-3 rounded-full bg-outline-variant"></div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Oct 12, 2023</p>
+<h4 class="font-bold text-sm">Mirror Lake Loop</h4>
+<p class="text-xs text-on-surface-variant">4.1 mi • 350 ft gain</p>
+</div>
+<div class="relative pl-8 before:content-[''] before:absolute before:left-0 before:top-2 before:w-0.5 before:h-4 before:bg-outline-variant">
+<div class="absolute left-[-5px] top-1 w-3 h-3 rounded-full bg-outline-variant"></div>
+<p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Oct 08, 2023</p>
+<h4 class="font-bold text-sm">Upper Yosemite Falls</h4>
+<p class="text-xs text-on-surface-variant">7.6 mi • 2,700 ft gain</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-[#fbf9f4]/80 dark:bg-stone-950/80 backdrop-blur-xl border-t border-[#2D5A27]/10 dark:border-emerald-500/10 shadow-[0_-4px_24px_rgba(27,28,25,0.04)] rounded-t-3xl">
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="explore">explore</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="terrain">terrain</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Trails</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-[#2D5A27] dark:bg-emerald-800 text-[#fbf9f4] rounded-xl px-4 py-2 duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="leaderboard">leaderboard</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="group">group</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-stone-500 dark:text-stone-400 px-4 py-2 hover:text-[#2D5A27] dark:hover:text-emerald-400 transition-colors" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="settings_input_antenna">settings_input_antenna</span>
+<span class="font-['Work_Sans'] font-medium text-[10px] uppercase tracking-widest">Settings</span>
+</a>
+</nav>
+</body></html>

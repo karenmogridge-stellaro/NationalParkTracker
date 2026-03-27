@@ -1,4 +1,4 @@
-# National Park Tracker Frontend
+# ParkAtlas Frontend
 
 React + Vite dashboard for tracking national park adventures.
 

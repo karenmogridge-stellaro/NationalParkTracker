@@ -1,7 +1,12 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from app.database import Base
+
+
+def utc_now():
+    """Return current UTC datetime (timezone-aware)."""
+    return datetime.now(timezone.utc)
 
 class User(Base):
     __tablename__ = "users"
@@ -13,7 +18,7 @@ class User(Base):
     profile_pic_url = Column(String, nullable=True)  # User profile picture
     is_public = Column(Boolean, default=True)  # Public or private profile
     total_points = Column(Integer, default=0)  # Gamification points
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Park(Base):
     __tablename__ = "parks"
@@ -28,7 +33,7 @@ class Park(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     website = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Visit(Base):
     __tablename__ = "visits"
@@ -43,7 +48,10 @@ class Visit(Base):
     notes = Column(Text, nullable=True)  # User notes about the visit
     photos_count = Column(Integer, default=0)
     visited = Column(Boolean, default=True)  # True = visited, False = wishlist
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    
+    # Relationships
+    park = relationship("Park")
 
 class Trail(Base):
     __tablename__ = "trails"
@@ -56,7 +64,7 @@ class Trail(Base):
     elevation_gain_ft = Column(Integer)
     description = Column(Text)
     best_season = Column(String)  # "Spring", "Summer", "Fall", "Winter"
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class TrailHike(Base):
     __tablename__ = "trail_hikes"
@@ -73,7 +81,7 @@ class TrailHike(Base):
     notes = Column(Text, nullable=True)  # User notes about the hike
     difficulty_experienced = Column(String)  # How hard they found it
     fitness_tracker_source = Column(String, nullable=True)  # garmin/strava/apple_health/manual
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Campsite(Base):
     __tablename__ = "campsites"
@@ -87,7 +95,7 @@ class Campsite(Base):
     max_occupancy = Column(Integer)
     description = Column(Text)
     booking_opens = Column(DateTime, nullable=True)  # When bookings open (e.g., 5 months ahead)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Wishlist(Base):
     __tablename__ = "wishlist"
@@ -96,7 +104,7 @@ class Wishlist(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     campsite_id = Column(Integer, ForeignKey("campsites.id"), index=True)
     notification_hours_before = Column(Integer, default=1)  # Notify X hours before booking opens
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     # Relationships
     campsite = relationship("Campsite")
@@ -113,7 +121,7 @@ class CampingTrip(Base):
     weather = Column(String)  # "Sunny", "Rainy", "Cold", etc.
     rating = Column(Integer)  # 1-5 stars
     notes = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Sighting(Base):
     __tablename__ = "sightings"
@@ -126,7 +134,7 @@ class Sighting(Base):
     location = Column(String)  # Where in park
     notes = Column(Text)
     photo_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class ParkPassport(Base):
     __tablename__ = "park_passports"
@@ -137,7 +145,7 @@ class ParkPassport(Base):
     total_states = Column(Integer, default=0)
     total_miles_hiked = Column(Float, default=0)
     total_nights_camped = Column(Integer, default=0)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
 
 # ============ Gamification Models ============
 
@@ -149,7 +157,7 @@ class Badge(Base):
     description = Column(Text)
     icon_url = Column(String)
     criteria = Column(String)  # e.g., "visit_5_parks", "hike_100_miles"
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class UserAchievement(Base):
     __tablename__ = "user_achievements"
@@ -157,8 +165,8 @@ class UserAchievement(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     badge_id = Column(Integer, ForeignKey("badges.id"), index=True)
-    earned_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    earned_date = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
 
 class Challenge(Base):
     __tablename__ = "challenges"
@@ -172,7 +180,7 @@ class Challenge(Base):
     end_date = Column(DateTime)
     reward_points = Column(Integer)
     icon_url = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class UserChallenge(Base):
     __tablename__ = "user_challenges"
@@ -184,7 +192,7 @@ class UserChallenge(Base):
     completed = Column(Boolean, default=False)
     completed_date = Column(DateTime, nullable=True)
     points_earned = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Streak(Base):
     __tablename__ = "streaks"
@@ -195,8 +203,8 @@ class Streak(Base):
     current_count = Column(Integer, default=0)  # Active streak count
     best_count = Column(Integer, default=0)  # Best all-time count
     last_activity_date = Column(DateTime)  # Last time activity was logged
-    start_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    start_date = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
 
 class FitnessTrackerAuth(Base):
     __tablename__ = "fitness_tracker_auth"
@@ -209,7 +217,7 @@ class FitnessTrackerAuth(Base):
     token_expires_at = Column(DateTime, nullable=True)
     connected = Column(Boolean, default=True)
     last_sync = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class SyncLog(Base):
     __tablename__ = "sync_logs"
@@ -220,8 +228,8 @@ class SyncLog(Base):
     activities_synced = Column(Integer, default=0)
     success = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
-    sync_date = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    sync_date = Column(DateTime, default=utc_now)
+    created_at = Column(DateTime, default=utc_now)
 
 class GarminAuth(Base):
     __tablename__ = "garmin_auth"
@@ -234,5 +242,50 @@ class GarminAuth(Base):
     garmin_user_id = Column(String, nullable=True)
     connected = Column(Boolean, default=True)
     last_sync = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+# ============ Social Features ============
+
+class Friendship(Base):
+    __tablename__ = "friendships"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    friend_id = Column(Integer, ForeignKey("users.id"), index=True)
+    status = Column(String, default="pending")  # pending, accepted, blocked
+    created_at = Column(DateTime, default=utc_now)
+    accepted_at = Column(DateTime, nullable=True)
+
+class HikeTag(Base):
+    __tablename__ = "hike_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    hike_id = Column(Integer, ForeignKey("trail_hikes.id"), index=True)
+    tagged_user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime, default=utc_now)
+
+class CampingTag(Base):
+    __tablename__ = "camping_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    camping_trip_id = Column(Integer, ForeignKey("camping_trips.id"), index=True)
+    tagged_user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime, default=utc_now)
+
+class UserPreferences(Base):
+    __tablename__ = "user_preferences"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, index=True)
+    favorite_parks = Column(Text, default="[]")  # JSON array of park IDs
+    notification_days_before = Column(Integer, default=5)  # Notify X days before booking opens
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+class VisitTag(Base):
+    __tablename__ = "visit_tags"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    visit_id = Column(Integer, ForeignKey("visits.id"), index=True)
+    tagged_user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime, default=utc_now)

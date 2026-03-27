@@ -51,6 +51,8 @@ class VisitOut(VisitCreate):
     id: int
     user_id: int
     photos_count: int
+    tagged_users_count: int = 0
+    park: Optional["ParkOut"] = None
     created_at: datetime
 
 class TrailBase(BaseModel):
@@ -71,7 +73,7 @@ class TrailOut(TrailBase):
     created_at: datetime
 
 class TrailHikeCreate(BaseModel):
-    trail_id: int
+    trail_id: Optional[int] = None
     hike_date: datetime
     duration_minutes: int
     distance_miles: Optional[float] = None
@@ -79,7 +81,7 @@ class TrailHikeCreate(BaseModel):
     calories: Optional[int] = None
     avg_pace: Optional[str] = None
     notes: Optional[str] = None
-    difficulty_experienced: str
+    difficulty_experienced: Optional[str] = None
     fitness_tracker_source: Optional[str] = None
 
 class TrailHikeOut(TrailHikeCreate):
@@ -269,3 +271,63 @@ class GarminImportStats(BaseModel):
     skipped_activities: int
     total_distance: float
     total_elevation: int
+# ============ Social Features Schemas ============
+
+class FriendshipCreate(BaseModel):
+    friend_email: str
+
+class FriendshipOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    friend_id: int
+    status: str
+    created_at: datetime
+    accepted_at: Optional[datetime] = None
+
+class UserSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    email: str
+    bio: Optional[str] = None
+    profile_pic_url: Optional[str] = None
+
+class HikeTagCreate(BaseModel):
+    tagged_user_id: int
+
+class HikeTagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    hike_id: int
+    tagged_user_id: int
+    created_at: datetime
+
+class CampingTagCreate(BaseModel):
+    tagged_user_id: int
+
+class CampingTagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    camping_trip_id: int
+    tagged_user_id: int
+    created_at: datetime
+
+class VisitTagCreate(BaseModel):
+    tagged_user_id: int
+
+class VisitTagOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    visit_id: int
+    tagged_user_id: int
+    created_at: datetime
+
+class UserPreferencesOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    favorite_parks: str  # JSON string
+    notification_days_before: int
+    created_at: datetime
+    updated_at: datetime

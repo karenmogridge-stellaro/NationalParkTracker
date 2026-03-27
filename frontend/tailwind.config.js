@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        park: '#2d5016',
+        // Dark hunter green theme color
+        park: '#254117',
         trail: '#8b7355',
       }
     },

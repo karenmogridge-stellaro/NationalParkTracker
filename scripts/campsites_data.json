@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Upper Pines Campground",
+    "park": "Yosemite",
+    "elevation": 4000,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Popular campground in Yosemite Valley, open year-round."
+  },
+  {
+    "name": "Mather Campground",
+    "park": "Grand Canyon",
+    "elevation": 7000,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Large campground on the South Rim, close to shuttle stops."
+  },
+  {
+    "name": "Watchman Campground",
+    "park": "Zion",
+    "elevation": 4300,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Scenic campground near the park entrance and Virgin River."
+  },
+  {
+    "name": "Many Glacier Campground",
+    "park": "Glacier",
+    "elevation": 4800,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 8,
+    "description": "Campground with mountain views and access to hiking trails."
+  },
+  {
+    "name": "Moraine Park Campground",
+    "park": "Rocky Mountain",
+    "elevation": 8160,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Open meadow setting with elk viewing opportunities."
+  },
+  {
+    "name": "Big Meadows Campground",
+    "park": "Shenandoah",
+    "elevation": 3500,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Central location on Skyline Drive, great for wildlife watching."
+  },
+  {
+    "name": "Blackwoods Campground",
+    "park": "Acadia",
+    "elevation": 100,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Wooded sites near the ocean and park loop road."
+  },
+  {
+    "name": "Cades Cove Campground",
+    "park": "Great Smoky Mountains",
+    "elevation": 1713,
+    "has_water": true,
+    "has_toilets": true,
+    "max_occupancy": 6,
+    "description": "Historic valley setting with abundant wildlife."
+  }
+]

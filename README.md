@@ -1,6 +1,6 @@
-# National Park Tracker
+# ParkAtlas
 
-Track your national park adventures with gamification, fitness tracker integration, and interactive leaderboards!
+**The Atlas of Your Adventures** – Track your national park experiences with gamification, fitness tracker integration, and social features!
 
 ## 🎮 Features
 

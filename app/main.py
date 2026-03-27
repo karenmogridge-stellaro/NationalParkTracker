@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db, SessionLocal
@@ -6,10 +7,21 @@ from app import models
 import json
 from pathlib import Path
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    await startup_tasks()
+    yield
+    # Shutdown (nothing to do currently)
+
+
 app = FastAPI(
-    title="National Park Tracker",
-    description="Track your national park adventures, hikes, camping trips, and wildlife sightings",
-    version="1.0.0"
+    title="ParkAtlas",
+    description="The Atlas of Your Adventures - Track national parks, hikes, camping trips, and wildlife sightings",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Add CORS middleware
@@ -24,8 +36,7 @@ app.add_middleware(
 # Initialize database
 init_db()
 
-@app.on_event("startup")
-async def startup_event():
+async def startup_tasks():
     """Seed database with parks and badges on first startup."""
     db = SessionLocal()
     

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Parkatlas | Leaderboard &amp; Social</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;600;700;800&amp;family=Work+Sans:wght@300;400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "tertiary-container": "#6d4820",
+                "error-container": "#ffdad6",
+                "on-secondary-container": "#4e6e00",
+                "outline": "#72796e",
+                "on-surface-variant": "#42493e",
+                "surface-container-low": "#f6f3ec",
+                "surface-container-high": "#ebe8e1",
+                "primary": "#154212",
+                "surface-dim": "#dcdad3",
+                "on-background": "#1c1c18",
+                "inverse-on-surface": "#f3f0e9",
+                "surface-tint": "#3b6934",
+                "error": "#ba1a1a",
+                "background": "#fcf9f2",
+                "primary-fixed-dim": "#a1d494",
+                "on-surface": "#1c1c18",
+                "on-secondary": "#ffffff",
+                "on-primary-fixed": "#002201",
+                "on-secondary-fixed": "#131f00",
+                "on-tertiary-container": "#ecb987",
+                "surface-variant": "#e5e2db",
+                "surface": "#fcf9f2",
+                "on-primary-container": "#9dd090",
+                "on-error": "#ffffff",
+                "inverse-surface": "#31312c",
+                "surface-bright": "#fcf9f2",
+                "secondary-container": "#c8f17a",
+                "secondary": "#496800",
+                "on-tertiary-fixed": "#2c1600",
+                "primary-container": "#2d5a27",
+                "tertiary": "#52320b",
+                "on-primary-fixed-variant": "#23501e",
+                "surface-container-highest": "#e5e2db",
+                "primary-fixed": "#bcf0ae",
+                "inverse-primary": "#a1d494",
+                "secondary-fixed": "#c8f17a",
+                "on-secondary-fixed-variant": "#364e00",
+                "tertiary-fixed-dim": "#f0bd8b",
+                "on-tertiary-fixed-variant": "#623f18",
+                "on-primary": "#ffffff",
+                "outline-variant": "#c2c9bb",
+                "secondary-fixed-dim": "#add461",
+                "on-error-container": "#93000a",
+                "surface-container": "#f1eee7",
+                "tertiary-fixed": "#ffdcbd",
+                "surface-container-lowest": "#ffffff",
+                "on-tertiary": "#ffffff"
+              },
+              fontFamily: {
+                "headline": ["Epilogue", "sans-serif"],
+                "body": ["Work Sans", "sans-serif"],
+                "label": ["Work Sans", "sans-serif"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background-color: #fcf9f2;
+        }
+        .header-font { font-family: 'Epilogue', sans-serif; }
+        .glass-card {
+            background: rgba(252, 249, 242, 0.8);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-surface antialiased">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 bg-[#fcf9f2] dark:bg-stone-950 flex justify-between items-center w-full px-6 py-4 max-w-full">
+<div class="flex items-center gap-3">
+<img alt="Parkatlas Logo" class="h-8 w-8 object-contain" data-alt="minimalist dark green pine tree logo icon on a clean light background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-e9uu-Z8_5zvdy-1SOs1CJZDfrpWag_07r-5jF_X_M3rqgEwPqYlo5vvbJC6TTNW3vmxr0Wug0clfvXm7Ue_efcSn27Gnw4uk_2su4GPg9IauqGdAAp5cEntVzSxLMZDLt_7lhIs0NkJzV5qc9DJaTPpYSK8ku1mDZZ9tkk68UBmD0jtGklnYRHRS5UetYv16RGkSL7cilLgQKfXp68OhW9gi7bN34w2vE19Q5b1tgXT_WvgO2aSwlxWCSzF8m2UN-b8DJfEWhRi4"/>
+<span class="font-['Epilogue'] font-bold tracking-tight text-[#1c1c18] dark:text-[#fcf9f2] text-xl tracking-tighter">Parkatlas</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary p-2 hover:bg-[#e5e2db] transition-colors rounded-xl">notifications</button>
+<div class="h-8 w-8 rounded-full bg-primary-container overflow-hidden">
+<img alt="Profile" data-alt="portrait of a young man with a beard smiling outdoors in soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtcXRDCc5BXOU1GSOzsuZVrRJ1iJCt0Ozp8X8p9vP3e51iIepJeJQUccSiFFJocHG4iAMc_6Repz8iwWOSlTsQB7istfZ4LZeUwoetmNwMAJz6SHu-03gWJAUhTugG7z4THb9PltPCQ3jr02RBm2s_WAuIldbts5oozsGAlBZNAudf28FBX8SxxY3LqQe54CwEp1Oqk3Pp1dVrXa4yWpnrqipk978sd_ZVjQZFFMm37LZAdnEb1JjAwBKDBfcT0lVDvJYRZ0m2lTan"/>
+</div>
+</div>
+</header>
+<main class="max-w-5xl mx-auto px-6 pt-4 pb-32">
+<!-- Asymmetric Intro Section -->
+<section class="mb-12 flex flex-col md:flex-row justify-between items-end gap-6">
+<div class="max-w-xl">
+<p class="font-label text-secondary font-semibold uppercase tracking-widest text-[10px] mb-2">Social Circle</p>
+<h1 class="font-headline text-4xl font-extrabold text-primary leading-tight">Weekly <span class="text-secondary italic">Expeditions</span></h1>
+<p class="font-body text-on-surface-variant mt-3 text-lg leading-relaxed">Your tribe has covered 142 miles this week. Keep the pace to maintain the lead in the regional bracket.</p>
+</div>
+<div class="flex gap-2">
+<button class="bg-primary text-on-primary px-6 py-3 font-semibold rounded-lg flex items-center gap-2 hover:opacity-90 transition-all">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                    Find Explorers
+                </button>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+<!-- Weekly Leaderboard (Left Column) -->
+<div class="lg:col-span-5 space-y-6">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-headline text-xl font-bold text-primary">Leaderboard</h2>
+<span class="text-xs font-semibold uppercase tracking-tighter text-on-surface-variant">Ends in 2d 14h</span>
+</div>
+<!-- Leaderboard Podiums -->
+<div class="grid grid-cols-3 gap-3 items-end mb-8 pt-6">
+<!-- 2nd Place -->
+<div class="flex flex-col items-center">
+<div class="relative mb-2">
+<img alt="Sarah" class="w-16 h-16 rounded-full border-2 border-surface-container-highest" data-alt="close up headshot of a woman with curly hair laughing in a garden setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFayz-zIjeqQGHaRxj0vwpQ-B7gK-T1HmnTHqg3mTvoX5X6h2esBLfqGSP92p-rPRMKfgKeDZBFEBUSw1AQLEbzlG0zfl7BbFb519IflEhbzerl2oEnncf9qG-J7HuIxGlvogPk39NS7GIJ4aclvMeGltxyxtG3h0dTcOwuBnn34OISoOWUAIx9C1d2Lx5wj-fAshgZHrUTOqrDOwS6ifnFsMS68nuyGtz5SsK4z2skbbwJzMl4PpzzVSJvLhGEVeQTVDACNP_HWYx"/>
+<span class="absolute -bottom-1 -right-1 bg-surface-container-high text-on-surface text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-surface">2</span>
+</div>
+<span class="font-bold text-sm">Sarah W.</span>
+<span class="text-xs text-secondary font-semibold">32.4 km</span>
+</div>
+<!-- 1st Place -->
+<div class="flex flex-col items-center">
+<div class="relative mb-3 scale-110">
+<div class="absolute -top-4 left-1/2 -translate-x-1/2">
+<span class="material-symbols-outlined text-secondary-container" style="font-variation-settings: 'FILL' 1;">workspace_premium</span>
+</div>
+<img alt="Marcus" class="w-20 h-20 rounded-full border-4 border-secondary-container shadow-lg" data-alt="portrait of a man with sunglasses in nature at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsgbSyZe97ygiGJORyCI2AI0tlodmVqxjrzDEZzYw6FE3R8Ivy5vcIEMKNj0A0J53TRHirQ-O5SGpVbeUzT0o91SyoPbdJHTKfQWXI3EVoAuGOI7BUW6iRD0e3poIit5Bw6lXqwbZRBFw9btNhhJdXG8PTGUgsTrYAS8vB6seQWgp-ieG4HZYVraThZXSz9EwditnE_oqmGaliQgD6cUHLJ5aBICHjMwgKG0jl3CdHUmF_L-4L3tYNH8YpzDh-TL-oPSIWBTiVwVYP"/>
+<span class="absolute -bottom-1 -right-1 bg-secondary text-white text-[10px] font-bold w-7 h-7 flex items-center justify-center rounded-full border-2 border-surface">1</span>
+</div>
+<span class="font-bold text-base">Marcus K.</span>
+<span class="text-xs text-secondary font-extrabold">45.8 km</span>
+</div>
+<!-- 3rd Place -->
+<div class="flex flex-col items-center">
+<div class="relative mb-2">
+<img alt="Elena" class="w-16 h-16 rounded-full border-2 border-surface-container-highest" data-alt="smiling woman in outdoor gear standing in a forest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBsoRv0leoAVN5bNyx6YHkbHQqKxaFUNbnWWtzTAxhg4AJZY2VJf7odopxeZJRKZMJ2pmIndeViHwTFjdYDFPiE4tpjB6MrzXQ67POGUlQyOXlYpv3rQcRTHYbUHfQWdIRKX-VCr88_3w671RCXNsJ1rlndLHvhkfCwqLhm_CPbKAKiktXwx_-aKlgKd5RMOHjiu4oFU8BU7qvInvAcaa_tFt_c-CmKPgpo-biAy0KZXA1tBUzHJ7e_nsIXDNpEARGJj-ZyOFJ6GGvt"/>
+<span class="absolute -bottom-1 -right-1 bg-surface-container-high text-on-surface text-[10px] font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-surface">3</span>
+</div>
+<span class="font-bold text-sm">Elena R.</span>
+<span class="text-xs text-secondary font-semibold">28.1 km</span>
+</div>
+</div>
+<!-- Leaderboard List -->
+<div class="space-y-3">
+<div class="bg-surface-container-low p-4 rounded-xl flex items-center justify-between">
+<div class="flex items-center gap-4">
+<span class="font-bold text-on-surface-variant w-4 text-center">4</span>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User" data-alt="portrait of a bearded man in a flannel shirt against a mountain backdrop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC-d-uw0yKSKa72c5-XmPxkSHFeTZG_9sIswUHkAX7viSUjP34Un-yIdZSjzX5vn1XZbXuoszQbGLoN6O9BfEv9vsPo1tCHrl1LOlww2VIsbXOx8xgvXwI2OJyUFTpCB8KLsosGekDsps5u5L4j9N_q3xnmrvQtOkoKoUK8Qur0vXbW-B9faNx5Nz9tRiAHzTGW2FCJUkpQ2kuYNwRTiK6P4Dz-2-Q5QWBXEFpd4G5nnHMpj_sZr9JqrCC_G8sNXvTyfonbXhlzmP1E"/>
+</div>
+<div>
+<p class="font-bold text-sm">David Chen</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-semibold">12 Trails Logged</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-bold text-primary">24.2 km</p>
+</div>
+</div>
+<div class="bg-primary text-on-primary p-4 rounded-xl flex items-center justify-between shadow-lg ring-4 ring-primary/5">
+<div class="flex items-center gap-4">
+<span class="font-bold w-4 text-center">5</span>
+<div class="w-10 h-10 rounded-full bg-primary-container overflow-hidden border-2 border-primary-fixed">
+<img alt="You" data-alt="portrait of a young man with a beard smiling outdoors in soft natural light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpCUcM6imRrCvAGIfsrmwW8oAf-0DsY76C1MC0vCAPvHy8sNiS5840RjlJhCyaiaxX_UtktzdvydSB-765-ba67U7f2_1_OOxiRuWpVT9E4_1LTQy3hkSu1ve59HeuLYLttPCG84k0xVywuKlsnv6MGvre2KDOYUxfTXpMzSixvbmvKhnnd4TZ__WyjOWrEXTGmCmg0lcPeARGBPRaRGy3p4NeVGjylFw4aXWle_L5MukWOIMM_koiqR_upNyusyKa4RMWTPt7V56T"/>
+</div>
+<div>
+<p class="font-bold text-sm">You (Theo)</p>
+<p class="text-[10px] opacity-80 uppercase font-semibold">9 Trails Logged</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-bold">19.5 km</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl flex items-center justify-between">
+<div class="flex items-center gap-4">
+<span class="font-bold text-on-surface-variant w-4 text-center">6</span>
+<div class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden">
+<img alt="User" data-alt="portrait of a woman in natural outdoor lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyhLcbtco26tlRTA9p59bHrNZ88ujDIoFeT0hkmY3JpS2DE8Biw6vZgHUZPsxHnbGYdn1x2lIvSMrdhvdHwv6aPwqWSggb5uNhI6uPTafW77YScp8PFY4hWSwaaTlfJgkhFKPkJTbJwDzdqqw4U5hMDnzjWzM3UBy_II3zAQBK4_d1pgZ3mWLVGH377UVFqW_csSfovOTyg05z3TROF4X6vy4vq9971WwoRe3gz1ddUomCoiuPyDRAiU7P1-9lut7ZUgbmQR8J0eSV"/>
+</div>
+<div>
+<p class="font-bold text-sm">Lila Vance</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-semibold">7 Trails Logged</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-bold text-primary">15.1 km</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Activity / Circle (Right Column) -->
+<div class="lg:col-span-7 space-y-8">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-headline text-xl font-bold text-primary">Circle Activity</h2>
+<button class="text-sm font-semibold text-secondary flex items-center gap-1">
+                        View All <span class="material-symbols-outlined text-sm">arrow_forward_ios</span>
+</button>
+</div>
+<!-- Activity Feed Cards -->
+<div class="space-y-10">
+<!-- Activity Item 1 -->
+<div class="relative pl-6 border-l-2 border-surface-container-high">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-secondary ring-4 ring-background"></div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<img alt="Marcus" class="w-10 h-10 rounded-full" data-alt="portrait of a man with sunglasses in nature at sunset" src="https://lh3.googleusercontent.com/aida-public/AB6AXuANbcBFMceZMQ-XERvCQ3Z0H_ouNk_6eh5zOPQzY533tsa9N6xNbV4pUaxlYUniBus01ZGSEejzxQudhTJMfvun5J-0d2A57VIpXPphcRoOMDnmbusLpdHiH36EagSjCM-zExYT6e-3RYyfN-GVTATe4_Rs3JdIQ9_DMXZ_F0yQXhrcLM83vDR27uJB5NSe9KSh5d3FUUxmNnpy99rSEZXwnrsmqopUEx9Qf-eOIC1nLA0pe78qvFTSjUX_GIeDs05hHifpsps-BFMH"/>
+<div>
+<p class="font-body text-sm"><span class="font-bold">Marcus K.</span> completed <span class="font-semibold text-primary italic">"Eagle's Nest Summit"</span></p>
+<p class="text-xs text-on-surface-variant">2 hours ago • Olympic National Park</p>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl overflow-hidden group">
+<div class="h-48 relative overflow-hidden">
+<img alt="Trail View" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="majestic mountain range with pine forests and a winding trail in the foreground under a dramatic sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuALMcKv5BuysPSl-4_DMKV_oQcklWxjSCsKOTmGxcws2Ny3PHzdBRlJLQtji5CkqjbO-Mf6n5RvQY9TjiKx8Gt6qxsROCjLvc6kzmTDywhMDfhjMAQhAidfGsfBV8bP8UjWZintQQe3wxcDqvBcUocnM2AIY8Sxc_yfmzDEDjoNd0adnlx1XfmBKMCsuy2jpIks0rZN26KyKe48Y_uKf_gkOXj81LhB9brRk8uk3lasC7hzq0ZXlEa5EbWpO9KLDSIueHdwNwly8b15"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+<div class="absolute bottom-4 left-4 flex gap-4 text-white">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase font-bold tracking-widest opacity-80">Distance</span>
+<span class="font-headline font-bold">12.4 km</span>
+</div>
+<div class="flex flex-col border-l border-white/20 pl-4">
+<span class="text-[10px] uppercase font-bold tracking-widest opacity-80">Gain</span>
+<span class="font-headline font-bold">+640 m</span>
+</div>
+</div>
+</div>
+<div class="p-4 flex justify-between items-center">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-primary-container flex items-center justify-center text-[10px] font-bold text-on-primary">
+<span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<div class="w-8 h-8 rounded-full border-2 border-surface bg-surface-container-high flex items-center justify-center text-[10px] font-bold">
+                                            +12
+                                        </div>
+</div>
+<div class="flex gap-2">
+<button class="bg-secondary-container text-secondary px-4 py-2 rounded-full font-bold text-xs flex items-center gap-1.5 hover:scale-95 transition-transform active:opacity-80">
+<span class="material-symbols-outlined text-base">celebration</span>
+                                            Cheer
+                                        </button>
+<button class="bg-surface-container-high text-on-surface-variant px-3 py-2 rounded-full flex items-center hover:bg-surface-container-highest transition-colors">
+<span class="material-symbols-outlined text-base">chat_bubble</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="relative pl-6 border-l-2 border-surface-container-high">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-surface-container-high ring-4 ring-background"></div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<img alt="Sarah" class="w-10 h-10 rounded-full" data-alt="close up headshot of a woman with curly hair laughing in a garden setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAu0j-gLrMLtPCU2kdv_PxvtDsdeyddDBMpcUFsWOd5XyXmeJRzLgybWHD7ejR_ognCPRB5zjJ9Jf5SabSkYnhVWPT_tP0yeI0lXpavy-QeSpxg_B3S1x6F_9XKYZeWD2-dtCOzAQSFUmCvIq5Oii0-8dNg6iN_BQnTi-f3tiQX5k2CcQR7Ks5VQtOQs7PCJes4JFk2S44BXSwZiqmtReH3u1TohDie0OReZ3pjRL7v88ZYycBi3yNb_cW9Znld1G03rt7pTKOO9qIV"/>
+<div>
+<p class="font-body text-sm"><span class="font-bold">Sarah W.</span> earned a new badge</p>
+<p class="text-xs text-on-surface-variant">5 hours ago</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl flex items-center gap-6">
+<div class="w-20 h-20 flex-shrink-0 bg-primary-fixed rounded-2xl flex items-center justify-center rotate-3 shadow-md">
+<span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings: 'FILL' 1;">landscape</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-primary">Peak Bagging Specialist</h4>
+<p class="text-sm text-on-surface-variant mb-3">Logged 5 summits over 2,000m elevation this month.</p>
+<button class="text-secondary font-bold text-xs flex items-center gap-1">
+                                        Cheer on Sarah
+                                        <span class="material-symbols-outlined text-xs">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="relative pl-6 border-l-2 border-surface-container-high">
+<div class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-surface-container-high ring-4 ring-background"></div>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<img alt="Elena" class="w-10 h-10 rounded-full" data-alt="smiling woman in outdoor gear standing in a forest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClvytjvtmdIn9bv1fn_4blFFj_yLVCO-YETc7yn1x2l3u5N-xr0rcavYkLNhafW5b7WHRZ2xu9EfiIxvsES-n7w5qVrP3naJqsJ83qe7Kb9gC0tidbFzubP47uZv961ASNfNM7f_D-C-2j9X5nMy0QME7fxghx2dWHiHFFi1gOBfmubcVXaOW_WF-ik8XW11JG6qtVe78-vWM6uYW5K-QAHU-sFU8IeCPK-H_7OGw2BtuFFqPmWiCf5NR3e5rP1FlAlOlZGPn9Ac5w"/>
+<div>
+<p class="font-body text-sm"><span class="font-bold">Elena R.</span> is starting a new expedition</p>
+<p class="text-xs text-on-surface-variant">Yesterday • Redwood National Forest</p>
+</div>
+</div>
+<div class="bg-[#154212] p-5 rounded-xl text-on-primary flex justify-between items-center overflow-hidden relative">
+<!-- Abstract decorative element -->
+<div class="absolute right-0 top-0 h-full w-32 bg-primary-container/20 -skew-x-12 translate-x-10"></div>
+<div class="relative z-10">
+<p class="text-[10px] uppercase font-bold tracking-widest text-primary-fixed mb-1">Group Hike</p>
+<h4 class="font-headline font-bold text-lg mb-2">Redwood Sentinel Loop</h4>
+<div class="flex items-center gap-2">
+<div class="flex -space-x-1">
+<div class="w-6 h-6 rounded-full bg-stone-300 border-2 border-primary"></div>
+<div class="w-6 h-6 rounded-full bg-stone-400 border-2 border-primary"></div>
+</div>
+<span class="text-xs opacity-80">+ 4 others are going</span>
+</div>
+</div>
+<button class="relative z-10 bg-primary-fixed text-primary h-12 w-12 rounded-xl flex items-center justify-center hover:scale-105 transition-transform active:scale-95">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe pt-2 bg-[#fcf9f2]/80 dark:bg-stone-950/80 backdrop-blur-xl border-t border-[#1c1c18]/5 dark:border-[#fcf9f2]/5 shadow-[0_-4px_24px_rgba(28,28,24,0.04)]">
+<button class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]">
+<span class="material-symbols-outlined">terrain</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Trails</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Progress</span>
+</button>
+<!-- Active Nav: Social -->
+<button class="flex flex-col items-center justify-center text-[#154212] dark:text-[#bcf0ae] bg-[#c8f17a]/30 dark:bg-[#496800]/30 rounded-xl px-3 py-1 scale-95 transition-transform duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">group</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Social</span>
+</button>
+<button class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Settings</span>
+</button>
+</nav>
+<!-- FAB: Only for relevant context (Social interactions/Invite) -->
+<div class="fixed bottom-24 right-6 z-40">
+<button class="bg-secondary text-on-secondary h-14 w-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined">chat</span>
+</button>
+</div>
+</body></html>

@@ -58,11 +58,37 @@ export const parkAPI = {
   getPassport: (userId) => api.get(`/users/${userId}/passport`),
   getUserStats: (userId) => api.get(`/users/${userId}/stats`),
   
+  // User Preferences
+  getUserPreferences: (userId) => api.get(`/users/${userId}/preferences`),
+  updateFavoriteParks: (userId, parkIds) => api.post(`/users/${userId}/preferences/favorite-parks`, parkIds),
+  updateNotificationDays: (userId, days) => api.post(`/users/${userId}/preferences/notification-days`, days),
+  
   // Garmin Integration
   getGarminAuthUrl: (userId) => api.get(`/users/${userId}/garmin/auth-url`),
   saveGarminToken: (userId, authCode) => api.post(`/users/${userId}/garmin/token`, { auth_code: authCode }),
   getGarminStatus: (userId) => api.get(`/users/${userId}/garmin/status`),
   importGarminHikes: (userId, limit = 50) => api.post(`/users/${userId}/garmin/import`, { limit }),
-  disconnectGarmin: (userId) => api.delete(`/users/${userId}/garmin/disconnect`),}
+  disconnectGarmin: (userId) => api.delete(`/users/${userId}/garmin/disconnect`),
+
+  // Social Features
+  inviteFriend: (userId, friendEmail) => api.post(`/users/${userId}/friends/invite`, { friend_email: friendEmail }),
+  getFriendInvitations: (userId) => api.get(`/users/${userId}/friends/invitations`),
+  acceptFriendInvitation: (userId, inviterId) => api.post(`/users/${userId}/friends/invitations/${inviterId}/accept`),
+  getFriends: (userId) => api.get(`/users/${userId}/friends`),
+  getFriendHikes: (userId, friendId, days = 90) => api.get(`/users/${userId}/friends/${friendId}/hikes?days=${days}`),
+  tagFriendInHike: (userId, hikeId, friendId) => api.post(`/users/${userId}/hikes/${hikeId}/tag`, { tagged_user_id: friendId }),
+  getTaggedHikes: (userId) => api.get(`/users/${userId}/tagged-hikes`),
+
+  // Gamification & Achievements
+  getAchievements: (userId) => api.get(`/users/${userId}/achievements`),
+  getChallenges: () => api.get('/challenges'),
+  getUserChallenges: (userId) => api.get(`/users/${userId}/challenges`),
+  getLeaderboard: (sortBy = 'points', limit = 100) => api.get(`/leaderboard?sort_by=${sortBy}&limit=${limit}`),
+  getAllBadges: () => api.get('/badges'),
+  
+  // Recommended Parks
+  getRecommendedParks: (userId, limit = 5) => api.get(`/users/${userId}/recommended-parks?limit=${limit}`),
+  getParksByRegion: (userId) => api.get(`/users/${userId}/parks-by-region`),
+}
 
 export default api

@@ -3,9 +3,10 @@ import { UserProvider, useUser } from './utils/UserContext'
 import Dashboard from './pages/Dashboard'
 import ParkDirectory from './pages/ParkDirectory'
 import MyHikes from './pages/MyHikes'
-import Camping from './pages/Camping'
 import Fitness from './pages/Fitness'
+import Friends from './pages/Friends'
 import Auth from './pages/Auth'
+import { DashboardIcon, ParkIcon, HikeIcon, FitnessIcon, FriendsIcon } from './components/NavIcon'
 import { LogOut, Menu } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,50 +30,51 @@ function AppContent() {
   }
 
   const navItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: '🏕️' },
-    { path: '/parks', label: 'Park Directory', icon: '🗺️' },
-    { path: '/hikes', label: 'My Hikes', icon: '🥾' },
-    { path: '/camping', label: 'Camping', icon: '⛺' },
-    { path: '/fitness', label: 'Fitness Tracker', icon: '⚡' },
+    { path: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
+    { path: '/parks', label: 'Park Directory', icon: ParkIcon },
+    { path: '/hikes', label: 'My Hikes', icon: HikeIcon },
+    { path: '/fitness', label: 'Integrations', icon: FitnessIcon },
+    { path: '/friends', label: 'Friends', icon: FriendsIcon },
   ]
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#f7faf7]">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'fixed inset-0 z-40' : 'hidden'} md:static md:block w-64 bg-park text-white`}>
-        <div className="p-6 border-b border-green-800">
-          <h1 className="text-2xl font-bold">🏞️ ParkTracker</h1>
-          <p className="text-sm text-green-100 mt-1">Adventure Log</p>
+      <aside className={`${sidebarOpen ? 'fixed inset-0 z-40' : 'hidden'} md:static md:block w-64 bg-white border-r-4 border-green-700`}>
+        <div className="p-6 border-b border-green-200">
+          <div className="flex items-center gap-3 mb-2">
+            <img src="/parkatlas-logo.png" alt="ParkAtlas Logo" className="h-12 w-auto" />
+            <h1 className="text-2xl font-bold text-green-800">ParkAtlas</h1>
+          </div>
         </div>
 
         <nav className="p-6 space-y-2">
-          {navItems.map(item => (
-            <Link
-              key={item.path}
-              to={item.path}
-              onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-green-50 hover:bg-green-700 transition-colors"
-            >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-green-800">
-          <p className="text-sm text-green-100 mb-4">Logged in as</p>
-          <p className="font-semibold mb-4">{user.name}</p>
+          {navItems.map(item => {
+            const IconComponent = item.icon
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-green-800 hover:bg-green-100 transition-colors"
+              >
+                <IconComponent />
+                {item.label}
+              </Link>
+            )
+          })}
+          
           <button
             onClick={() => {
               logout()
               setSidebarOpen(false)
             }}
-            className="flex items-center gap-2 w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-sm"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-green-800 hover:bg-green-100 transition-colors mt-6 pt-6 border-t border-green-200"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-5 h-5" />
             Logout
           </button>
-        </div>
+        </nav>
       </aside>
 
       {/* Mobile Overlay */}
@@ -86,7 +88,7 @@ function AppContent() {
           <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
             <Menu className="w-6 h-6" />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">National Park Adventures</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">The Atlas of Your Adventures</h1>
         </div>
 
         <div className="p-6 max-w-7xl mx-auto">
@@ -94,8 +96,8 @@ function AppContent() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/parks" element={<ParkDirectory />} />
             <Route path="/hikes" element={<MyHikes />} />
-            <Route path="/camping" element={<Camping />} />
             <Route path="/fitness" element={<Fitness />} />
+            <Route path="/friends" element={<Friends />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </div>

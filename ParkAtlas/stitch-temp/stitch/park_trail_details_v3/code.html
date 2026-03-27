@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Olympic National Park - Parkatlas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;800&amp;family=Work_Sans:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary-container": "#6d4820",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#4e6e00",
+                        "outline": "#72796e",
+                        "on-surface-variant": "#42493e",
+                        "surface-container-low": "#f6f3ec",
+                        "surface-container-high": "#ebe8e1",
+                        "primary": "#154212",
+                        "surface-dim": "#dcdad3",
+                        "on-background": "#1c1c18",
+                        "inverse-on-surface": "#f3f0e9",
+                        "surface-tint": "#3b6934",
+                        "error": "#ba1a1a",
+                        "background": "#fcf9f2",
+                        "primary-fixed-dim": "#a1d494",
+                        "on-surface": "#1c1c18",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed": "#002201",
+                        "on-secondary-fixed": "#131f00",
+                        "on-tertiary-container": "#ecb987",
+                        "surface-variant": "#e5e2db",
+                        "surface": "#fcf9f2",
+                        "on-primary-container": "#9dd090",
+                        "on-error": "#ffffff",
+                        "inverse-surface": "#31312c",
+                        "surface-bright": "#fcf9f2",
+                        "secondary-container": "#c8f17a",
+                        "secondary": "#496800",
+                        "on-tertiary-fixed": "#2c1600",
+                        "primary-container": "#2d5a27",
+                        "tertiary": "#52320b",
+                        "on-primary-fixed-variant": "#23501e",
+                        "surface-container-highest": "#e5e2db",
+                        "primary-fixed": "#bcf0ae",
+                        "inverse-primary": "#a1d494",
+                        "secondary-fixed": "#c8f17a",
+                        "on-secondary-fixed-variant": "#364e00",
+                        "tertiary-fixed-dim": "#f0bd8b",
+                        "on-tertiary-fixed-variant": "#623f18",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#c2c9bb",
+                        "secondary-fixed-dim": "#add461",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#f1eee7",
+                        "tertiary-fixed": "#ffdcbd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary": "#ffffff"
+                    },
+                    fontFamily: {
+                        "headline": ["Epilogue"],
+                        "body": ["Work Sans"],
+                        "label": ["Work Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background-color: #fcf9f2;
+            color: #1c1c18;
+        }
+        .header-headline {
+            font-family: 'Epilogue', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface antialiased">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 bg-[#fcf9f2] dark:bg-stone-950 flex justify-between items-center w-full px-6 py-4 max-w-full">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#154212] dark:text-[#bcf0ae]" data-icon="park">park</span>
+<h1 class="font-['Epilogue'] font-bold tracking-tight text-[#1c1c18] dark:text-[#fcf9f2] text-xl">Parkatlas</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#e5e2db] transition-colors">
+<span class="material-symbols-outlined text-[#1c1c18]">search</span>
+</button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-outline-variant/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDVzOKxlmJg8EgBn7BQujzQ4Rip5Hshil3q3qj0TDf_0_Rzu8-bvEDytlnxMEOwTYoGo4JyBEmo-HV1ENdOqxa750rbdgMKn_syrcPxzZlRng5Un0gUbk1S9qj0kZOi8Ea0m24CkNJchUx3AXruAgn8v0YAGBqeKZ58f09ntfMIeR5Xsg_o_UboifUz_Ivp4IEs3Gz0gykiipurmKyvYd0mPGclVQkz54WppyXKIsylakIJaMyjvg-XN5MYBkJEtGnx34l5ufVbfWwq"/>
+</div>
+</header>
+<main class="max-w-7xl mx-auto pb-32">
+<!-- Hero Section -->
+<section class="relative h-[353px] md:h-[530px] overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="dramatic wide shot of misty temperate rainforest in Olympic National Park with moss-covered old growth trees and soft ethereal morning light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5SNNggDhnO2pCmJMFCq1k9uOuh-52OScy3DOVf2XnkeiNVK5awITVzvMojTez7bEaLUWkrcqDmEw_awizf2n6urUBhyXh9FzzmTps-PjwETsAjrQbh9aVIXHbwu4jt7PubJXTMMyXJhd4t-sYECEk7j2qf4Dq_xt0sxLpy8esyI95Q3WLQkoZ_LpefkXzfA0jvYCr0z2bT8B29Ce2BvrOdQprCem39zFaaTTRkl1q4S-Olr851taLagj09qI_418nseTEs2UuIaAT"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6 md:p-12 w-full">
+<div class="flex flex-wrap items-center gap-2 mb-3">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest font-label">Washington, USA</span>
+<span class="bg-primary/10 backdrop-blur-md text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest font-label">UNESCO World Heritage</span>
+</div>
+<h2 class="font-headline text-4xl md:text-6xl font-extrabold tracking-tighter text-on-surface mb-2">Hoh Rain Forest Loop</h2>
+<p class="text-on-surface-variant font-body max-w-2xl text-lg">Olympic National Park</p>
+</div>
+</section>
+<!-- Content Grid (Asymmetric) -->
+<div class="px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
+<!-- Left Column: Details -->
+<div class="lg:col-span-8 space-y-10">
+<!-- Trail Stats Bento -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="route">route</span>
+<div>
+<p class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Length</p>
+<p class="font-headline text-2xl font-bold">1.2 mi</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="height">height</span>
+<div>
+<p class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Elevation</p>
+<p class="font-headline text-2xl font-bold">82 ft</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="timer">timer</span>
+<div>
+<p class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Est. Time</p>
+<p class="font-headline text-2xl font-bold">45m</p>
+</div>
+</div>
+<div class="bg-surface-container-low p-6 rounded-xl flex flex-col justify-between border-l-4 border-primary">
+<span class="material-symbols-outlined text-primary mb-4" data-icon="signal_cellular_alt">signal_cellular_alt</span>
+<div>
+<p class="font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Difficulty</p>
+<p class="font-headline text-2xl font-bold text-primary">Easy</p>
+</div>
+</div>
+</div>
+<!-- Description -->
+<article class="prose prose-stone max-w-none">
+<h3 class="font-headline text-2xl font-bold mb-4">The Hall of Mosses</h3>
+<p class="font-body text-on-surface-variant leading-relaxed text-lg mb-6">
+                        Experience the primeval beauty of one of the world's few temperate rainforests. This legendary loop takes you through a cathedral of ancient Bigleaf Maples and Sitka Spruces, draped in thick blankets of Clubmoss. The trail is mostly flat, making it an ideal exploration for all naturalist levels seeking the quiet solitude of the Olympic Peninsula.
+                    </p>
+<div class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+<div class="flex-none w-64 h-48 bg-surface-container-highest rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="close-up of vibrant green moss growing on a gnarled tree trunk in a damp forest setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxrITHvRLeEi_xwS9KINFzU1XzTm6lJdsteFPAHiQqPWOwGQSN92AEuWOD3HkTaQZNCkUzqGcIeK1x83q2m3Gz4G6HIMOE50WPWZwrRDLySTAJs2b78Cz11vDnpgQZTz7wDV7UOheXoRCgxF136GZaSpZIZEdVEYhlRYnIg0vcZg5IHrdCXkoyj9-frHPTz4nN9lgbePqyxigRdBreWo7slJrrNi4-xaTPOiHoQLksamIcd_awwtdz_rQP4xb7GYj6cdzeb0_KC3Z-"/>
+</div>
+<div class="flex-none w-64 h-48 bg-surface-container-highest rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="wide shot of a sun-drenched forest path with tall pine trees and dappled sunlight on the ground" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt0x93SIWgnLPaoM6DWwO--Xsf6xSfKVv7VYyP_VuxpIODYLTqtqF58UJxPGgd8-x9fKMkYwPKfojCRLqQKo8Y5uqdP73N7nCaVxs-f6ujfGL3nSdIKK7GGmyZ6M-PwkGCcsHi2iafLtLNlAiy5OjtPk0BTg0lIpiZb_7AwWEhPp6UxMI8ekwn4DjZs1PXvJDQAx79nm2_TF1tFfari_XPXAbFW_w7p6qaU71wimrLGEWKbnxkaS_tmbOELMOeMS-TNhDaRbRSryzL"/>
+</div>
+<div class="flex-none w-64 h-48 bg-surface-container-highest rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="misty forest clearing with fern-covered floor and towering ancient trees in soft grey light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkXWulHozFMQEWpy0LdmQjKczsjRZUfodk1uXs-UPF6UgpjvvOf3hkq2j8JdTyjn1_G-MW817hNQdTUurQasZPNn3-hzmEQNXX9cRriaGhfV8IyG97BWXUZiP0E9pI4h9CjgwCFjPpwcQcWIkm6fl_7m9S-HXgABk3Fe0bmNM5HrgSM5TWn1FsADMcJ480doPO2We11m_i03Lb9rcCCak92yYjD8Dl05mgT_QguIlHaxByct0n47WqCDnKpM7aNPWeIRC6qHV593Dc"/>
+</div>
+</div>
+</article>
+<!-- Expedition Progress (Special Component) -->
+<div class="bg-surface-container-low p-8 rounded-xl">
+<div class="flex justify-between items-end mb-4">
+<h4 class="font-headline text-xl font-bold">Your Expedition Progress</h4>
+<span class="font-label text-sm font-bold text-primary">65% Discovered</span>
+</div>
+<div class="h-4 w-full bg-primary-fixed rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[65%]"></div>
+</div>
+<p class="mt-4 text-sm text-on-surface-variant font-body">Complete the Hall of Mosses loop to unlock the "Rainforest Pioneer" badge.</p>
+</div>
+</div>
+<!-- Right Column: Interactive Map & CTA -->
+<div class="lg:col-span-4 space-y-6">
+<!-- Map Card -->
+<div class="bg-surface-container-high rounded-xl overflow-hidden shadow-sm group">
+<div class="p-4 flex justify-between items-center bg-surface-container-highest">
+<span class="font-label text-xs font-bold uppercase tracking-wider">Topographic View</span>
+<button class="text-primary hover:underline font-label text-xs font-bold">Full Screen</button>
+</div>
+<div class="aspect-square relative">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="stylized topographical map of a mountain region with green and brown terrain contours" data-location="Olympic National Park" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4hnGCwSwOjTWFzGvbFjNO9VBprxts9StgZkTJdKldJBNYIjf1VlhckdeC0q07oEbwVpyf4X6yeZPYnzvTud2YpWS3dJ3rT-LuxtulTfV2P5nG_WFhqJv2xorygaDVK1iRiyycAZL3aA3rf1JqBqz5A7f3_MHxpGv9zOanaMtvspaYt1kO-ne33Kw7MZrhszCg9Why6z1r6K9eZ0a9c2qyIm2typyG-CvNeoAIOv-v5KqmEbLtFjQxW54GAs86-0nz5wIFdvpChZQV"/>
+<!-- Floating Map Controls -->
+<div class="absolute bottom-4 right-4 flex flex-col gap-2">
+<button class="w-10 h-10 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<button class="w-10 h-10 bg-surface/90 backdrop-blur-md rounded-lg flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined" data-icon="remove">remove</span>
+</button>
+<button class="w-10 h-10 bg-primary text-on-primary rounded-lg flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined" data-icon="my_location">my_location</span>
+</button>
+</div>
+<!-- Trail Line Overlay (Simulated) -->
+<div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+<div class="w-3/4 h-3/4 border-4 border-dashed border-secondary/40 rounded-full rotate-45"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full ring-4 ring-white"></div>
+</div>
+</div>
+</div>
+<!-- Weather/Conditions Card -->
+<div class="bg-surface-container-low p-6 rounded-xl border-l-4 border-secondary">
+<h5 class="font-label text-xs font-bold uppercase tracking-wider mb-4">Current Conditions</h5>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-3xl text-primary" data-icon="cloudy_snowing">cloudy_snowing</span>
+<div>
+<p class="font-headline text-xl font-bold">54°F</p>
+<p class="text-xs text-on-surface-variant">Light Mist</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-label text-xs font-bold">Visibility</p>
+<p class="text-sm">High (8.2 mi)</p>
+</div>
+</div>
+</div>
+<!-- Primary CTA (Start Hike) -->
+<button class="w-full bg-primary text-on-primary py-5 rounded-lg font-headline text-xl font-bold flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                    Start Hike
+                </button>
+<p class="text-center text-[10px] font-label text-on-surface-variant uppercase tracking-widest">Always carry the 10 essentials</p>
+</div>
+</div>
+<!-- Featured Nearby Bento -->
+<section class="px-6 md:px-12 mt-16">
+<h3 class="font-headline text-2xl font-bold mb-8">Nearby Discoveries</h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-surface-container-low p-2 rounded-xl group cursor-pointer">
+<div class="h-48 overflow-hidden rounded-lg mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="view of snow-capped mountains across a deep blue alpine lake" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDKvXdnXWb2vr3V3JthttOKVJcxRwElZTpj-uZeiK7ISj_6d9CYTsfsgRl5xlDWWfcGQqu6jiS6cMqcCl5UsnQogLo5iumDSK3j5WHXQGmFpm3OckwL3RWw2qNjPmNXrZdarZ-ajYIbS075EAuEHe7f-LSQ0Bvw-3c7qpXJahdK3RBiAfzyLeK1hMc9BXpY3VWPatHobhDLKGriswjioscqac6AE-ZZFFaIIvtxkjiII2SVy6kLMpw3G-eW3LMNadfIGzkDpJgOHlG"/>
+</div>
+<div class="px-2 pb-2">
+<p class="font-label text-[10px] font-bold text-primary uppercase mb-1">4.2 mi away</p>
+<h4 class="font-headline text-lg font-bold">Hurricane Ridge</h4>
+</div>
+</div>
+<div class="bg-surface-container-low p-2 rounded-xl group cursor-pointer">
+<div class="h-48 overflow-hidden rounded-lg mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="rugged coastline with sea stacks and dark sand under an overcast sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqie5V3PWo3timNSphPGuYc3rPeOCRIyA4o-myCTRKzSpKDopA6gkN2IsCgMBFKydcjL5HdPHBNX61uqe3IWr1muQtFN20xfEOwBkf4i9U6AmPnwxd0x1Ck4VRXEw526mjD5g5LslB-f1I_B4suCR9axtlQPQybNdyRbK39lEX4rTi0ihfyEh30siSUBEqeVrwO-NqfE3mBR24GY7-i-NhVVCllLT4eICnKwdWKvqrzQDL5oWgDsKTGAd9XTBlVlq95c8yITYG2heU"/>
+</div>
+<div class="px-2 pb-2">
+<p class="font-label text-[10px] font-bold text-primary uppercase mb-1">12.8 mi away</p>
+<h4 class="font-headline text-lg font-bold">Ruby Beach</h4>
+</div>
+</div>
+<div class="bg-surface-container-low p-2 rounded-xl group cursor-pointer">
+<div class="h-48 overflow-hidden rounded-lg mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform" data-alt="misty forest with a waterfall cascading over rocks into a clear pool" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0KI2DjctZyu7acM9QdpTvdvsuI0AuehYswaqnJsTYlWP9Rajqxe-sA-34MPCo0TCccKpTLWh291PxTv-VndJT2HkmQF49N_rB18TQb5zz2OCuUGamyOIbVyPhPYD2Hh_W-C1-kJcdBggl4jOWj8-nJCPrrU-RWAlknnUeiuYQkBOUDEFYEFLWXpIPVTseeDn8o29xaLPUFHES8wSzJ1y5D_2GPKegyeNQ41wOo15rvBr48UeJ-lx3K6D8838gtpydmSAmw227aqJq"/>
+</div>
+<div class="px-2 pb-2">
+<p class="font-label text-[10px] font-bold text-primary uppercase mb-1">8.5 mi away</p>
+<h4 class="font-headline text-lg font-bold">Sol Duc Falls</h4>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe pt-2 bg-[#fcf9f2]/80 dark:bg-stone-950/80 backdrop-blur-xl border-t border-[#1c1c18]/5 dark:border-[#fcf9f2]/5 shadow-[0_-4px_24px_rgba(28,28,24,0.04)]">
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Explore</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#154212] dark:text-[#bcf0ae] bg-[#c8f17a]/30 dark:bg-[#496800]/30 rounded-xl px-3 py-1" href="#">
+<span class="material-symbols-outlined" data-icon="terrain">terrain</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Trails</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Progress</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]" href="#">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Social</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#1c1c18]/50 dark:text-[#fcf9f2]/50 hover:text-[#154212] dark:hover:text-[#bcf0ae]" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-['Work_Sans'] text-[10px] font-semibold uppercase tracking-wider">Settings</span>
+</a>
+</nav>
+</body></html>

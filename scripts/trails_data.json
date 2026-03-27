@@ -1,0 +1,72 @@
+[
+  {
+    "name": "Mist Trail",
+    "park": "Yosemite",
+    "length_miles": 7.0,
+    "difficulty": "Hard",
+    "description": "Scenic trail past Vernal and Nevada Falls with granite steps and mist."
+  },
+  {
+    "name": "Bright Angel Trail",
+    "park": "Grand Canyon",
+    "length_miles": 9.5,
+    "difficulty": "Hard",
+    "description": "Popular rim-to-river trail with steep switchbacks and stunning canyon views."
+  },
+  {
+    "name": "Angel's Landing",
+    "park": "Zion",
+    "length_miles": 5.4,
+    "difficulty": "Hard",
+    "description": "Famous for its narrow ridge and panoramic views of Zion Canyon."
+  },
+  {
+    "name": "Hidden Lake Trail",
+    "park": "Glacier",
+    "length_miles": 5.0,
+    "difficulty": "Moderate",
+    "description": "Alpine meadows, wildflowers, and a beautiful lake overlook."
+  },
+  {
+    "name": "Sky Pond via Glacier Gorge",
+    "park": "Rocky Mountain",
+    "length_miles": 9.0,
+    "difficulty": "Hard",
+    "description": "Waterfalls, lakes, and dramatic mountain scenery."
+  },
+  {
+    "name": "Old Rag Mountain Loop",
+    "park": "Shenandoah",
+    "length_miles": 9.0,
+    "difficulty": "Hard",
+    "description": "Rock scrambles and sweeping Blue Ridge views."
+  },
+  {
+    "name": "Cadillac Mountain South Ridge Trail",
+    "park": "Acadia",
+    "length_miles": 7.0,
+    "difficulty": "Moderate",
+    "description": "Granite ridges and ocean views to the highest point on the U.S. Atlantic coast."
+  },
+  {
+    "name": "Alum Cave Trail",
+    "park": "Great Smoky Mountains",
+    "length_miles": 4.6,
+    "difficulty": "Moderate",
+    "description": "Arch rock, bluffs, and wildflowers on the way to Mount LeConte."
+  },
+  {
+    "name": "Devils Garden Trail",
+    "park": "Arches",
+    "length_miles": 7.8,
+    "difficulty": "Moderate",
+    "description": "Multiple arches, spires, and fins in a desert landscape."
+  },
+  {
+    "name": "Highline Trail",
+    "park": "Glacier",
+    "length_miles": 11.8,
+    "difficulty": "Hard",
+    "description": "Cliffside path with wildflowers, wildlife, and mountain vistas."
+  }
+]

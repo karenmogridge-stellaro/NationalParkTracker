@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Activity, MapPin, Clock, X, Plus } from 'lucide-react'
+import { Activity, MapPin, Clock, X, Plus, Trash2, Image } from 'lucide-react'
 import { parkAPI } from '../utils/api'
 import { useUser } from '../utils/UserContext'
 
@@ -13,13 +13,16 @@ export default function MyHikes() {
   const [trails, setTrails] = useState([])
   const [parks, setParks] = useState([])
   const [hikeForm, setHikeForm] = useState({
+    park_id: '',
     trail_id: '',
     hike_date: new Date().toISOString().split('T')[0],
     duration_minutes: 120,
     distance_miles: '',
     elevation_gain: '',
+    difficulty_experienced: 'moderate',
     notes: '',
   })
+  const [photos, setPhotos] = useState([])
 
   useEffect(() => {
     if (user?.id) {
@@ -70,23 +73,51 @@ export default function MyHikes() {
   const closeModal = () => {
     setShowModal(false)
     setHikeForm({
+      park_id: '',
       trail_id: '',
       hike_date: new Date().toISOString().split('T')[0],
       duration_minutes: 120,
       distance_miles: '',
       elevation_gain: '',
+      difficulty_experienced: 'moderate',
       notes: '',
     })
+    setPhotos([])
   }
 
   const handleHikeChange = (e) => {
     const { name, value } = e.target
-    setHikeForm(prev => ({
-      ...prev,
-      [name]: ['duration_minutes', 'elevation_gain'].includes(name) ? 
-        (value ? parseInt(value) : value) : 
-        (name === 'distance_miles' ? parseFloat(value) : value)
-    }))
+    if (name === 'park_id') {
+      // When park changes, reset trail_id
+      setHikeForm(prev => ({
+        ...prev,
+        park_id: value,
+        trail_id: ''
+      }))
+    } else {
+      setHikeForm(prev => ({
+        ...prev,
+        [name]: ['duration_minutes', 'elevation_gain'].includes(name) ? 
+          (value ? parseInt(value) : value) : 
+          (name === 'distance_miles' ? parseFloat(value) : value)
+      }))
+    }
+  }
+
+  const getTrailsForPark = (parkId) => {
+    if (!parkId) return []
+    return trails.filter(trail => trail.park_id === parseInt(parkId))
+  }
+
+  const handlePhotoSelect = (e) => {
+    const files = Array.from(e.target.files || [])
+    setPhotos(prev => [...prev, ...files])
+    // Reset input
+    e.target.value = ''
+  }
+
+  const removePhoto = (index) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index))
   }
 
   const handleLogHike = async (e) => {
@@ -95,14 +126,17 @@ export default function MyHikes() {
 
     setSubmitting(true)
     try {
-      await parkAPI.logHike(user.id, {
+      const hike_data = {
         trail_id: parseInt(hikeForm.trail_id),
         hike_date: hikeForm.hike_date,
         duration_minutes: hikeForm.duration_minutes,
         distance_miles: hikeForm.distance_miles ? parseFloat(hikeForm.distance_miles) : null,
         elevation_gain: hikeForm.elevation_gain ? parseInt(hikeForm.elevation_gain) : null,
-        notes: hikeForm.notes,
-      })
+        difficulty_experienced: hikeForm.difficulty_experienced,
+        notes: hikeForm.notes + (photos.length > 0 ? `\n[${photos.length} photo(s) attached]` : ''),
+      }
+      
+      await parkAPI.logHike(user.id, hike_data)
       closeModal()
       loadHikes()
     } catch (err) {
@@ -134,7 +168,7 @@ export default function MyHikes() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-[#f7faf7] space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">My Hikes</h1>
@@ -158,26 +192,26 @@ export default function MyHikes() {
       {hikes.length > 0 ? (
         <div className="space-y-4">
           {hikes.map(hike => (
-            <div key={hike.id} className="card hover:shadow-lg transition-shadow">
+            <div key={hike.id} className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <p className="font-semibold text-lg">{getTrailName(hike.trail_id)}</p>
+                  <p className="font-semibold text-lg text-green-900">{getTrailName(hike.trail_id)}</p>
                   <p className="text-sm text-gray-600">{getParkForTrail(hike.trail_id)}</p>
                 </div>
                 {hike.distance_miles && (
                   <div className="flex items-center gap-2 text-gray-700">
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="w-4 h-4 text-green-700" />
                     <span>{hike.distance_miles} mi</span>
                   </div>
                 )}
                 {hike.elevation_gain && (
                   <div className="flex items-center gap-2 text-gray-700">
-                    <Activity className="w-4 h-4" />
+                    <Activity className="w-4 h-4 text-green-700" />
                     <span>+{hike.elevation_gain} ft</span>
                   </div>
                 )}
                 <div className="flex items-center gap-2 text-gray-600">
-                  <Clock className="w-4 h-4" />
+                  <Clock className="w-4 h-4 text-green-700" />
                   <span>{new Date(hike.hike_date).toLocaleDateString()}</span>
                 </div>
               </div>
@@ -218,6 +252,26 @@ export default function MyHikes() {
             <form onSubmit={handleLogHike} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  National Park *
+                </label>
+                <select
+                  name="park_id"
+                  value={hikeForm.park_id}
+                  onChange={handleHikeChange}
+                  required
+                  className="input-field"
+                >
+                  <option value="">Select a park...</option>
+                  {[...parks].sort((a, b) => a.name.localeCompare(b.name)).map(park => (
+                    <option key={park.id} value={park.id}>
+                      {park.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Trail *
                 </label>
                 <select
@@ -225,17 +279,17 @@ export default function MyHikes() {
                   value={hikeForm.trail_id}
                   onChange={handleHikeChange}
                   required
-                  className="input-field"
+                  disabled={!hikeForm.park_id}
+                  className="input-field disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
-                  <option value="">Select a trail...</option>
-                  {trails.map(trail => {
-                    const park = parks.find(p => p.id === trail.park_id)
-                    return (
-                      <option key={trail.id} value={trail.id}>
-                        {trail.name} ({park?.name || 'Unknown'})
-                      </option>
-                    )
-                  })}
+                  <option value="">
+                    {hikeForm.park_id ? 'Select a trail...' : 'Select a park first'}
+                  </option>
+                  {hikeForm.park_id && getTrailsForPark(hikeForm.park_id).sort((a, b) => a.name.localeCompare(b.name)).map(trail => (
+                    <option key={trail.id} value={trail.id}>
+                      {trail.name} ({trail.difficulty})
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -285,6 +339,22 @@ export default function MyHikes() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Difficulty Experienced
+                </label>
+                <select
+                  name="difficulty_experienced"
+                  value={hikeForm.difficulty_experienced}
+                  onChange={handleHikeChange}
+                  className="input-field"
+                >
+                  <option value="easy">Easy</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Elevation Gain (feet)
                 </label>
                 <input
@@ -309,6 +379,43 @@ export default function MyHikes() {
                   placeholder="How was the hike? Any observations?"
                   className="input-field h-20 resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Image className="w-4 h-4 inline mr-1" />
+                  Photos (optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handlePhotoSelect}
+                  className="block w-full text-sm text-gray-600 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-park file:text-white file:cursor-pointer hover:file:opacity-90"
+                />
+                {photos.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-600 mb-2">{photos.length} photo(s) selected</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {photos.map((photo, idx) => (
+                        <div key={idx} className="relative">
+                          <img 
+                            src={URL.createObjectURL(photo)} 
+                            alt={`Preview ${idx}`}
+                            className="w-full h-24 object-cover rounded-lg border border-gray-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(idx)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 pt-6">
