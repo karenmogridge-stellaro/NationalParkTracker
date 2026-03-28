@@ -30,6 +30,14 @@
     "plugins": [
       "expo-router",
       [
+        "react-native-health",
+        {
+          "isClinicalDataEnabled": false,
+          "healthSharePermission": "Allow ParkAtlas to read your fitness and trail activity data from Apple Health.",
+          "healthUpdatePermission": "Allow ParkAtlas to save your trail outings to Apple Health."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -40,7 +48,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "react-native-health"
     ],
     "experiments": {
       "typedRoutes": true,

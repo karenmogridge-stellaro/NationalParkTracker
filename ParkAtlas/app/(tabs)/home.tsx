@@ -87,7 +87,7 @@ export default function HomeScreen() {
                 <Text style={styles.statLabel}>SUMMITS</Text>
               </View>
             </View>
-            <View style={styles.statItemWide}>
+            <View style={styles.statItem}>
               <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
@@ -98,13 +98,6 @@ export default function HomeScreen() {
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: '22%' }]} />
                 </View>
-              </View>
-            </View>
-            <View style={styles.statItem}>
-              <MaterialCommunityIcons name="timer-outline" size={22} color={`${C.primary}66`} />
-              <View>
-                <Text style={styles.statValue}>3.4</Text>
-                <Text style={styles.statLabel}>AVG PACE</Text>
               </View>
             </View>
           </View>
@@ -345,22 +338,14 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 20,
+    gap: 12,
+    justifyContent: 'center',
   },
   statItem: {
     flex: 1,
-    minWidth: '40%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  statItemWide: {
-    flex: 1,
-    minWidth: '40%',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
+    gap: 8,
   },
   statValue: {
     fontSize: 28,
@@ -483,7 +468,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dashedButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     letterSpacing: 2.5,
     color: C.background,

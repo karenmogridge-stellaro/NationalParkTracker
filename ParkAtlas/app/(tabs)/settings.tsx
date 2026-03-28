@@ -6,15 +6,18 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { useAppleHealth } from '@/hooks/useAppleHealth';
 
 export default function SettingsScreen() {
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNewsletter, setEmailNewsletter] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  const { status: healthStatus, summary: healthSummary, authorize: authorizeHealth, isAvailable: healthAvailable } = useAppleHealth();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -78,15 +81,35 @@ export default function SettingsScreen() {
           <Text style={styles.deviceName}>Garmin Connect</Text>
           <Text style={styles.deviceSub}>Last synced: 2h ago</Text>
         </View>
-        <View style={[styles.card, styles.cardMuted, styles.cardMt]}>
+        <View style={[styles.card, healthStatus === 'authorized' ? undefined : styles.cardMuted, styles.cardMt]}>
           <View style={styles.deviceRow}>
-            <Ionicons name="heart" size={28} color={C.onSurfaceVariant} />
-            <TouchableOpacity style={styles.linkBtn} activeOpacity={0.85}>
-              <Text style={styles.linkBtnText}>LINK</Text>
-            </TouchableOpacity>
+            <Ionicons
+              name="heart"
+              size={28}
+              color={healthStatus === 'authorized' ? '#e53935' : C.onSurfaceVariant}
+            />
+            {healthStatus === 'authorized' ? (
+              <Text style={styles.connectedBadge}>CONNECTED</Text>
+            ) : healthStatus === 'requesting' ? (
+              <ActivityIndicator size="small" color={C.primary} />
+            ) : healthAvailable ? (
+              <TouchableOpacity style={styles.linkBtn} activeOpacity={0.85} onPress={authorizeHealth}>
+                <Text style={styles.linkBtnText}>LINK</Text>
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.unavailableText}>iOS ONLY</Text>
+            )}
           </View>
           <Text style={styles.deviceName}>Apple Health</Text>
-          <Text style={styles.deviceSub}>Import trail activity data</Text>
+          {healthStatus === 'authorized' && healthSummary ? (
+            <Text style={styles.deviceSub}>
+              Today: {healthSummary.stepsToday.toLocaleString()} steps · {healthSummary.distanceKmToday} km
+            </Text>
+          ) : healthStatus === 'denied' ? (
+            <Text style={[styles.deviceSub, { color: '#c62828' }]}>Access denied — enable in iOS Settings &gt; Health</Text>
+          ) : (
+            <Text style={styles.deviceSub}>Import trail activity data</Text>
+          )}
         </View>
 
         {/* Notifications */}
@@ -305,6 +328,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     color: C.secondary,
+    letterSpacing: 1.5,
+  },
+  unavailableText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
     letterSpacing: 1.5,
   },
   linkBtn: {

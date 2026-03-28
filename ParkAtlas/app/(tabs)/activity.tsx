@@ -49,8 +49,7 @@ export default function ActivityScreen() {
         {/* Hero */}
         <View style={styles.heroSection}>
           <Text style={styles.heroLabel}>SOCIAL CIRCLE</Text>
-          <Text style={styles.heroTitle}>Weekly</Text>
-          <Text style={styles.heroTitleItalic}>Expeditions</Text>
+          <Text style={styles.heroTitle}>Weekly <Text style={styles.heroTitleItalic}>Expeditions</Text></Text>
           <Text style={styles.heroBody}>
             Your tribe has covered 142 miles this week. Keep the pace to maintain the lead in the regional bracket.
           </Text>
@@ -306,17 +305,16 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: '900',
     color: C.primary,
-    lineHeight: 52,
+    lineHeight: 56,
     letterSpacing: -1,
+    marginBottom: 14,
   },
   heroTitleItalic: {
     fontSize: 48,
     fontWeight: '900',
     fontStyle: 'italic',
     color: C.primary,
-    lineHeight: 52,
     letterSpacing: -1,
-    marginBottom: 14,
   },
   heroBody: {
     fontSize: 15,
