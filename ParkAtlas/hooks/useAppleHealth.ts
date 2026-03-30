@@ -1,14 +1,26 @@
 import { useState, useCallback } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
-// react-native-health is iOS only — guard all imports behind Platform check
-// so the app doesn't crash on Android or web.
+// react-native-health is iOS only and requires a native build (not Expo Go).
+// Guard the require so the app doesn't crash in managed/web environments.
 let AppleHealthKit: any = null;
 let HealthUnit: any = null;
+let isModuleLoaded = false;
+
 if (Platform.OS === 'ios') {
-  const rnh = require('react-native-health');
-  AppleHealthKit = rnh.default;
-  HealthUnit = rnh.HealthUnit;
+  try {
+    const { NativeModules } = require('react-native');
+    const rnh = require('react-native-health');
+    // react-native-health wraps NativeModules.AppleHealthKit via Object.assign,
+    // which may not copy lazy-loaded native methods in newer RN.
+    // Access the native module directly, fall back to the rnh wrapper.
+    const nativeMod = NativeModules.AppleHealthKit;
+    AppleHealthKit = (typeof nativeMod?.initHealthKit === 'function') ? nativeMod : rnh;
+    HealthUnit = rnh?.Constants?.Units ?? null;
+    isModuleLoaded = !!(NativeModules.AppleHealthKit);
+  } catch (e: any) {
+    isModuleLoaded = false;
+  }
 }
 
 export type HealthStatus = 'idle' | 'requesting' | 'authorized' | 'denied' | 'unavailable';
@@ -58,8 +70,13 @@ export function useAppleHealth() {
       setStatus('unavailable');
       return false;
     }
-    if (!AppleHealthKit) {
+    if (!AppleHealthKit || !isModuleLoaded) {
       setStatus('unavailable');
+      Alert.alert(
+        'Native Build Required',
+        'Apple Health requires a native iOS build. Run `npx expo run:ios` instead of Expo Go to enable this feature.',
+        [{ text: 'OK' }],
+      );
       return false;
     }
 
@@ -159,6 +176,7 @@ export function useAppleHealth() {
     authorize,
     loadSummary,
     isAvailable: Platform.OS === 'ios',
+    isModuleLoaded,
     isAuthorized: status === 'authorized',
   };
 }

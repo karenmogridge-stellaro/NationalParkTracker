@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { useStravaData } from '../../hooks/useStravaData';
+import { StravaActivity } from '../../hooks/useStrava';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -39,6 +41,18 @@ const NEARBY = [
 export default function DirectoryScreen() {
   const [progress] = useState(65);
   const [searchText, setSearchText] = useState('');
+  const { activities, parkForActivity, loading } = useStravaData();
+
+  const isSearching = searchText.trim().length > 0;
+  const filteredActivities = useMemo<StravaActivity[]>(() => {
+    if (!isSearching) return [];
+    const q = searchText.trim().toLowerCase();
+    return activities.filter((act) => {
+      if (act.name.toLowerCase().includes(q)) return true;
+      const park = parkForActivity(act);
+      return park ? park.name.toLowerCase().includes(q) : false;
+    });
+  }, [searchText, isSearching, activities, parkForActivity]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -79,6 +93,43 @@ export default function DirectoryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {isSearching ? (
+          <View style={styles.searchResultsContainer}>
+            {filteredActivities.length > 0 ? filteredActivities.map((act) => {
+              const miles = (act.distance / 1609.34).toFixed(1);
+              const elevFt = Math.round(act.total_elevation_gain * 3.28084);
+              const park = parkForActivity(act);
+              return (
+                <View key={act.id} style={styles.activityResultCard}>
+                  <View style={styles.activityResultIcon}>
+                    <MaterialCommunityIcons name="hiking" size={20} color={C.primary} />
+                  </View>
+                  <View style={styles.activityResultBody}>
+                    <Text style={styles.activityResultName} numberOfLines={1}>{act.name}</Text>
+                    {park && (
+                      <View style={styles.activityResultPark}>
+                        <MaterialCommunityIcons name="pine-tree" size={11} color={C.primary} />
+                        <Text style={styles.activityResultParkText}>{park.name}</Text>
+                      </View>
+                    )}
+                    <View style={styles.activityResultChips}>
+                      <Text style={styles.activityChip}>{miles} mi</Text>
+                      <Text style={styles.activityChip}>+{elevFt} ft</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            }) : (
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="hiking" size={36} color={C.outlineVariant} />
+                <Text style={styles.emptyText}>
+                  {loading ? 'Loading...' : `No trails found for "${searchText}"`}
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+        <>
         {/* Hero Image */}
         <View style={styles.hero}>
           <Image
@@ -233,6 +284,8 @@ export default function DirectoryScreen() {
             </TouchableOpacity>
           ))}
         </View>
+        </>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -632,5 +685,73 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     letterSpacing: -0.2,
+  },
+  // ── Trail search results ─────────────────────────────
+  searchResultsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 10,
+  },
+  activityResultCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    borderRadius: 12,
+    padding: 14,
+  },
+  activityResultIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: `${C.primary}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityResultBody: {
+    flex: 1,
+    gap: 4,
+  },
+  activityResultName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  activityResultPark: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  activityResultParkText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.primary,
+  },
+  activityResultChips: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  activityChip: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+    backgroundColor: C.surfaceContainerHighest,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    overflow: 'hidden',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.onSurfaceVariant,
+    textAlign: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { router } from 'expo-router';
+import { PARKS, NationalPark } from '../../data/parksData';
+import { useVisitedParks } from '../../hooks/useVisitedParks';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -51,6 +54,16 @@ const TERRAIN = [
 export default function ExploreScreen() {
   const [activeFilter, setActiveFilter] = useState<string>('near');
   const [searchText, setSearchText] = useState('');
+  const { hasVisited } = useVisitedParks();
+
+  const isSearching = searchText.trim().length > 0;
+  const filteredParks = useMemo<NationalPark[]>(() => {
+    if (!isSearching) return [];
+    const q = searchText.trim().toLowerCase();
+    return PARKS.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.state.toLowerCase().includes(q)
+    );
+  }, [searchText, isSearching]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -114,73 +127,114 @@ export default function ExploreScreen() {
           })}
         </ScrollView>
 
-        {/* Seasonal Highlights */}
-        <View style={styles.seasonalHeader}>
-          <Text style={styles.seasonalTitle}>{'Seasonal\nHighlights'}</Text>
-          <Text style={styles.seasonalDate}>{"AUTUMN\n'24"}</Text>
-        </View>
-
-        {/* Editorial Cards */}
-        {SEASONAL.map((card) => (
-          <TouchableOpacity
-            key={card.id}
-            style={[styles.editorialCard, card.tall && styles.editorialCardTall]}
-            activeOpacity={0.9}
-          >
-            <Image source={{ uri: card.image }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-            <View style={styles.editorialOverlay} />
-            {card.badge && (
-              <View style={styles.editorBadge}>
-                <Text style={styles.editorBadgeText}>{card.badge}</Text>
+        {isSearching ? (
+          <View style={styles.searchResults}>
+            {filteredParks.length > 0 ? (
+              <>
+                <Text style={styles.resultsCount}>
+                  {filteredParks.length} PARK{filteredParks.length !== 1 ? 'S' : ''} FOUND
+                </Text>
+                {filteredParks.map((park) => (
+                  <TouchableOpacity
+                    key={park.id}
+                    style={styles.parkResultCard}
+                    activeOpacity={0.85}
+                    onPress={() => router.push(`/park/${park.id}`)}
+                  >
+                    <View style={styles.parkResultIcon}>
+                      <MaterialCommunityIcons name="pine-tree" size={20} color={C.primary} />
+                    </View>
+                    <View style={styles.parkResultBody}>
+                      <Text style={styles.parkResultName}>{park.name}</Text>
+                      <Text style={styles.parkResultState}>{park.state}</Text>
+                    </View>
+                    <View style={styles.parkResultBadge}>
+                      <Text style={styles.parkResultCode}>{park.npsCode.toUpperCase()}</Text>
+                    </View>
+                    {hasVisited(park.id) && (
+                      <Ionicons name="checkmark-circle" size={18} color={C.primary} style={{ marginLeft: 6 }} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="pine-tree" size={36} color={C.outlineVariant} />
+                <Text style={styles.emptyText}>No parks found for "{searchText}"</Text>
               </View>
             )}
-            <View style={[styles.editorialInfo, !card.tall && styles.editorialInfoCompact]}>
-              <Text style={[styles.editorialTitle, !card.tall && styles.editorialTitleSmall]}>
-                {card.title}
-              </Text>
-              {card.tall ? (
-                <Text style={styles.editorialSubtitle}>{card.subtitle}</Text>
-              ) : (
-                <Text style={styles.editorialLocation}>{card.subtitle}</Text>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {/* Browse by Terrain */}
-        <View style={styles.terrainSection}>
-          <View style={styles.terrainHeaderRow}>
-            <View style={styles.terrainAccent} />
-            <Text style={styles.terrainTitle}>Browse by Terrain</Text>
           </View>
-          <View style={styles.terrainGrid}>
-            {TERRAIN.map((t) => (
-              <TouchableOpacity key={t.key} style={styles.terrainCard} activeOpacity={0.8}>
-                <MaterialCommunityIcons name={t.icon as any} size={28} color={C.primary} />
-                <Text style={styles.terrainLabel}>{t.label}</Text>
-                <Text style={styles.terrainCount}>{t.parks} PARKS</Text>
+        ) : (
+          <>
+            {/* Seasonal Highlights */}
+            <View style={styles.seasonalHeader}>
+              <Text style={styles.seasonalTitle}>{'Seasonal\nHighlights'}</Text>
+              <Text style={styles.seasonalDate}>{"AUTUMN\n'24"}</Text>
+            </View>
+
+            {/* Editorial Cards */}
+            {SEASONAL.map((card) => (
+              <TouchableOpacity
+                key={card.id}
+                style={[styles.editorialCard, card.tall && styles.editorialCardTall]}
+                activeOpacity={0.9}
+              >
+                <Image source={{ uri: card.image }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                <View style={styles.editorialOverlay} />
+                {card.badge && (
+                  <View style={styles.editorBadge}>
+                    <Text style={styles.editorBadgeText}>{card.badge}</Text>
+                  </View>
+                )}
+                <View style={[styles.editorialInfo, !card.tall && styles.editorialInfoCompact]}>
+                  <Text style={[styles.editorialTitle, !card.tall && styles.editorialTitleSmall]}>
+                    {card.title}
+                  </Text>
+                  {card.tall ? (
+                    <Text style={styles.editorialSubtitle}>{card.subtitle}</Text>
+                  ) : (
+                    <Text style={styles.editorialLocation}>{card.subtitle}</Text>
+                  )}
+                </View>
               </TouchableOpacity>
             ))}
-          </View>
-        </View>
 
-        {/* Challenge Card */}
-        <View style={styles.challengeCard}>
-          <View style={styles.challengeIconWrap}>
-            <MaterialCommunityIcons name="trophy" size={22} color={C.onPrimary} />
-          </View>
-          <View style={styles.challengeBody}>
-            <Text style={styles.challengeTitle}>Fall Hiker Challenge</Text>
-            <Text style={styles.challengeSubtitle}>4 of 10 parks visited this season</Text>
-            <View style={styles.challengeTrack}>
-              <View style={[styles.challengeFill, { width: '40%' }]} />
+            {/* Browse by Terrain */}
+            <View style={styles.terrainSection}>
+              <View style={styles.terrainHeaderRow}>
+                <View style={styles.terrainAccent} />
+                <Text style={styles.terrainTitle}>Browse by Terrain</Text>
+              </View>
+              <View style={styles.terrainGrid}>
+                {TERRAIN.map((t) => (
+                  <TouchableOpacity key={t.key} style={styles.terrainCard} activeOpacity={0.8}>
+                    <MaterialCommunityIcons name={t.icon as any} size={28} color={C.primary} />
+                    <Text style={styles.terrainLabel}>{t.label}</Text>
+                    <Text style={styles.terrainCount}>{t.parks} PARKS</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-            <View style={styles.challengeFooter}>
-              <Text style={styles.challengeLevel}>BEGINNER</Text>
-              <Text style={styles.challengeGoal}>6 TO GO FOR BADGE</Text>
+
+            {/* Challenge Card */}
+            <View style={styles.challengeCard}>
+              <View style={styles.challengeIconWrap}>
+                <MaterialCommunityIcons name="trophy" size={22} color={C.onPrimary} />
+              </View>
+              <View style={styles.challengeBody}>
+                <Text style={styles.challengeTitle}>Fall Hiker Challenge</Text>
+                <Text style={styles.challengeSubtitle}>4 of 10 parks visited this season</Text>
+                <View style={styles.challengeTrack}>
+                  <View style={[styles.challengeFill, { width: '40%' }]} />
+                </View>
+                <View style={styles.challengeFooter}>
+                  <Text style={styles.challengeLevel}>BEGINNER</Text>
+                  <Text style={styles.challengeGoal}>6 TO GO FOR BADGE</Text>
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
+          </>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -462,5 +516,71 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: C.primary,
     letterSpacing: 0.5,
+  },
+  // ── Park search results ──────────────────────────────
+  searchResults: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 10,
+  },
+  resultsCount: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  parkResultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    borderRadius: 12,
+    padding: 14,
+  },
+  parkResultIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: `${C.primary}18`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  parkResultBody: {
+    flex: 1,
+    gap: 2,
+  },
+  parkResultName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  parkResultState: {
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+  },
+  parkResultBadge: {
+    backgroundColor: C.primary,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  parkResultCode: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: C.onPrimary,
+    letterSpacing: 1,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.onSurfaceVariant,
+    textAlign: 'center',
   },
 });

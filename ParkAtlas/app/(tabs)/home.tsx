@@ -10,25 +10,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { useStravaData } from '@/hooks/useStravaData';
+import { StravaActivity } from '@/hooks/useStrava';
 
-const journeys = [
-  {
-    id: '1',
-    title: 'The Mist Trail Ascent',
-    quote: '"Steady climb past Vernal Falls. Nevada Fall was unparalleled."',
-    stats: [{ icon: 'routes', value: '5.4 mi', color: C.secondary }, { icon: 'elevation-rise', value: '+2,191 ft', color: C.tertiary }],
-    daysAgo: '3 DAYS AGO',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Mist_trail_yosemite.jpg/640px-Mist_trail_yosemite.jpg',
-  },
-  {
-    id: '2',
-    title: 'Cathedral Grove Loop',
-    quote: '"Silent morning among the giants. Perfect solitude."',
-    stats: [{ icon: 'routes', value: '3.1 mi', color: C.secondary }, { icon: 'timer-outline', value: '1h 45m', color: C.tertiary }],
-    daysAgo: '1 WEEK AGO',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Clouds_on_Mount_Tamalpais.jpg/640px-Above_Clouds_on_Mount_Tamalpais.jpg',
-  },
-];
+function relativeDate(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days === 0) return 'TODAY';
+  if (days === 1) return 'YESTERDAY';
+  if (days < 7) return `${days} DAYS AGO`;
+  if (days < 14) return '1 WEEK AGO';
+  return `${Math.floor(days / 7)} WEEKS AGO`;
+}
+
+function formatMovingTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
 
 const milestones = [
   { label: 'First Peak', icon: 'trophy-outline', locked: false },
@@ -38,6 +36,9 @@ const milestones = [
 ];
 
 export default function HomeScreen() {
+  const { athlete, activities, totalMiles, trailCount, parksCount, parkForActivity, loading } = useStravaData();
+  const recentActivities = activities.slice(0, 2);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
@@ -66,7 +67,7 @@ export default function HomeScreen() {
               style={styles.welcomeLogo}
               resizeMode="contain"
             />
-            <Text style={styles.welcomeTitle}>Welcome back, Karen.</Text>
+            <Text style={styles.welcomeTitle}>Welcome back, {athlete?.firstname ?? 'Explorer'}.</Text>
           </View>
         </View>
 
@@ -76,27 +77,27 @@ export default function HomeScreen() {
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="map-marker-distance" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>128.4</Text>
+                <Text style={styles.statValue}>{totalMiles > 0 ? totalMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
                 <Text style={styles.statLabel}>MILES</Text>
               </View>
             </View>
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="terrain" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>24</Text>
-                <Text style={styles.statLabel}>SUMMITS</Text>
+                <Text style={styles.statValue}>{trailCount > 0 ? trailCount : (loading ? '—' : '0')}</Text>
+                <Text style={styles.statLabel}>TRAILS</Text>
               </View>
             </View>
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.statValue}>14</Text>
+                  <Text style={styles.statValue}>{parksCount > 0 ? parksCount : (loading ? '—' : '0')}</Text>
                   <Text style={styles.statLabelInline}>/ 63</Text>
                 </View>
                 <Text style={styles.statLabel}>PARKS</Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: '22%' }]} />
+                  <View style={[styles.progressFill, { width: `${Math.round((parksCount / 63) * 100)}%` }]} />
                 </View>
               </View>
             </View>
@@ -167,32 +168,46 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {journeys.map((j) => (
-            <TouchableOpacity key={j.id} style={styles.journeyCard} activeOpacity={0.7}>
-              {j.image ? (
-                <Image source={{ uri: j.image }} style={styles.journeyThumb} />
-              ) : (
-                <View style={styles.journeyThumb}>
-                  <MaterialCommunityIcons name="image-outline" size={26} color={C.outlineVariant} />
-                </View>
-              )}
-              <View style={styles.journeyBody}>
-                <View style={styles.journeyTop}>
-                  <Text style={styles.journeyTitle} numberOfLines={1}>{j.title}</Text>
-                  <Text style={styles.journeyDate}>{j.daysAgo}</Text>
-                </View>
-                <Text style={styles.journeyQuote} numberOfLines={1}>{j.quote}</Text>
-                <View style={styles.journeyStats}>
-                  {j.stats.map((s) => (
-                    <View key={s.value} style={styles.journeyStatChip}>
-                      <MaterialCommunityIcons name={s.icon as any} size={12} color={s.color} />
-                      <Text style={[styles.journeyStatText, { color: s.color }]}>{s.value}</Text>
+          {recentActivities.length > 0
+            ? recentActivities.map((act: StravaActivity) => {
+                const miles = (act.distance / 1609.34).toFixed(1);
+                const elevFt = Math.round(act.total_elevation_gain * 3.28084);
+                const park = parkForActivity(act);
+                return (
+                  <TouchableOpacity key={act.id} style={styles.journeyCard} activeOpacity={0.7}>
+                    <View style={styles.journeyThumb}>
+                      <MaterialCommunityIcons name="hiking" size={26} color={C.outlineVariant} />
                     </View>
-                  ))}
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                    <View style={styles.journeyBody}>
+                      <View style={styles.journeyTop}>
+                        <Text style={styles.journeyTitle} numberOfLines={1}>{act.name}</Text>
+                        <Text style={styles.journeyDate}>{relativeDate(act.start_date)}</Text>
+                      </View>
+                      <View style={styles.journeyStats}>
+                        <View style={styles.journeyStatChip}>
+                          <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
+                          <Text style={[styles.journeyStatText, { color: C.secondary }]}>{miles} mi</Text>
+                        </View>
+                        <View style={styles.journeyStatChip}>
+                          <MaterialCommunityIcons name="elevation-rise" size={12} color={C.tertiary} />
+                          <Text style={[styles.journeyStatText, { color: C.tertiary }]}>+{elevFt} ft</Text>
+                        </View>
+                        <View style={styles.journeyStatChip}>
+                          <MaterialCommunityIcons name="timer-outline" size={12} color={`${C.onSurface}66`} />
+                          <Text style={[styles.journeyStatText, { color: `${C.onSurface}66` }]}>{formatMovingTime(act.moving_time)}</Text>
+                        </View>
+                        {park && (
+                          <View style={styles.journeyStatChip}>
+                            <MaterialCommunityIcons name="pine-tree" size={12} color={C.primary} />
+                            <Text style={[styles.journeyStatText, { color: C.primary }]}>{park.name}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            : null}
 
           <TouchableOpacity style={styles.dashedButton} activeOpacity={0.6}>
             <Text style={styles.dashedButtonText}>+ LOG NEW OUTING</Text>

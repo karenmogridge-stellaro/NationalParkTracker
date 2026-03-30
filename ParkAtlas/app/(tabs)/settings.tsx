@@ -11,13 +11,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
-import { useAppleHealth } from '@/hooks/useAppleHealth';
+import { useStrava } from '@/hooks/useStrava';
 
 export default function SettingsScreen() {
   const [pushNotifs, setPushNotifs] = useState(true);
   const [emailNewsletter, setEmailNewsletter] = useState(false);
   const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
-  const { status: healthStatus, summary: healthSummary, authorize: authorizeHealth, isAvailable: healthAvailable } = useAppleHealth();
+  const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -81,34 +81,37 @@ export default function SettingsScreen() {
           <Text style={styles.deviceName}>Garmin Connect</Text>
           <Text style={styles.deviceSub}>Last synced: 2h ago</Text>
         </View>
-        <View style={[styles.card, healthStatus === 'authorized' ? undefined : styles.cardMuted, styles.cardMt]}>
+        <View style={[styles.card, stravaStatus === 'connected' ? undefined : styles.cardMuted, styles.cardMt]}>
           <View style={styles.deviceRow}>
-            <Ionicons
-              name="heart"
+            <MaterialCommunityIcons
+              name="run"
               size={28}
-              color={healthStatus === 'authorized' ? '#e53935' : C.onSurfaceVariant}
+              color={stravaStatus === 'connected' ? '#FC4C02' : C.onSurfaceVariant}
             />
-            {healthStatus === 'authorized' ? (
-              <Text style={styles.connectedBadge}>CONNECTED</Text>
-            ) : healthStatus === 'requesting' ? (
+            {stravaStatus === 'connected' ? (
+              <View style={styles.deviceRowRight}>
+                <Text style={styles.connectedBadge}>CONNECTED</Text>
+                <TouchableOpacity onPress={disconnectStrava} activeOpacity={0.7}>
+                  <Text style={styles.unlinkText}>UNLINK</Text>
+                </TouchableOpacity>
+              </View>
+            ) : stravaStatus === 'loading' || stravaStatus === 'authorizing' ? (
               <ActivityIndicator size="small" color={C.primary} />
-            ) : healthAvailable ? (
-              <TouchableOpacity style={styles.linkBtn} activeOpacity={0.85} onPress={authorizeHealth}>
+            ) : (
+              <TouchableOpacity style={styles.linkBtn} activeOpacity={0.85} onPress={authorizeStrava}>
                 <Text style={styles.linkBtnText}>LINK</Text>
               </TouchableOpacity>
-            ) : (
-              <Text style={styles.unavailableText}>iOS ONLY</Text>
             )}
           </View>
-          <Text style={styles.deviceName}>Apple Health</Text>
-          {healthStatus === 'authorized' && healthSummary ? (
+          <Text style={styles.deviceName}>Strava</Text>
+          {stravaStatus === 'connected' && stravaSummary ? (
             <Text style={styles.deviceSub}>
-              Today: {healthSummary.stepsToday.toLocaleString()} steps · {healthSummary.distanceKmToday} km
+              Last 30 days: {stravaSummary.hikeCount} hikes · {stravaSummary.totalDistanceKm} km · {stravaSummary.totalElevationM} m gain
             </Text>
-          ) : healthStatus === 'denied' ? (
-            <Text style={[styles.deviceSub, { color: '#c62828' }]}>Access denied — enable in iOS Settings &gt; Health</Text>
+          ) : stravaStatus === 'error' ? (
+            <Text style={[styles.deviceSub, { color: '#c62828' }]}>Connection failed — tap LINK to retry</Text>
           ) : (
-            <Text style={styles.deviceSub}>Import trail activity data</Text>
+            <Text style={styles.deviceSub}>Sync hike distance, elevation and trail activity</Text>
           )}
         </View>
 
@@ -347,6 +350,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: 1,
+  },
+  deviceRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  unlinkText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    letterSpacing: 1,
+    textDecorationLine: 'underline',
   },
   deviceName: {
     fontSize: 18,
