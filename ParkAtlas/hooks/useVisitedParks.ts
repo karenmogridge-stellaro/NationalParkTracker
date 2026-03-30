@@ -4,20 +4,33 @@ import * as FileSystem from 'expo-file-system/legacy';
 const VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
 
 export interface ParkVisit {
-  visitId: string;   // unique: parkId + timestamp
+  visitId: string;          // unique: parkId + timestamp
   parkId: string;
   parkName: string;
-  trailName: string; // empty string if no trail selected
-  dateVisited: string; // ISO date string
+  trailName: string;        // empty string if no trail selected
+  dateVisited: string;      // ISO date string
+  distanceMiles?: number;   // optional manual distance in miles
+  elevationGainFt?: number; // optional elevation gain in feet
+  activityType?: string;    // e.g. 'Hike', 'Backpack', 'Camp', 'Scenic Drive', 'Wildlife'
+  rating?: number;          // 1–5 star rating
+}
+
+export interface LogVisitOptions {
+  distanceMiles?: number;
+  dateVisited?: string;
+  elevationGainFt?: number;
+  activityType?: string;
+  rating?: number;
 }
 
 interface VisitedParksState {
   visits: ParkVisit[];
   loading: boolean;
-  logVisit: (parkId: string, parkName: string, trailName: string) => Promise<void>;
+  logVisit: (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => Promise<void>;
   removeVisit: (visitId: string) => Promise<void>;
   hasVisited: (parkId: string) => boolean;
   visitsForPark: (parkId: string) => ParkVisit[];
+  totalStats: { totalOutings: number; uniqueParks: number; totalMiles: number; totalElevationFt: number };
 }
 
 export function useVisitedParks(): VisitedParksState {
@@ -47,13 +60,18 @@ export function useVisitedParks(): VisitedParksState {
     setVisits(updated);
   }
 
-  const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string) => {
+  const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => {
+    const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
     const visit: ParkVisit = {
       visitId: `${parkId}_${Date.now()}`,
       parkId,
       parkName,
       trailName: trailName.trim(),
-      dateVisited: new Date().toISOString(),
+      dateVisited: dateVisited ?? new Date().toISOString(),
+      distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
+      elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
+      activityType: activityType || undefined,
+      rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     };
     const current = await loadFromDisk();
     await persist([visit, ...current]);
@@ -72,7 +90,14 @@ export function useVisitedParks(): VisitedParksState {
     return visits.filter((v) => v.parkId === parkId);
   }, [visits]);
 
-  return { visits, loading, logVisit, removeVisit, hasVisited, visitsForPark };
+  const totalStats = {
+    totalOutings: visits.length,
+    uniqueParks: new Set(visits.map((v) => v.parkId)).size,
+    totalMiles: Math.round(visits.reduce((s, v) => s + (v.distanceMiles ?? 0), 0) * 10) / 10,
+    totalElevationFt: visits.reduce((s, v) => s + (v.elevationGainFt ?? 0), 0),
+  };
+
+  return { visits, loading, logVisit, removeVisit, hasVisited, visitsForPark, totalStats };
 }
 
 async function loadFromDisk(): Promise<ParkVisit[]> {

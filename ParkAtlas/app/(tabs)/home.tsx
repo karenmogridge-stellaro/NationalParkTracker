@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
 import { useStravaData } from '@/hooks/useStravaData';
+import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { StravaActivity } from '@/hooks/useStrava';
+import { LogOutingSheet } from '../../components/LogOutingSheet';
 
 function relativeDate(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -36,7 +38,34 @@ const milestones = [
 ];
 
 export default function HomeScreen() {
-  const { athlete, activities, totalMiles, trailCount, parksCount, parkForActivity, loading } = useStravaData();
+  const { athlete, activities, totalMiles, trailCount, parksCount, visitedParks, parkForActivity, loading } = useStravaData();
+  const { visits } = useVisitedParks();
+  const [sheetVisible, setSheetVisible] = useState(false);
+
+  // Merge Strava-detected park IDs + manually logged park IDs for combined count
+  const combinedParksCount = useMemo(() => {
+    const stravaIds = new Set(visitedParks.map((p) => p.id));
+    visits.forEach((v) => stravaIds.add(v.parkId));
+    return stravaIds.size;
+  }, [visitedParks, visits]);
+
+  // Combine Strava activities + manual visits for the activity feed (most recent 4)
+  type FeedItem =
+    | { type: 'strava'; data: StravaActivity }
+    | { type: 'manual'; data: ParkVisit };
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const strava: FeedItem[] = activities.slice(0, 4).map((a) => ({ type: 'strava', data: a }));
+    const manual: FeedItem[] = visits.slice(0, 4).map((v) => ({ type: 'manual', data: v }));
+    return [...strava, ...manual]
+      .sort((a, b) => {
+        const dateA = a.type === 'strava' ? a.data.start_date : a.data.dateVisited;
+        const dateB = b.type === 'strava' ? b.data.start_date : b.data.dateVisited;
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      })
+      .slice(0, 4);
+  }, [activities, visits]);
+
   const recentActivities = activities.slice(0, 2);
 
   return (
@@ -92,12 +121,12 @@ export default function HomeScreen() {
               <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.statValue}>{parksCount > 0 ? parksCount : (loading ? '—' : '0')}</Text>
+                  <Text style={styles.statValue}>{combinedParksCount > 0 ? combinedParksCount : (loading ? '—' : '0')}</Text>
                   <Text style={styles.statLabelInline}>/ 63</Text>
                 </View>
                 <Text style={styles.statLabel}>PARKS</Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${Math.round((parksCount / 63) * 100)}%` }]} />
+                  <View style={[styles.progressFill, { width: `${Math.round((combinedParksCount / 63) * 100)}%` }]} />
                 </View>
               </View>
             </View>
@@ -168,48 +197,83 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {recentActivities.length > 0
-            ? recentActivities.map((act: StravaActivity) => {
-                const miles = (act.distance / 1609.34).toFixed(1);
-                const elevFt = Math.round(act.total_elevation_gain * 3.28084);
-                const park = parkForActivity(act);
-                return (
-                  <TouchableOpacity key={act.id} style={styles.journeyCard} activeOpacity={0.7}>
-                    <View style={styles.journeyThumb}>
-                      <MaterialCommunityIcons name="hiking" size={26} color={C.outlineVariant} />
-                    </View>
-                    <View style={styles.journeyBody}>
-                      <View style={styles.journeyTop}>
-                        <Text style={styles.journeyTitle} numberOfLines={1}>{act.name}</Text>
-                        <Text style={styles.journeyDate}>{relativeDate(act.start_date)}</Text>
+          {feedItems.length > 0
+            ? feedItems.map((item) => {
+                if (item.type === 'strava') {
+                  const act = item.data;
+                  const miles = (act.distance / 1609.34).toFixed(1);
+                  const elevFt = Math.round(act.total_elevation_gain * 3.28084);
+                  const park = parkForActivity(act);
+                  return (
+                    <TouchableOpacity key={`s_${act.id}`} style={styles.journeyCard} activeOpacity={0.7}>
+                      <View style={styles.journeyThumb}>
+                        <MaterialCommunityIcons name="hiking" size={26} color={C.outlineVariant} />
                       </View>
-                      <View style={styles.journeyStats}>
-                        <View style={styles.journeyStatChip}>
-                          <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
-                          <Text style={[styles.journeyStatText, { color: C.secondary }]}>{miles} mi</Text>
+                      <View style={styles.journeyBody}>
+                        <View style={styles.journeyTop}>
+                          <Text style={styles.journeyTitle} numberOfLines={1}>{act.name}</Text>
+                          <Text style={styles.journeyDate}>{relativeDate(act.start_date)}</Text>
                         </View>
-                        <View style={styles.journeyStatChip}>
-                          <MaterialCommunityIcons name="elevation-rise" size={12} color={C.tertiary} />
-                          <Text style={[styles.journeyStatText, { color: C.tertiary }]}>+{elevFt} ft</Text>
+                        <View style={styles.journeyStats}>
+                          <View style={styles.journeyStatChip}>
+                            <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
+                            <Text style={[styles.journeyStatText, { color: C.secondary }]}>{miles} mi</Text>
+                          </View>
+                          <View style={styles.journeyStatChip}>
+                            <MaterialCommunityIcons name="elevation-rise" size={12} color={C.tertiary} />
+                            <Text style={[styles.journeyStatText, { color: C.tertiary }]}>+{elevFt} ft</Text>
+                          </View>
+                          <View style={styles.journeyStatChip}>
+                            <MaterialCommunityIcons name="timer-outline" size={12} color={`${C.onSurface}66`} />
+                            <Text style={[styles.journeyStatText, { color: `${C.onSurface}66` }]}>{formatMovingTime(act.moving_time)}</Text>
+                          </View>
+                          {park && (
+                            <View style={styles.journeyStatChip}>
+                              <MaterialCommunityIcons name="pine-tree" size={12} color={C.primary} />
+                              <Text style={[styles.journeyStatText, { color: C.primary }]}>{park.name}</Text>
+                            </View>
+                          )}
                         </View>
-                        <View style={styles.journeyStatChip}>
-                          <MaterialCommunityIcons name="timer-outline" size={12} color={`${C.onSurface}66`} />
-                          <Text style={[styles.journeyStatText, { color: `${C.onSurface}66` }]}>{formatMovingTime(act.moving_time)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                } else {
+                  const visit = item.data;
+                  return (
+                    <TouchableOpacity key={`m_${visit.visitId}`} style={styles.journeyCard} activeOpacity={0.7}>
+                      <View style={[styles.journeyThumb, styles.journeyThumbManual]}>
+                        <MaterialCommunityIcons name="map-marker-check" size={22} color={C.primary} />
+                      </View>
+                      <View style={styles.journeyBody}>
+                        <View style={styles.journeyTop}>
+                          <Text style={styles.journeyTitle} numberOfLines={1}>
+                            {visit.trailName || `${visit.parkName} Visit`}
+                          </Text>
+                          <Text style={styles.journeyDate}>{relativeDate(visit.dateVisited)}</Text>
                         </View>
-                        {park && (
+                        <View style={styles.journeyStats}>
                           <View style={styles.journeyStatChip}>
                             <MaterialCommunityIcons name="pine-tree" size={12} color={C.primary} />
-                            <Text style={[styles.journeyStatText, { color: C.primary }]}>{park.name}</Text>
+                            <Text style={[styles.journeyStatText, { color: C.primary }]}>{visit.parkName}</Text>
                           </View>
-                        )}
+                          {visit.distanceMiles ? (
+                            <View style={styles.journeyStatChip}>
+                              <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
+                              <Text style={[styles.journeyStatText, { color: C.secondary }]}>{visit.distanceMiles.toFixed(1)} mi</Text>
+                            </View>
+                          ) : null}
+                          <View style={[styles.journeyStatChip, styles.journeyStatChipManual]}>
+                            <Text style={styles.journeyStatTextManual}>LOGGED</Text>
+                          </View>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                );
+                    </TouchableOpacity>
+                  );
+                }
               })
             : null}
 
-          <TouchableOpacity style={styles.dashedButton} activeOpacity={0.6}>
+          <TouchableOpacity style={styles.dashedButton} activeOpacity={0.6} onPress={() => setSheetVisible(true)}>
             <Text style={styles.dashedButtonText}>+ LOG NEW OUTING</Text>
           </TouchableOpacity>
         </View>
@@ -269,9 +333,15 @@ export default function HomeScreen() {
       </ScrollView>
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.85}>
+      <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
         <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
       </TouchableOpacity>
+
+      <LogOutingSheet
+        visible={sheetVisible}
+        onClose={() => setSheetVisible(false)}
+        onSaved={() => setSheetVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -470,6 +540,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
+  },
+  journeyStatChipManual: {
+    backgroundColor: `${C.primary}14`,
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  journeyStatTextManual: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.primary,
+    letterSpacing: 0.8,
+  },
+  journeyThumbManual: {
+    backgroundColor: `${C.primary}14`,
   },
   journeyStatText: {
     fontSize: 16,

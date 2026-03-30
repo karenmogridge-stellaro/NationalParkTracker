@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+content = """\
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +8,10 @@ import {
   TouchableOpacity,
   Image,
   Dimensions,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
-import { useStravaData } from '../../hooks/useStravaData';
-import { StravaActivity } from '../../hooks/useStrava';
-import { useVisitedParks, ParkVisit } from '../../hooks/useVisitedParks';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -41,77 +38,26 @@ const NEARBY = [
 
 export default function DirectoryScreen() {
   const [progress] = useState(65);
-  const [searchText, setSearchText] = useState('');
-  const { activities, parkForActivity, loading } = useStravaData();
-  const { visits } = useVisitedParks();
-
-  type FeedItem =
-    | { type: 'strava'; data: StravaActivity }
-    | { type: 'manual'; data: ParkVisit };
-
-  const isSearching = searchText.trim().length > 0;
-
-  const filteredItems = useMemo<FeedItem[]>(() => {
-    const q = searchText.trim().toLowerCase();
-    const stravaMatches: FeedItem[] = isSearching
-      ? activities
-          .filter((act) => {
-            if (act.name.toLowerCase().includes(q)) return true;
-            const park = parkForActivity(act);
-            return park ? park.name.toLowerCase().includes(q) : false;
-          })
-          .map((a) => ({ type: 'strava', data: a }))
-      : [];
-    const manualMatches: FeedItem[] = isSearching
-      ? visits
-          .filter(
-            (v) =>
-              v.parkName.toLowerCase().includes(q) ||
-              v.trailName.toLowerCase().includes(q),
-          )
-          .map((v) => ({ type: 'manual', data: v }))
-      : [];
-    return [...stravaMatches, ...manualMatches].sort((a, b) => {
-      const dateA = a.type === 'strava' ? a.data.start_date : a.data.dateVisited;
-      const dateB = b.type === 'strava' ? b.data.start_date : b.data.dateVisited;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-  }, [searchText, isSearching, activities, visits, parkForActivity]);
-
-  // Legacy binding used by non-search view below
-  const filteredActivities = filteredItems;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Ionicons name="menu" size={26} color={C.onPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerBrand}>ParkAtlas</Text>
-        </View>
-        <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          <Ionicons name="person" size={20} color={C.onPrimary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={C.outline} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search trails..."
-            placeholderTextColor={C.outline}
-            value={searchText}
-            onChangeText={setSearchText}
+          <Image
+            source={require('../../assets/images/parkatlas-logo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
           />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={18} color={C.outline} />
-            </TouchableOpacity>
-          )}
+          <Text style={styles.headerBrand}>Park Atlas</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerIcon} activeOpacity={0.7}>
+            <Ionicons name="search" size={20} color={C.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
+            <Ionicons name="person" size={18} color={C.primary} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -120,70 +66,6 @@ export default function DirectoryScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {isSearching ? (
-          <View style={styles.searchResultsContainer}>
-            {filteredItems.length > 0 ? filteredItems.map((item) => {
-              if (item.type === 'strava') {
-                const act = item.data;
-                const miles = (act.distance / 1609.34).toFixed(1);
-                const elevFt = Math.round(act.total_elevation_gain * 3.28084);
-                const park = parkForActivity(act);
-                return (
-                  <View key={`s_${act.id}`} style={styles.activityResultCard}>
-                    <View style={styles.activityResultIcon}>
-                      <MaterialCommunityIcons name="hiking" size={20} color={C.primary} />
-                    </View>
-                    <View style={styles.activityResultBody}>
-                      <Text style={styles.activityResultName} numberOfLines={1}>{act.name}</Text>
-                      {park && (
-                        <View style={styles.activityResultPark}>
-                          <MaterialCommunityIcons name="pine-tree" size={11} color={C.primary} />
-                          <Text style={styles.activityResultParkText}>{park.name}</Text>
-                        </View>
-                      )}
-                      <View style={styles.activityResultChips}>
-                        <Text style={styles.activityChip}>{miles} mi</Text>
-                        <Text style={styles.activityChip}>+{elevFt} ft</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              } else {
-                const visit = item.data;
-                return (
-                  <View key={`m_${visit.visitId}`} style={styles.activityResultCard}>
-                    <View style={[styles.activityResultIcon, { backgroundColor: `${C.primary}14` }]}>
-                      <MaterialCommunityIcons name="map-marker-check" size={20} color={C.primary} />
-                    </View>
-                    <View style={styles.activityResultBody}>
-                      <Text style={styles.activityResultName} numberOfLines={1}>
-                        {visit.trailName || `${visit.parkName} Visit`}
-                      </Text>
-                      <View style={styles.activityResultPark}>
-                        <MaterialCommunityIcons name="pine-tree" size={11} color={C.primary} />
-                        <Text style={styles.activityResultParkText}>{visit.parkName}</Text>
-                      </View>
-                      <View style={styles.activityResultChips}>
-                        {visit.distanceMiles ? (
-                          <Text style={styles.activityChip}>{visit.distanceMiles.toFixed(1)} mi</Text>
-                        ) : null}
-                        <Text style={[styles.activityChip, { backgroundColor: `${C.primary}14`, color: C.primary }]}>LOGGED</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              }
-            }) : (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="hiking" size={36} color={C.outlineVariant} />
-                <Text style={styles.emptyText}>
-                  {loading ? 'Loading...' : `No trails found for "${searchText}"`}
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : (
-        <>
         {/* Hero Image */}
         <View style={styles.hero}>
           <Image
@@ -201,7 +83,7 @@ export default function DirectoryScreen() {
             </View>
           </View>
           <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>Hoh Rain Forest Loop</Text>
+            <Text style={styles.heroTitle}>Hoh Rain Forest{'\n'}Loop</Text>
             <Text style={styles.heroSub}>Olympic National Park</Text>
           </View>
         </View>
@@ -256,8 +138,8 @@ export default function DirectoryScreen() {
         {/* Progress Card */}
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Your Expedition{' '}Progress</Text>
-            <Text style={styles.progressPct}>{progress}% Discovered</Text>
+            <Text style={styles.progressTitle}>Your Expedition{'\n'}Progress</Text>
+            <Text style={styles.progressPct}>{progress}%{'\n'}Discovered</Text>
           </View>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${progress}%` }]} />
@@ -338,8 +220,6 @@ export default function DirectoryScreen() {
             </TouchableOpacity>
           ))}
         </View>
-        </>
-        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -355,52 +235,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    backgroundColor: C.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: C.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.outlineVariant,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+  },
+  headerLogo: {
+    width: 28,
+    height: 28,
   },
   headerBrand: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '700',
-    color: C.onPrimary,
-    letterSpacing: -0.3,
+    color: C.primary,
+    letterSpacing: -0.2,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 4,
-    backgroundColor: C.background,
-  },
-  searchBar: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: C.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: C.onSurface,
+  headerIcon: {
+    padding: 4,
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: C.surfaceContainerHighest,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 48 },
@@ -740,72 +612,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: -0.2,
   },
-  // ── Trail search results ─────────────────────────────
-  searchResultsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 10,
-  },
-  activityResultCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    backgroundColor: C.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 12,
-    padding: 14,
-  },
-  activityResultIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: `${C.primary}18`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityResultBody: {
-    flex: 1,
-    gap: 4,
-  },
-  activityResultName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  activityResultPark: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  activityResultParkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.primary,
-  },
-  activityResultChips: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
-  },
-  activityChip: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.onSurfaceVariant,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    overflow: 'hidden',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: C.onSurfaceVariant,
-    textAlign: 'center',
-  },
 });
+"""
+
+with open('/Users/karen.mogridge/VSCodeProjects/NationalParkTracker/ParkAtlas/app/(tabs)/directory.tsx', 'w') as f:
+    f.write(content)
+print("Done, length:", len(content))
