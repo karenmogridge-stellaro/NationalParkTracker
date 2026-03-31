@@ -15,7 +15,7 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { AppDrawer } from '@/components/AppDrawer';
 import { EditProfileModal } from '@/components/EditProfileModal';
-import { PrivacyPolicyModal } from '@/components/PrivacyPolicyModal';
+import PrivacyPolicyModal from '@/components/PrivacyPolicyModal';
 // import { useStrava } from '@/hooks/useStrava';
 
 export default function SettingsScreen() {

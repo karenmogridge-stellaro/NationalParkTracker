@@ -64,6 +64,8 @@ export function PrivacyPolicyModal({ visible, onClose }: Props) {
   );
 }
 
+export default PrivacyPolicyModal;
+
 const styles = StyleSheet.create({
   scrim: {
     ...StyleSheet.absoluteFillObject,
