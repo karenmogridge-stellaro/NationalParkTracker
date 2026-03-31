@@ -6,8 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Dimensions,
   TextInput,
+  FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,94 +16,106 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { useStravaData } from '../../hooks/useStravaData';
 import { StravaActivity } from '../../hooks/useStrava';
 import { useVisitedParks, ParkVisit } from '../../hooks/useVisitedParks';
+import { LogOutingSheet } from '../../components/LogOutingSheet';
+import { AppDrawer } from '@/components/AppDrawer';
+import { useAuth } from '@/hooks/useAuth';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+function relativeDate(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
-const NEARBY = [
-  {
-    id: '1',
-    distance: '4.2 MI AWAY',
-    name: 'Hurricane Ridge',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Hurricane_Ridge_in_the_Olympic_Mountains.jpg/640px-Hurricane_Ridge_in_the_Olympic_Mountains.jpg',
-  },
-  {
-    id: '2',
-    distance: '12.8 MI AWAY',
-    name: 'Ruby Beach',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Ruby_Beach_Sunset.jpg/640px-Ruby_Beach_Sunset.jpg',
-  },
-  {
-    id: '3',
-    distance: '8.5 MI AWAY',
-    name: 'Sol Duc Falls',
-    image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Sol_Duc_Falls.jpg/640px-Sol_Duc_Falls.jpg',
-  },
-];
+type FeedItem =
+  | { kind: 'strava'; data: StravaActivity }
+  | { kind: 'manual'; data: ParkVisit };
 
 export default function DirectoryScreen() {
-  const [progress] = useState(65);
-  const [searchText, setSearchText] = useState('');
   const { activities, parkForActivity, loading } = useStravaData();
-  const { visits } = useVisitedParks();
+  const { visits, removeVisit } = useVisitedParks();
+  const { user } = useAuth();
+  const [searchText, setSearchText] = useState('');
+  const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
+  const [sheetVisible, setSheetVisible] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  type FeedItem =
-    | { type: 'strava'; data: StravaActivity }
-    | { type: 'manual'; data: ParkVisit };
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    activities.forEach((a) => years.add(new Date(a.start_date).getFullYear()));
+    visits.forEach((v) => years.add(new Date(v.dateVisited).getFullYear()));
+    return [...years].sort((a, b) => b - a);
+  }, [activities, visits]);
 
-  const isSearching = searchText.trim().length > 0;
+  const allItems = useMemo<FeedItem[]>(() => {
+    const strava: FeedItem[] = activities.map((a) => ({ kind: 'strava', data: a }));
+    const manual: FeedItem[] = visits.map((v) => ({ kind: 'manual', data: v }));
+    return [...strava, ...manual].sort((a, b) => {
+      const da = a.kind === 'strava' ? a.data.start_date : a.data.dateVisited;
+      const db = b.kind === 'strava' ? b.data.start_date : b.data.dateVisited;
+      return new Date(db).getTime() - new Date(da).getTime();
+    });
+  }, [activities, visits]);
 
   const filteredItems = useMemo<FeedItem[]>(() => {
     const q = searchText.trim().toLowerCase();
-    const stravaMatches: FeedItem[] = isSearching
-      ? activities
-          .filter((act) => {
-            if (act.name.toLowerCase().includes(q)) return true;
-            const park = parkForActivity(act);
-            return park ? park.name.toLowerCase().includes(q) : false;
-          })
-          .map((a) => ({ type: 'strava', data: a }))
-      : [];
-    const manualMatches: FeedItem[] = isSearching
-      ? visits
-          .filter(
-            (v) =>
-              v.parkName.toLowerCase().includes(q) ||
-              v.trailName.toLowerCase().includes(q),
-          )
-          .map((v) => ({ type: 'manual', data: v }))
-      : [];
-    return [...stravaMatches, ...manualMatches].sort((a, b) => {
-      const dateA = a.type === 'strava' ? a.data.start_date : a.data.dateVisited;
-      const dateB = b.type === 'strava' ? b.data.start_date : b.data.dateVisited;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    return allItems.filter((item) => {
+      if (selectedYear !== 'all') {
+        const date = item.kind === 'strava' ? item.data.start_date : item.data.dateVisited;
+        if (new Date(date).getFullYear() !== selectedYear) return false;
+      }
+      if (q) {
+        if (item.kind === 'strava') {
+          const park = parkForActivity(item.data);
+          if (!item.data.name.toLowerCase().includes(q) && !(park?.name.toLowerCase().includes(q))) return false;
+        } else {
+          if (!item.data.parkName.toLowerCase().includes(q) && !item.data.trailName.toLowerCase().includes(q)) return false;
+        }
+      }
+      return true;
     });
-  }, [searchText, isSearching, activities, visits, parkForActivity]);
+  }, [allItems, selectedYear, searchText, parkForActivity]);
 
-  // Legacy binding used by non-search view below
-  const filteredActivities = filteredItems;
+  function handleDeleteVisit(visit: ParkVisit) {
+    Alert.alert(
+      'Delete Entry',
+      `Remove "${visit.trailName || visit.parkName}" from your log?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
+      ],
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
             <Ionicons name="menu" size={26} color={C.onPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerBrand}>ParkAtlas</Text>
+          <Text style={styles.headerBrand}>My Activity</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          <Ionicons name="person" size={20} color={C.onPrimary} />
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={20} color={C.onPrimary} />
+          )}
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={C.outline} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search trails..."
+            placeholder="Search trails & parks..."
             placeholderTextColor={C.outline}
             value={searchText}
             onChangeText={setSearchText}
@@ -115,242 +128,131 @@ export default function DirectoryScreen() {
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {isSearching ? (
-          <View style={styles.searchResultsContainer}>
-            {filteredItems.length > 0 ? filteredItems.map((item) => {
-              if (item.type === 'strava') {
-                const act = item.data;
-                const miles = (act.distance / 1609.34).toFixed(1);
-                const elevFt = Math.round(act.total_elevation_gain * 3.28084);
-                const park = parkForActivity(act);
-                return (
-                  <View key={`s_${act.id}`} style={styles.activityResultCard}>
-                    <View style={styles.activityResultIcon}>
-                      <MaterialCommunityIcons name="hiking" size={20} color={C.primary} />
-                    </View>
-                    <View style={styles.activityResultBody}>
-                      <Text style={styles.activityResultName} numberOfLines={1}>{act.name}</Text>
-                      {park && (
-                        <View style={styles.activityResultPark}>
-                          <MaterialCommunityIcons name="pine-tree" size={11} color={C.primary} />
-                          <Text style={styles.activityResultParkText}>{park.name}</Text>
-                        </View>
-                      )}
-                      <View style={styles.activityResultChips}>
-                        <Text style={styles.activityChip}>{miles} mi</Text>
-                        <Text style={styles.activityChip}>+{elevFt} ft</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              } else {
-                const visit = item.data;
-                return (
-                  <View key={`m_${visit.visitId}`} style={styles.activityResultCard}>
-                    <View style={[styles.activityResultIcon, { backgroundColor: `${C.primary}14` }]}>
-                      <MaterialCommunityIcons name="map-marker-check" size={20} color={C.primary} />
-                    </View>
-                    <View style={styles.activityResultBody}>
-                      <Text style={styles.activityResultName} numberOfLines={1}>
-                        {visit.trailName || `${visit.parkName} Visit`}
-                      </Text>
-                      <View style={styles.activityResultPark}>
-                        <MaterialCommunityIcons name="pine-tree" size={11} color={C.primary} />
-                        <Text style={styles.activityResultParkText}>{visit.parkName}</Text>
-                      </View>
-                      <View style={styles.activityResultChips}>
-                        {visit.distanceMiles ? (
-                          <Text style={styles.activityChip}>{visit.distanceMiles.toFixed(1)} mi</Text>
-                        ) : null}
-                        <Text style={[styles.activityChip, { backgroundColor: `${C.primary}14`, color: C.primary }]}>LOGGED</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              }
-            }) : (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="hiking" size={36} color={C.outlineVariant} />
-                <Text style={styles.emptyText}>
-                  {loading ? 'Loading...' : `No trails found for "${searchText}"`}
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : (
-        <>
-        {/* Hero Image */}
-        <View style={styles.hero}>
-          <Image
-            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Hoh_Rain_Forest%2C_Olympic_National_Park%2C_Washington.jpg/640px-Hoh_Rain_Forest%2C_Olympic_National_Park%2C_Washington.jpg' }}
-            style={styles.heroImage}
-            resizeMode="cover"
-          />
-          <View style={styles.heroOverlay} />
-          <View style={styles.heroBadges}>
-            <View style={styles.badgeGreen}>
-              <Text style={styles.badgeGreenText}>WASHINGTON, USA</Text>
-            </View>
-            <View style={styles.badgeOutline}>
-              <Text style={styles.badgeOutlineText}>HERITAGE</Text>
-            </View>
-          </View>
-          <View style={styles.heroInfo}>
-            <Text style={styles.heroTitle}>Hoh Rain Forest Loop</Text>
-            <Text style={styles.heroSub}>Olympic National Park</Text>
-          </View>
-        </View>
-
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="map-marker-distance" size={18} color={C.onSurfaceVariant} />
-            <Text style={styles.statLabel}>LENGTH</Text>
-            <Text style={styles.statValue}>1.2 mi</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="triangle-outline" size={18} color={C.onSurfaceVariant} />
-            <Text style={styles.statLabel}>ELEVATION</Text>
-            <Text style={styles.statValue}>82 ft</Text>
-          </View>
-          <View style={[styles.statDivider, { marginTop: 16 }]} />
-          <View style={styles.statItem}>
-            <Ionicons name="time-outline" size={18} color={C.onSurfaceVariant} />
-            <Text style={styles.statLabel}>EST. TIME</Text>
-            <Text style={styles.statValue}>45m</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <MaterialCommunityIcons name="signal-cellular-2" size={18} color={C.onSurfaceVariant} />
-            <Text style={styles.statLabel}>DIFFICULTY</Text>
-            <Text style={styles.statValue}>Easy</Text>
-          </View>
-        </View>
-
-        {/* Description */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>The Hall of Mosses</Text>
-          <Text style={styles.body}>
-            Experience the primeval beauty of one of the world's few temperate rainforests. This legendary loop takes you through a cathedral of ancient Bigleaf Maples and Sitka Spruces, draped in thick blankets of Clubmoss. The trail is mostly flat, making it an ideal exploration for all naturalist levels seeking the quiet solitude of the Olympic Peninsula.
-          </Text>
-          <View style={styles.photoRow}>
-            <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Hall_of_Mosses.jpg/320px-Hall_of_Mosses.jpg' }}
-              style={styles.photoThumb}
-              resizeMode="cover"
-            />
-            <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Hoh_Rain_Forest%2C_Olympic_National_Park%2C_Washington.jpg/320px-Hoh_Rain_Forest%2C_Olympic_National_Park%2C_Washington.jpg' }}
-              style={styles.photoThumb}
-              resizeMode="cover"
-            />
-          </View>
-        </View>
-
-        {/* Progress Card */}
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Your Expedition{' '}Progress</Text>
-            <Text style={styles.progressPct}>{progress}% Discovered</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
-          </View>
-          <Text style={styles.progressHint}>
-            Complete the Hall of Mosses loop to unlock the "Rainforest Pioneer" badge.
-          </Text>
-        </View>
-
-        {/* Topographic Map Card */}
-        <View style={styles.mapCard}>
-          <View style={styles.mapHeader}>
-            <Text style={styles.mapLabel}>TOPOGRAPHIC VIEW</Text>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.mapFull}>Full Screen</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.mapBody}>
-            <Image
-              source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Topographic_map_example.png/640px-Topographic_map_example.png' }}
-              style={styles.mapImage}
-              resizeMode="cover"
-            />
-            <View style={styles.mapControls}>
-              <TouchableOpacity style={styles.mapBtn} activeOpacity={0.8}>
-                <Ionicons name="add" size={18} color={C.onSurface} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mapBtn} activeOpacity={0.8}>
-                <Ionicons name="remove" size={18} color={C.onSurface} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.mapBtn, { marginTop: 6 }]} activeOpacity={0.8}>
-                <Ionicons name="location" size={18} color={C.primary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Current Conditions */}
-        <View style={styles.condCard}>
-          <Text style={styles.condLabel}>CURRENT CONDITIONS</Text>
-          <View style={styles.condRow}>
-            <View style={styles.condItem}>
-              <Ionicons name="partly-sunny" size={22} color={C.onSurfaceVariant} />
-              <Text style={styles.condValue}>54°F</Text>
-              <Text style={styles.condSub}>Light Mist</Text>
-            </View>
-            <View style={styles.condSep} />
-            <View style={styles.condItem}>
-              <Ionicons name="eye-outline" size={22} color={C.onSurfaceVariant} />
-              <Text style={styles.condValue}>Visibility</Text>
-              <Text style={styles.condSub}>High (8.2 mi)</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Start Hike CTA */}
-        <TouchableOpacity style={styles.startBtn} activeOpacity={0.85}>
-          <Ionicons name="play" size={18} color="#fff" />
-          <Text style={styles.startBtnText}>Start Hike</Text>
-        </TouchableOpacity>
-        <Text style={styles.essentials}>ALWAYS CARRY THE 10 ESSENTIALS</Text>
-
-        {/* Nearby Discoveries */}
-        <View style={styles.section}>
-          <Text style={styles.nearbyTitle}>Nearby Discoveries</Text>
-          {NEARBY.map((item) => (
-            <TouchableOpacity key={item.id} style={styles.nearbyCard} activeOpacity={0.85}>
-              <Image
-                source={{ uri: item.image }}
-                style={styles.nearbyImage}
-                resizeMode="cover"
-              />
-              <View style={styles.nearbyOverlay} />
-              <View style={styles.nearbyInfo}>
-                <Text style={styles.nearbyDist}>{item.distance}</Text>
-                <Text style={styles.nearbyName}>{item.name}</Text>
-              </View>
+      {/* Year filter */}
+      {availableYears.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterRow}
+          contentContainerStyle={styles.filterScroll}
+        >
+          <TouchableOpacity
+            style={[styles.filterPill, selectedYear === 'all' && styles.filterPillActive]}
+            onPress={() => setSelectedYear('all')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.filterPillText, selectedYear === 'all' && styles.filterPillTextActive]}>All Years</Text>
+          </TouchableOpacity>
+          {availableYears.map((y) => (
+            <TouchableOpacity
+              key={y}
+              style={[styles.filterPill, selectedYear === y && styles.filterPillActive]}
+              onPress={() => setSelectedYear(y)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.filterPillText, selectedYear === y && styles.filterPillTextActive]}>{y}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-        </>
-        )}
+        </ScrollView>
+      )}
 
-      </ScrollView>
+      {/* Results count */}
+      <View style={styles.countRow}>
+        <Text style={styles.countText}>
+          {filteredItems.length} {filteredItems.length === 1 ? 'outing' : 'outings'}
+        </Text>
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={filteredItems}
+        keyExtractor={(item) =>
+          item.kind === 'strava' ? `s_${item.data.id}` : `m_${item.data.visitId}`
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="hiking" size={40} color={C.outlineVariant} />
+            <Text style={styles.emptyText}>
+              {loading ? 'Loading...' : 'No outings found'}
+            </Text>
+            <Text style={styles.emptyHint}>Log a new outing to get started</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          if (item.kind === 'strava') {
+            const act = item.data;
+            const miles = (act.distance / 1609.34).toFixed(1);
+            const elevFt = Math.round(act.total_elevation_gain * 3.28084);
+            const park = parkForActivity(act);
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTopRow}>
+                    <Text style={styles.cardParkTitle} numberOfLines={1}>{park?.name ?? 'Unknown Park'}</Text>
+                    <Text style={styles.cardDate}>{relativeDate(act.start_date)}</Text>
+                  </View>
+                  <Text style={styles.cardTrailLine} numberOfLines={1}>{act.name}</Text>
+                  <View style={styles.cardChips}>
+                    {act.distance > 0 && <Text style={[styles.chip, styles.chipGreen]}>{miles} mi</Text>}
+                    {act.total_elevation_gain > 0 && <Text style={[styles.chip, styles.chipBrown]}>+{elevFt} ft</Text>}
+                  </View>
+                </View>
+                <View style={styles.cardBadge}>
+                  <Text style={styles.cardBadgeText}>STRAVA</Text>
+                </View>
+              </View>
+            );
+          } else {
+            const visit = item.data;
+            return (
+              <TouchableOpacity
+                style={styles.card}
+                activeOpacity={0.7}
+                onPress={() =>
+                  Alert.alert(visit.trailName || visit.parkName, 'What would you like to do?', [
+                    { text: 'Edit', onPress: () => { setEditingVisit(visit); setSheetVisible(true); } },
+                    { text: 'Delete', style: 'destructive', onPress: () => handleDeleteVisit(visit) },
+                    { text: 'Cancel', style: 'cancel' },
+                  ])
+                }
+              >
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTopRow}>
+                    <Text style={styles.cardParkTitle} numberOfLines={1}>{visit.parkName}</Text>
+                    <Text style={styles.cardDate}>{relativeDate(visit.dateVisited)}</Text>
+                  </View>
+                  <Text style={styles.cardTrailLine} numberOfLines={1}>{visit.trailName || 'Park visit'}</Text>
+                  <View style={styles.cardChips}>
+                    {visit.distanceMiles ? <Text style={[styles.chip, styles.chipGreen]}>{visit.distanceMiles.toFixed(1)} mi</Text> : null}
+                    {visit.activityType ? <Text style={styles.chip}>{visit.activityType}</Text> : null}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }
+        }}
+      />
+
+      {/* FAB */}
+      <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
+        <MaterialCommunityIcons name="plus" size={26} color="#fff" />
+      </TouchableOpacity>
+
+      <LogOutingSheet
+        visible={sheetVisible}
+        onClose={() => { setSheetVisible(false); setEditingVisit(null); }}
+        onSaved={() => { setSheetVisible(false); setEditingVisit(null); }}
+        editVisit={editingVisit ?? undefined}
+      />
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: C.background,
-  },
+  safe: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -359,17 +261,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     backgroundColor: C.primary,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerBrand: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: C.onPrimary,
-    letterSpacing: -0.3,
-  },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  headerBrand: { fontSize: 24, fontWeight: '700', color: C.onPrimary, letterSpacing: -0.3 },
   avatar: {
     width: 40,
     height: 40,
@@ -379,7 +272,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImage: { width: 40, height: 40, borderRadius: 20 },
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 14,
@@ -397,415 +292,73 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: C.onSurface,
+  searchInput: { flex: 1, fontSize: 14, color: C.onSurface, padding: 0 },
+  filterRow: { paddingVertical: 6 },
+  filterScroll: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
+  filterPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: C.surfaceContainerHighest,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
   },
-  scroll: { flex: 1 },
-  scrollContent: { paddingBottom: 48 },
-
-  // Hero
-  hero: {
-    width: SCREEN_WIDTH,
-    height: 280,
-    overflow: 'hidden',
-  },
-  heroImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.38)',
-  },
-  heroBadges: {
-    position: 'absolute',
-    top: 18,
-    left: 18,
+  filterPillActive: { backgroundColor: C.primary, borderColor: C.primary },
+  filterPillText: { fontSize: 12, fontWeight: '700', color: C.onSurfaceVariant },
+  filterPillTextActive: { color: C.onPrimary },
+  countRow: { paddingHorizontal: 20, paddingBottom: 6 },
+  countText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: `${C.onSurface}66` },
+  listContent: { paddingHorizontal: 16, paddingBottom: 100 },
+  card: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-  },
-  badgeGreen: {
-    backgroundColor: C.secondary,
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeGreenText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 1,
-  },
-  badgeOutline: {
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.6)',
-    borderRadius: 99,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  badgeOutlineText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.9)',
-    letterSpacing: 1,
-  },
-  heroInfo: {
-    position: 'absolute',
-    bottom: 20,
-    left: 18,
-    right: 18,
-  },
-  heroTitle: {
-    fontSize: 30,
-    fontWeight: '800',
-    color: '#fff',
-    lineHeight: 34,
-    letterSpacing: -0.5,
-  },
-  heroSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
-  },
-
-  // Stats
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    gap: 0,
-    backgroundColor: C.background,
+    paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: C.outlineVariant,
   },
-  statItem: {
-    width: '47%',
-    paddingVertical: 10,
-    gap: 4,
-  },
-  statDivider: {
-    width: '6%',
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: C.onSurfaceVariant,
-    letterSpacing: 1.2,
-    marginTop: 4,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: C.onSurface,
-    letterSpacing: -0.3,
-  },
-
-  // Section
-  section: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: C.onSurface,
-    letterSpacing: -0.3,
-  },
-  body: {
-    fontSize: 15,
-    color: C.onSurfaceVariant,
-    lineHeight: 23,
-  },
-  photoRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  photoThumb: {
-    flex: 1,
-    height: 110,
-    borderRadius: 10,
-    backgroundColor: C.surfaceContainerHighest,
-  },
-
-  // Progress
-  progressCard: {
-    marginHorizontal: 20,
-    marginTop: 24,
-    backgroundColor: C.surfaceContainerLow,
-    borderRadius: 14,
-    padding: 20,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: C.onSurface,
-    lineHeight: 22,
-  },
-  progressPct: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.primary,
-    textAlign: 'right',
-    lineHeight: 18,
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 99,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: C.primary,
-    borderRadius: 99,
-  },
-  progressHint: {
-    fontSize: 13,
-    color: C.onSurfaceVariant,
-    lineHeight: 19,
-  },
-
-  // Map
-  mapCard: {
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-  },
-  mapHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: C.surfaceContainerLow,
-  },
-  mapLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.onSurfaceVariant,
-    letterSpacing: 1.2,
-  },
-  mapFull: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.primary,
-  },
-  mapBody: {
-    height: 180,
-    position: 'relative',
-  },
-  mapImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  mapControls: {
-    position: 'absolute',
-    right: 12,
-    bottom: 12,
-    gap: 0,
-  },
-  mapBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-
-  // Conditions
-  condCard: {
-    marginHorizontal: 20,
-    marginTop: 16,
-    backgroundColor: C.surfaceContainerLow,
-    borderRadius: 14,
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-  },
-  condLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.onSurfaceVariant,
-    letterSpacing: 1.5,
-  },
-  condRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  condItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  condSep: {
-    width: 1,
-    height: 50,
-    backgroundColor: C.outlineVariant,
-  },
-  condValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  condSub: {
-    fontSize: 12,
-    color: C.onSurfaceVariant,
-  },
-
-  // CTA
-  startBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: C.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-  },
-  startBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.3,
-  },
-  essentials: {
-    textAlign: 'center',
-    fontSize: 10,
-    fontWeight: '600',
-    color: C.onSurfaceVariant,
-    letterSpacing: 1.5,
-    marginTop: 8,
-  },
-
-  // Nearby
-  nearbyTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: C.onSurface,
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  nearbyCard: {
-    width: '100%',
-    height: 170,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: C.surfaceContainerHighest,
-  },
-  nearbyImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  nearbyOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  nearbyInfo: {
-    position: 'absolute',
-    bottom: 16,
-    left: 16,
-  },
-  nearbyDist: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.75)',
-    letterSpacing: 1.5,
-    marginBottom: 3,
-  },
-  nearbyName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    letterSpacing: -0.2,
-  },
-  // ── Trail search results ─────────────────────────────
-  searchResultsContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 10,
-  },
-  activityResultCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    backgroundColor: C.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 12,
-    padding: 14,
-  },
-  activityResultIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: `${C.primary}18`,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityResultBody: {
-    flex: 1,
-    gap: 4,
-  },
-  activityResultName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  activityResultPark: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  activityResultParkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.primary,
-  },
-  activityResultChips: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
-  },
-  activityChip: {
+  cardBody: { flex: 1, gap: 3 },
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  cardParkTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: C.onSurface },
+  cardDate: { fontSize: 11, color: C.onSurfaceVariant, fontWeight: '600' },
+  cardTrailLine: { fontSize: 12, color: C.primary, fontWeight: '600' },
+  cardChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
+  chip: {
     fontSize: 11,
     fontWeight: '600',
     color: C.onSurfaceVariant,
     backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    overflow: 'hidden',
+    borderRadius: 4,
   },
-  emptyState: {
+  chipGreen: { color: C.primary, backgroundColor: `${C.primary}18` },
+  chipBrown: { color: C.tertiary, backgroundColor: `${C.tertiary}18` },
+  cardBadge: {
+    backgroundColor: C.surfaceContainerHighest,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    flexShrink: 0,
+  },
+  cardBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: C.onSurfaceVariant },
+  emptyState: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  emptyText: { fontSize: 15, color: C.onSurfaceVariant, fontWeight: '600' },
+  emptyHint: { fontSize: 13, color: C.outline },
+  fab: {
+    position: 'absolute',
+    bottom: 28,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: C.primary,
     alignItems: 'center',
-    paddingVertical: 60,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: C.onSurfaceVariant,
-    textAlign: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
 });

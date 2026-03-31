@@ -52,7 +52,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="directory"
         options={{
-          title: 'Trails',
+          title: 'Activity',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons name={focused ? 'hiking' : 'hiking'} size={24} color={color} />
           ),

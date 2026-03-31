@@ -1,7 +1,14 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
+import { useAuth } from '@/hooks/useAuth';
 
-const VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
+const LEGACY_VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
+
+function visitsFileForUser(userId: string): string {
+  // Keep filenames filesystem-safe and deterministic per account.
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${FileSystem.documentDirectory}visited_parks_${safeUserId}.json`;
+}
 
 export interface ParkVisit {
   visitId: string;          // unique: parkId + timestamp
@@ -38,33 +45,55 @@ const VisitedParksContext = createContext<VisitedParksState | null>(null);
 
 /** Wrap your root layout with this so every useVisitedParks() call shares the same state. */
 export function VisitedParksProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [visits, setVisits] = useState<ParkVisit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load visits from disk on mount
+  // Load user-scoped visits from disk whenever the authenticated user changes.
   useEffect(() => {
     (async () => {
+      if (!user?.id) {
+        setVisits([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const info = await FileSystem.getInfoAsync(VISITS_FILE);
-        if (info.exists) {
-          const raw = await FileSystem.readAsStringAsync(VISITS_FILE);
-          const parsed = JSON.parse(raw) as ParkVisit[];
-          setVisits(Array.isArray(parsed) ? parsed : []);
+        const userFile = visitsFileForUser(user.id);
+        const info = await FileSystem.getInfoAsync(userFile);
+
+        // One-time migration path: if this user has no file yet, seed from legacy shared file.
+        if (!info.exists) {
+          const legacy = await loadFromDiskFile(LEGACY_VISITS_FILE);
+          if (legacy.length > 0) {
+            await FileSystem.writeAsStringAsync(userFile, JSON.stringify(legacy));
+            setVisits(legacy);
+          } else {
+            setVisits([]);
+          }
+          return;
         }
+
+        const parsed = await loadFromDiskFile(userFile);
+        setVisits(parsed);
       } catch {
-        // First run or corrupt file — start fresh
+        // First run or corrupt file — start fresh.
+        setVisits([]);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [user?.id]);
 
-  async function persist(updated: ParkVisit[]) {
-    await FileSystem.writeAsStringAsync(VISITS_FILE, JSON.stringify(updated));
+  const persist = useCallback(async (updated: ParkVisit[]) => {
+    if (!user?.id) return;
+    await FileSystem.writeAsStringAsync(visitsFileForUser(user.id), JSON.stringify(updated));
     setVisits(updated);
-  }
+  }, [user?.id]);
 
   const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => {
+    if (!user?.id) return;
     const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
     const visit: ParkVisit = {
       visitId: `${parkId}_${Date.now()}`,
@@ -77,14 +106,15 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       activityType: activityType || undefined,
       rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     };
-    const current = await loadFromDisk();
+    const current = await loadFromDiskForUser(user.id);
     await persist([visit, ...current]);
-  }, []);
+  }, [persist, user?.id]);
 
   const removeVisit = useCallback(async (visitId: string) => {
-    const current = await loadFromDisk();
+    if (!user?.id) return;
+    const current = await loadFromDiskForUser(user.id);
     await persist(current.filter((v) => v.visitId !== visitId));
-  }, []);
+  }, [persist, user?.id]);
 
   const updateVisit = useCallback(async (
     visitId: string,
@@ -93,8 +123,9 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     trailName: string,
     opts?: LogVisitOptions,
   ) => {
+    if (!user?.id) return;
     const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
-    const current = await loadFromDisk();
+    const current = await loadFromDiskForUser(user.id);
     const updated = current.map((v): ParkVisit => {
       if (v.visitId !== visitId) return v;
       return {
@@ -110,7 +141,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       };
     });
     await persist(updated);
-  }, []);
+  }, [persist, user?.id]);
 
   const hasVisited = useCallback((parkId: string) => {
     return visits.some((v) => v.parkId === parkId);
@@ -141,10 +172,18 @@ export function useVisitedParks(): VisitedParksState {
 }
 
 async function loadFromDisk(): Promise<ParkVisit[]> {
+  return loadFromDiskFile(LEGACY_VISITS_FILE);
+}
+
+async function loadFromDiskForUser(userId: string): Promise<ParkVisit[]> {
+  return loadFromDiskFile(visitsFileForUser(userId));
+}
+
+async function loadFromDiskFile(filePath: string): Promise<ParkVisit[]> {
   try {
-    const info = await FileSystem.getInfoAsync(VISITS_FILE);
+    const info = await FileSystem.getInfoAsync(filePath);
     if (!info.exists) return [];
-    const raw = await FileSystem.readAsStringAsync(VISITS_FILE);
+    const raw = await FileSystem.readAsStringAsync(filePath);
     const parsed = JSON.parse(raw) as ParkVisit[];
     return Array.isArray(parsed) ? parsed : [];
   } catch {

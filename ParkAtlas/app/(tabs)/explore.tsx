@@ -73,7 +73,7 @@ export default function ExploreScreen() {
           <TouchableOpacity activeOpacity={0.7}>
             <Ionicons name="menu" size={26} color={C.onPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerBrand}>ParkAtlas</Text>
+          <Text style={styles.headerBrand}>Explore Parks</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
           <Ionicons name="person" size={20} color={C.onPrimary} />

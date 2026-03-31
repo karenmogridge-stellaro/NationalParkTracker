@@ -15,16 +15,27 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { AppDrawer } from '@/components/AppDrawer';
 import { EditProfileModal } from '@/components/EditProfileModal';
+import { PrivacyPolicyModal } from '@/components/PrivacyPolicyModal';
 // import { useStrava } from '@/hooks/useStrava';
 
 export default function SettingsScreen() {
-  const { signOut, user } = useAuth();
-  const [pushNotifs, setPushNotifs] = useState(true);
+  const { signOut, user, biometricAvailable, biometricEnabled, setBiometricEnabled } = useAuth();
+  const [biometricSaving, setBiometricSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   // const [emailNewsletter, setEmailNewsletter] = useState(false);
   // const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   // const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
+
+  async function handleBiometricToggle(enabled: boolean) {
+    try {
+      setBiometricSaving(true);
+      await setBiometricEnabled(enabled);
+    } finally {
+      setBiometricSaving(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -77,6 +88,28 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
           </TouchableOpacity>
+          <View style={styles.divider} />
+          <View style={styles.switchRow}>
+            <View style={styles.rowTextWrap}>
+              <Text style={styles.rowTitle}>Face ID Lock</Text>
+              <Text style={styles.rowSubtitle}>
+                {biometricAvailable
+                  ? 'Require Face ID / Touch ID to unlock ParkAtlas'
+                  : 'Face ID / Touch ID is not available on this device'}
+              </Text>
+            </View>
+            {biometricSaving ? (
+              <ActivityIndicator size="small" color={C.primary} />
+            ) : (
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleBiometricToggle}
+                trackColor={{ false: C.outlineVariant, true: C.primary }}
+                thumbColor={C.onPrimary}
+                disabled={!biometricAvailable || biometricSaving}
+              />
+            )}
+          </View>
         </View>
 
         {/* Device Integration — hidden until integrations are ready */}
@@ -126,41 +159,6 @@ export default function SettingsScreen() {
           )}
         </View> */}
 
-        {/* Notifications */}
-        <View style={styles.groupLabel}>
-          <Ionicons name="notifications" size={13} color={C.secondary} />
-          <Text style={styles.groupLabelText}>NOTIFICATIONS</Text>
-        </View>
-        <View style={styles.card}>
-          <View style={styles.switchRow}>
-            <View style={styles.rowTextWrap}>
-              <Text style={styles.rowTitle}>Push Notifications</Text>
-              <Text style={styles.rowSubtitle}>Trail alerts and weather warnings</Text>
-            </View>
-            <Switch
-              value={pushNotifs}
-              onValueChange={setPushNotifs}
-              trackColor={{ false: C.outlineVariant, true: C.primary }}
-              thumbColor={C.onPrimary}
-            />
-          </View>
-          {/* Email newsletter — commented out for later
-          <View style={styles.divider} />
-          <View style={styles.switchRow}>
-            <View style={styles.rowTextWrap}>
-              <Text style={styles.rowTitle}>Email Newsletter</Text>
-              <Text style={styles.rowSubtitle}>Weekly curated expeditions</Text>
-            </View>
-            <Switch
-              value={emailNewsletter}
-              onValueChange={setEmailNewsletter}
-              trackColor={{ false: C.outlineVariant, true: C.primary }}
-              thumbColor={C.onPrimary}
-            />
-          </View>
-          */}
-        </View>
-
         {/* Units of Measure — commented out for later */}
         {/* <View style={styles.groupLabel}>
           <MaterialCommunityIcons name="ruler" size={13} color={C.secondary} />
@@ -192,20 +190,13 @@ export default function SettingsScreen() {
           <Text style={styles.groupLabelText}>SUPPORT</Text>
         </View>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7}>
-            <MaterialCommunityIcons name="book-open-outline" size={22} color={C.primary} style={styles.supportIcon} />
-            <View style={styles.rowTextWrap}>
-              <Text style={styles.rowTitle}>Help Center</Text>
-              <Text style={styles.rowSubtitle}>Guides and troubleshooting</Text>
-            </View>
-          </TouchableOpacity>
-          <View style={styles.divider} />
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => setPrivacyVisible(true)}>
             <MaterialCommunityIcons name="shield-search" size={22} color={C.primary} style={styles.supportIcon} />
             <View style={styles.rowTextWrap}>
               <Text style={styles.rowTitle}>Privacy Policy</Text>
               <Text style={styles.rowSubtitle}>How we handle your expedition data</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
           </TouchableOpacity>
         </View>
 
@@ -218,6 +209,7 @@ export default function SettingsScreen() {
       </ScrollView>
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <EditProfileModal visible={editProfileVisible} onClose={() => setEditProfileVisible(false)} />
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </SafeAreaView>
   );
 }

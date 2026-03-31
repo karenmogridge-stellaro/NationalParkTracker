@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { matchedParksFromCoords } from '@/utils/parkMatcher';
 import { StravaActivity } from '@/hooks/useStrava';
+import { PARKS } from '@/data/parksData';
 import { LogOutingSheet } from '../../components/LogOutingSheet';
 import { AppDrawer } from '@/components/AppDrawer';
 import { StatBreakdownSheet, StatType } from '@/components/StatBreakdownSheet';
@@ -35,54 +37,64 @@ function formatMovingTime(seconds: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-const milestones = [
-  { label: 'First Peak', icon: 'trophy-outline', locked: false },
-  { label: 'Forest Dweller', icon: 'tree-outline', locked: false },
-  { label: '10-Day Streak', icon: 'fire', locked: false },
-  { label: 'Locked', icon: 'lock-outline', locked: true },
-];
+function dayKey(iso: string): string {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+function longestConsecutiveStreak(dayKeys: string[]): number {
+  if (dayKeys.length === 0) return 0;
+  const days = Array.from(new Set(dayKeys)).sort();
+  let longest = 1;
+  let current = 1;
+
+  for (let i = 1; i < days.length; i += 1) {
+    const prev = new Date(`${days[i - 1]}T00:00:00Z`).getTime();
+    const next = new Date(`${days[i]}T00:00:00Z`).getTime();
+    const diffDays = Math.round((next - prev) / 86_400_000);
+    if (diffDays === 1) {
+      current += 1;
+      longest = Math.max(longest, current);
+    } else {
+      current = 1;
+    }
+  }
+
+  return longest;
+}
+
+const REGION_RULES = [
+  { name: 'Alaska', color: '#455a64', states: ['AK'] },
+  { name: 'Northeast', color: '#c2185b', states: ['ME', 'OH', 'WV', 'VA', 'MI', 'MN', 'IN', 'MO'] },
+  { name: 'Pacific', color: '#1565c0', states: ['CA', 'OR', 'WA', 'HI', 'AS'] },
+  { name: 'Rockies', color: '#6a1b9a', states: ['CO', 'WY', 'MT', 'ND', 'SD'] },
+  { name: 'Southeast', color: '#2e7d32', states: ['FL', 'SC', 'TN', 'KY', 'AR', 'VI'] },
+  { name: 'Southwest', color: '#ef6c00', states: ['AZ', 'NM', 'NV', 'TX', 'UT'] },
+] as const;
 
 export default function HomeScreen() {
   const { athlete, activities, totalMiles, trailCount, parksCount, visitedParks, parkForActivity, loading } = useStravaData();
   const { visits, removeVisit } = useVisitedParks();
   const { user } = useAuth();
+  const router = useRouter();
   const [sheetVisible, setSheetVisible] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
   const [activeStat, setActiveStat] = useState<StatType | null>(null);
 
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const allActivities = activities;
+  const allVisits = visits;
 
-  // Build the list of years represented in data (always includes current year)
-  const availableYears = useMemo(() => {
-    const years = new Set<number>([currentYear]);
-    activities.forEach((a) => years.add(new Date(a.start_date).getFullYear()));
-    visits.forEach((v) => years.add(new Date(v.dateVisited).getFullYear()));
-    return [...years].sort((a, b) => a - b);
-  }, [activities, visits]);
-
-  // Year-filtered activities and visits
-  const yearActivities = useMemo(() =>
-    activities.filter((a) => new Date(a.start_date).getFullYear() === selectedYear),
-    [activities, selectedYear]
+  // All-time stats
+  const overallMiles = useMemo(() =>
+    allActivities.reduce((s, a) => s + (a.distance ?? 0), 0) / 1609.34,
+    [allActivities]
   );
-  const yearVisits = useMemo(() =>
-    visits.filter((v) => new Date(v.dateVisited).getFullYear() === selectedYear),
-    [visits, selectedYear]
-  );
-
-  // Year-scoped stats
-  const yearMiles = useMemo(() =>
-    yearActivities.reduce((s, a) => s + (a.distance ?? 0), 0) / 1609.34,
-    [yearActivities]
-  );
-  const yearTrailCount = yearActivities.length + yearVisits.length;
-  const yearParksCount = useMemo(() => {
-    const ids = new Set(matchedParksFromCoords(yearActivities.map((a) => a.start_latlng)).map((p) => p.id));
-    yearVisits.forEach((v) => ids.add(v.parkId));
+  const overallTrailCount = allActivities.length + allVisits.length;
+  const overallParksCount = useMemo(() => {
+    const ids = new Set(matchedParksFromCoords(allActivities.map((a) => a.start_latlng)).map((p) => p.id));
+    allVisits.forEach((v) => ids.add(v.parkId));
     return ids.size;
-  }, [yearActivities, yearVisits]);
+  }, [allActivities, allVisits]);
 
   // Merge Strava-detected park IDs + manually logged park IDs for combined count
   const combinedParksCount = useMemo(() => {
@@ -90,6 +102,39 @@ export default function HomeScreen() {
     visits.forEach((v) => stravaIds.add(v.parkId));
     return stravaIds.size;
   }, [visitedParks, visits]);
+
+  const regionProgress = useMemo(() => {
+    const visitedParkIds = new Set<string>();
+    matchedParksFromCoords(allActivities.map((a) => a.start_latlng)).forEach((p) => visitedParkIds.add(p.id));
+    allVisits.forEach((v) => visitedParkIds.add(v.parkId));
+
+    return REGION_RULES.map((region) => {
+      const stateSet = new Set(region.states);
+      const parksInRegion = PARKS.filter((p) => stateSet.has(p.state));
+      const visited = parksInRegion.reduce((sum, park) => sum + (visitedParkIds.has(park.id) ? 1 : 0), 0);
+      return {
+        name: region.name,
+        color: region.color,
+        total: parksInRegion.length,
+        visited,
+      };
+    });
+  }, [allActivities, allVisits]);
+
+  const longestStreak = useMemo(() => {
+    const outingDayKeys = [
+      ...allActivities.map((a) => dayKey(a.start_date)),
+      ...allVisits.map((v) => dayKey(v.dateVisited)),
+    ];
+    return longestConsecutiveStreak(outingDayKeys);
+  }, [allActivities, allVisits]);
+
+  const milestones = useMemo(() => [
+    { label: 'First Peak', icon: 'trophy-outline', locked: overallTrailCount < 1 },
+    { label: 'Forest Dweller', icon: 'tree-outline', locked: combinedParksCount < 5 },
+    { label: '10-Day Streak', icon: 'fire', locked: longestStreak < 10 },
+    { label: '63 Club', icon: 'pine-tree', locked: combinedParksCount < 63 },
+  ], [overallTrailCount, combinedParksCount, longestStreak]);
 
   // Combine Strava activities + manual visits for the activity feed (most recent 4)
   type FeedItem =
@@ -118,7 +163,7 @@ export default function HomeScreen() {
           <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
             <Ionicons name="menu" size={26} color={C.onPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerBrand}>ParkAtlas</Text>
+          <Text style={styles.headerBrand}>Park it. Mark it.</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
           {user?.avatarUrl ? (
@@ -135,49 +180,41 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome */}
-        <View style={styles.section}>
+        <View style={[styles.section, { backgroundColor: '#fff' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <Image
               source={require('../../assets/images/parkatlas-logo.png')}
               style={styles.welcomeLogo}
               resizeMode="contain"
             />
-            <Text style={styles.welcomeTitle}>Welcome back, {athlete?.firstname ?? 'Explorer'}.</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.welcomeSub}>Log your visits across all 63 U.S. National Parks — hikes, camps, and scenic drives — all in one place.</Text>
+            </View>
           </View>
         </View>
 
         {/* Stats */}
         <View style={styles.statsSection}>
-          {/* Year selector */}
+          {/* Scope label */}
           <View style={styles.yearPickerRow}>
-            <Text style={styles.yearLabel}>
-              {selectedYear === currentYear ? `${selectedYear} YTD` : `${selectedYear}`}
-            </Text>
-            <View style={styles.yearPills}>
-              {availableYears.map((y) => (
-                <TouchableOpacity
-                  key={y}
-                  style={[styles.yearPill, y === selectedYear && styles.yearPillActive]}
-                  onPress={() => setSelectedYear(y)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.yearPillText, y === selectedYear && styles.yearPillTextActive]}>{y}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.yearLabel}>ALL TIME</Text>
+            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6} onPress={() => router.navigate('/(tabs)/directory' as any)}>
+              <Text style={styles.sectionLinkText}>SHOW MORE</Text>
+              <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
+            </TouchableOpacity>
           </View>
           <View style={styles.statsGrid}>
             <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('miles')}>
               <MaterialCommunityIcons name="map-marker-distance" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>{yearMiles > 0 ? yearMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
+                <Text style={styles.statValue}>{overallMiles > 0 ? overallMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
                 <Text style={styles.statLabel}>MILES</Text>
               </View>
             </TouchableOpacity>
             <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('trails')}>
               <MaterialCommunityIcons name="terrain" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>{yearTrailCount > 0 ? yearTrailCount : (loading ? '—' : '0')}</Text>
+                <Text style={styles.statValue}>{overallTrailCount > 0 ? overallTrailCount : (loading ? '—' : '0')}</Text>
                 <Text style={styles.statLabel}>TRAILS</Text>
               </View>
             </TouchableOpacity>
@@ -185,35 +222,30 @@ export default function HomeScreen() {
               <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.statValue}>{yearParksCount > 0 ? yearParksCount : (loading ? '—' : '0')}</Text>
+                  <Text style={styles.statValue}>{overallParksCount > 0 ? overallParksCount : (loading ? '—' : '0')}</Text>
                   <Text style={styles.statLabelInline}>/ 63</Text>
                 </View>
                 <Text style={styles.statLabel}>PARKS</Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${Math.round((yearParksCount / 63) * 100)}%` }]} />
+                  <View style={[styles.progressFill, { width: `${Math.round((overallParksCount / 63) * 100)}%` }]} />
                 </View>
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
+        <View style={styles.sectionDivider} />
+
         {/* Progress by Region */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MaterialCommunityIcons name="map-marker-outline" size={18} color={C.primary} />
+              <MaterialCommunityIcons name="image-filter-hdr" size={18} color={C.primary} />
               <Text style={styles.sectionTitle}>PROGRESS BY REGION</Text>
             </View>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingVertical: 8, rowGap: 20 }}>
-            {[
-              { name: 'Alaska',    visited: 0,  total: 1,  color: '#9e9e9e' },
-              { name: 'Northeast', visited: 1,  total: 8,  color: '#e91e8c' },
-              { name: 'Pacific',   visited: 1,  total: 15, color: '#3f51b5' },
-              { name: 'Rockies',   visited: 1,  total: 12, color: '#9c27b0' },
-              { name: 'Southeast', visited: 0,  total: 11, color: '#9e9e9e' },
-              { name: 'Southwest', visited: 1,  total: 20, color: '#ff6d00' },
-            ].map((r) => {
+            {regionProgress.map((r) => {
               const pct = r.total > 0 ? r.visited / r.total : 0;
               const SIZE = 64;
               const STROKE = 5;
@@ -226,7 +258,7 @@ export default function HomeScreen() {
                     {/* background ring */}
                     <View style={{
                       position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-                      borderWidth: STROKE, borderColor: C.surfaceContainerHighest,
+                      borderWidth: STROKE, borderColor: `${C.outlineVariant}99`,
                     }} />
                     {/* progress arc via border trick — use a thin colored top border */}
                     {pct > 0 && (
@@ -241,7 +273,7 @@ export default function HomeScreen() {
                       }} />
                     )}
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 13, fontWeight: '700', color: C.onSurface }}>{r.visited}/{r.total}</Text>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: C.onSurface }}>{r.visited}/{r.total}</Text>
                     </View>
                   </View>
                   <Text style={{ fontSize: 12, color: C.onSurfaceVariant }}>{r.name}</Text>
@@ -251,11 +283,16 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        <View style={styles.sectionDivider} />
+
         {/* My Journeys */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>ACTIVITY</Text>
-            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MaterialCommunityIcons name="hiking" size={18} color={C.primary} />
+              <Text style={styles.sectionTitle}>ACTIVITY</Text>
+            </View>
+            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6} onPress={() => router.navigate('/(tabs)/directory' as any)}>
               <Text style={styles.sectionLinkText}>VIEW ALL</Text>
               <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
             </TouchableOpacity>
@@ -270,34 +307,19 @@ export default function HomeScreen() {
                   const park = parkForActivity(act);
                   return (
                     <TouchableOpacity key={`s_${act.id}`} style={styles.journeyCard} activeOpacity={0.7}>
-                      <View style={styles.journeyThumb}>
-                        <MaterialCommunityIcons name="hiking" size={26} color={C.outlineVariant} />
-                      </View>
                       <View style={styles.journeyBody}>
-                        <View style={styles.journeyTop}>
-                          <Text style={styles.journeyTitle} numberOfLines={1}>{act.name}</Text>
+                        <View style={styles.journeyTopRow}>
+                          <Text style={styles.journeyParkTitle} numberOfLines={1}>{park?.name ?? 'Unknown Park'}</Text>
                           <Text style={styles.journeyDate}>{relativeDate(act.start_date)}</Text>
                         </View>
+                        <Text style={styles.journeyTrailLine} numberOfLines={1}>{act.name}</Text>
                         <View style={styles.journeyStats}>
-                          <View style={styles.journeyStatChip}>
-                            <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
-                            <Text style={[styles.journeyStatText, { color: C.secondary }]}>{miles} mi</Text>
-                          </View>
-                          <View style={styles.journeyStatChip}>
-                            <MaterialCommunityIcons name="elevation-rise" size={12} color={C.tertiary} />
-                            <Text style={[styles.journeyStatText, { color: C.tertiary }]}>+{elevFt} ft</Text>
-                          </View>
-                          <View style={styles.journeyStatChip}>
-                            <MaterialCommunityIcons name="timer-outline" size={12} color={`${C.onSurface}66`} />
-                            <Text style={[styles.journeyStatText, { color: `${C.onSurface}66` }]}>{formatMovingTime(act.moving_time)}</Text>
-                          </View>
-                          {park && (
-                            <View style={styles.journeyStatChip}>
-                              <MaterialCommunityIcons name="pine-tree" size={12} color={C.primary} />
-                              <Text style={[styles.journeyStatText, { color: C.primary }]}>{park.name}</Text>
-                            </View>
-                          )}
+                          {act.distance > 0 && <Text style={[styles.journeyChip, styles.journeyChipGreen]}>{miles} mi</Text>}
+                          {act.total_elevation_gain > 0 && <Text style={[styles.journeyChip, styles.journeyChipBrown]}>+{elevFt} ft</Text>}
                         </View>
+                      </View>
+                      <View style={styles.journeyBadge}>
+                        <Text style={styles.journeyBadgeText}>STRAVA</Text>
                       </View>
                     </TouchableOpacity>
                   );
@@ -325,30 +347,17 @@ export default function HomeScreen() {
                         )
                       }
                     >
-                      <View style={[styles.journeyThumb, styles.journeyThumbManual]}>
-                        <MaterialCommunityIcons name="map-marker-check" size={22} color={C.primary} />
-                      </View>
                       <View style={styles.journeyBody}>
-                        <View style={styles.journeyTop}>
-                          <Text style={styles.journeyTitle} numberOfLines={1}>
-                            {visit.trailName || `${visit.parkName} Visit`}
-                          </Text>
+                        <View style={styles.journeyTopRow}>
+                          <Text style={styles.journeyParkTitle} numberOfLines={1}>{visit.parkName}</Text>
                           <Text style={styles.journeyDate}>{relativeDate(visit.dateVisited)}</Text>
                         </View>
+                        <Text style={styles.journeyTrailLine} numberOfLines={1}>{visit.trailName || 'Park visit'}</Text>
                         <View style={styles.journeyStats}>
-                          <View style={styles.journeyStatChip}>
-                            <MaterialCommunityIcons name="pine-tree" size={12} color={C.primary} />
-                            <Text style={[styles.journeyStatText, { color: C.primary }]}>{visit.parkName}</Text>
-                          </View>
                           {visit.distanceMiles ? (
-                            <View style={styles.journeyStatChip}>
-                              <MaterialCommunityIcons name="routes" size={12} color={C.secondary} />
-                              <Text style={[styles.journeyStatText, { color: C.secondary }]}>{visit.distanceMiles.toFixed(1)} mi</Text>
-                            </View>
+                            <Text style={[styles.journeyChip, styles.journeyChipGreen]}>{visit.distanceMiles.toFixed(1)} mi</Text>
                           ) : null}
-                          <View style={[styles.journeyStatChip, styles.journeyStatChipManual]}>
-                            <Text style={styles.journeyStatTextManual}>LOGGED</Text>
-                          </View>
+                          {visit.activityType ? <Text style={styles.journeyChip}>{visit.activityType}</Text> : null}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -431,9 +440,9 @@ export default function HomeScreen() {
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <StatBreakdownSheet
         statType={activeStat}
-        yearVisits={yearVisits}
-        yearActivities={yearActivities}
-        selectedYear={selectedYear}
+        yearVisits={allVisits}
+        yearActivities={allActivities}
+        selectedYear="All Time"
         onClose={() => setActiveStat(null)}
         onEditVisit={(v) => { setActiveStat(null); setEditingVisit(v); setSheetVisible(true); }}
       />
@@ -503,10 +512,17 @@ const styles = StyleSheet.create({
     color: `${C.primary}99`,
   },
   welcomeTitle: {
-    fontSize: 25,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: C.primary,
     letterSpacing: -0.5,
+    lineHeight: 27,
+  },
+  welcomeSub: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+    lineHeight: 19,
+    marginTop: 4,
   },
   welcomeLogo: {
     width: 90,
@@ -554,6 +570,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: C.surfaceContainerHighest,
     marginTop: 12,
+  },
+  sectionDivider: {
+    height: 1,
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 2,
+    backgroundColor: C.outlineVariant,
+    opacity: 0.7,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -620,80 +644,72 @@ const styles = StyleSheet.create({
   journeyCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    padding: 14,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: `${C.surfaceContainerHighest}99`,
-    borderRadius: 12,
-  },
-  journeyThumb: {
-    width: 60,
-    height: 60,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    overflow: 'hidden',
+    gap: 8,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.outlineVariant,
   },
   journeyBody: {
     flex: 1,
     gap: 3,
   },
-  journeyTop: {
+  journeyTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
+    gap: 10,
   },
-  journeyTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: C.primary,
+  journeyParkTitle: {
     flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onSurface,
   },
   journeyDate: {
     fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: `${C.onSurface}66`,
+    color: C.onSurfaceVariant,
+    fontWeight: '600',
   },
-  journeyQuote: {
-    fontSize: 16,
-    color: `${C.onSurface}99`,
-    fontStyle: 'italic',
-    fontWeight: '300',
+  journeyTrailLine: {
+    fontSize: 12,
+    color: C.primary,
+    fontWeight: '600',
   },
   journeyStats: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 4,
+    flexWrap: 'wrap',
+    gap: 5,
+    marginTop: 2,
   },
-  journeyStatChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  journeyStatChipManual: {
-    backgroundColor: `${C.primary}14`,
-    borderRadius: 4,
-    paddingHorizontal: 5,
+  journeyChip: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+    backgroundColor: C.surfaceContainerHighest,
+    paddingHorizontal: 6,
     paddingVertical: 2,
+    borderRadius: 4,
   },
-  journeyStatTextManual: {
-    fontSize: 10,
-    fontWeight: '700',
+  journeyChipGreen: {
     color: C.primary,
-    letterSpacing: 0.8,
+    backgroundColor: `${C.primary}18`,
   },
-  journeyThumbManual: {
-    backgroundColor: `${C.primary}14`,
+  journeyChipBrown: {
+    color: C.tertiary,
+    backgroundColor: `${C.tertiary}18`,
   },
-  journeyStatText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1.5,
+  journeyBadge: {
+    backgroundColor: C.surfaceContainerHighest,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    flexShrink: 0,
+  },
+  journeyBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: C.onSurfaceVariant,
   },
   dashedButton: {
     paddingVertical: 16,

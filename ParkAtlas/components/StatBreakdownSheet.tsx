@@ -23,7 +23,7 @@ interface Props {
   statType: StatType | null;
   yearVisits: ParkVisit[];
   yearActivities: StravaActivity[];
-  selectedYear: number;
+  selectedYear: string | number;
   onClose: () => void;
   onEditVisit: (visit: ParkVisit) => void;
 }
@@ -81,7 +81,7 @@ export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selec
   const rows: Row[] = React.useMemo<Row[]>(() => {
     if (!statType) return [];
     if (statType === 'miles' || statType === 'trails') {
-      // Strava activities for this year, sorted newest first
+      // Strava activities for the selected period, sorted newest first
       const stravaRows: Row[] = yearActivities.map((a) => ({ kind: 'strava', data: a }));
       // Also include manual visits that have a distance for 'miles'
       const manualRows: Row[] = statType === 'miles'
@@ -198,7 +198,7 @@ export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selec
           {rows.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons name="calendar-blank-outline" size={40} color={C.outlineVariant} />
-              <Text style={styles.emptyText}>No entries for {selectedYear}</Text>
+              <Text style={styles.emptyText}>No entries for {selectedYear.toString().toLowerCase()}</Text>
             </View>
           ) : (
             <FlatList
