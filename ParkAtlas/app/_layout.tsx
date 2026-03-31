@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { VisitedParksProvider } from '@/hooks/useVisitedParks';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -36,6 +37,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
+      <VisitedParksProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <AuthGate>
           <Stack>
@@ -47,6 +49,7 @@ export default function RootLayout() {
         </AuthGate>
         <StatusBar style="auto" />
       </ThemeProvider>
+      </VisitedParksProvider>
     </AuthProvider>
   );
 }

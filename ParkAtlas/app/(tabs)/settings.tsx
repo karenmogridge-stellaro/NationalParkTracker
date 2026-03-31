@@ -7,30 +7,41 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
-import { useStrava } from '@/hooks/useStrava';
+import { useAuth } from '@/hooks/useAuth';
+import { AppDrawer } from '@/components/AppDrawer';
+import { EditProfileModal } from '@/components/EditProfileModal';
+// import { useStrava } from '@/hooks/useStrava';
 
 export default function SettingsScreen() {
+  const { signOut, user } = useAuth();
   const [pushNotifs, setPushNotifs] = useState(true);
-  const [emailNewsletter, setEmailNewsletter] = useState(false);
-  const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
-  const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  // const [emailNewsletter, setEmailNewsletter] = useState(false);
+  // const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
+  // const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
             <Ionicons name="menu" size={26} color={C.onPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerBrand}>ParkAtlas</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          <Ionicons name="person" size={20} color={C.onPrimary} />
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={20} color={C.onPrimary} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -51,7 +62,7 @@ export default function SettingsScreen() {
           <Text style={styles.groupLabelText}>ACCOUNT</Text>
         </View>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => setEditProfileVisible(true)}>
             <View style={styles.rowTextWrap}>
               <Text style={styles.rowTitle}>Edit Profile</Text>
               <Text style={styles.rowSubtitle}>Update your display name and avatar</Text>
@@ -68,8 +79,8 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Device Integration */}
-        <View style={styles.groupLabel}>
+        {/* Device Integration — hidden until integrations are ready */}
+        {/* <View style={styles.groupLabel}>
           <MaterialCommunityIcons name="satellite-uplink" size={13} color={C.secondary} />
           <Text style={styles.groupLabelText}>DEVICE INTEGRATION</Text>
         </View>
@@ -113,7 +124,7 @@ export default function SettingsScreen() {
           ) : (
             <Text style={styles.deviceSub}>Sync hike distance, elevation and trail activity</Text>
           )}
-        </View>
+        </View> */}
 
         {/* Notifications */}
         <View style={styles.groupLabel}>
@@ -133,6 +144,7 @@ export default function SettingsScreen() {
               thumbColor={C.onPrimary}
             />
           </View>
+          {/* Email newsletter — commented out for later
           <View style={styles.divider} />
           <View style={styles.switchRow}>
             <View style={styles.rowTextWrap}>
@@ -146,10 +158,11 @@ export default function SettingsScreen() {
               thumbColor={C.onPrimary}
             />
           </View>
+          */}
         </View>
 
-        {/* Units of Measure */}
-        <View style={styles.groupLabel}>
+        {/* Units of Measure — commented out for later */}
+        {/* <View style={styles.groupLabel}>
           <MaterialCommunityIcons name="ruler" size={13} color={C.secondary} />
           <Text style={styles.groupLabelText}>UNITS OF MEASURE</Text>
         </View>
@@ -171,7 +184,7 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.unitsHint}>Affects elevation, distance, and temperature displays across the atlas.</Text>
-        </View>
+        </View> */}
 
         {/* Support */}
         <View style={styles.groupLabel}>
@@ -197,12 +210,14 @@ export default function SettingsScreen() {
         </View>
 
         {/* Sign Out */}
-        <TouchableOpacity style={styles.signOutBtn} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.signOutBtn} activeOpacity={0.8} onPress={signOut}>
           <Text style={styles.signOutText}>SIGN OUT OF PARK ATLAS</Text>
         </TouchableOpacity>
 
         <Text style={styles.version}>VERSION 2.4.1 (STABLE)</Text>
       </ScrollView>
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <EditProfileModal visible={editProfileVisible} onClose={() => setEditProfileVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -240,6 +255,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 48 },

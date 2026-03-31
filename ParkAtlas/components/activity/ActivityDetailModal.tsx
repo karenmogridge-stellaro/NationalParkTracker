@@ -2,7 +2,24 @@ import { Modal, View, StyleSheet, TouchableOpacity, TextInput } from 'react-nati
 import { useState } from 'react';
 import { ThemedText } from '@/components/themed-text';
 
-export function ActivityDetailModal({ visible, activity, onClose, onSave }) {
+interface Activity {
+  park?: string;
+  trail?: string;
+  state?: string;
+  date?: string;
+  distance?: number;
+  notes?: string;
+  [key: string]: unknown;
+}
+
+interface Props {
+  visible: boolean;
+  activity: Activity | null;
+  onClose: () => void;
+  onSave: (updated: Activity) => void;
+}
+
+export function ActivityDetailModal({ visible, activity, onClose, onSave }: Props) {
   const [distance, setDistance] = useState(activity?.distance?.toString() || '');
   const [notes, setNotes] = useState(activity?.notes || '');
 

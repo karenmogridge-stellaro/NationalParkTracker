@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { PARKS, NationalPark } from '../data/parksData';
 import { PARK_TRAILS } from '../data/trailsData';
 import { useVisitedParks, LogVisitOptions } from '../hooks/useVisitedParks';
+import { ParkVisit } from '../hooks/useVisitedParks';
 
 const SHEET_HEIGHT = Dimensions.get('window').height * 0.92;
 
@@ -27,12 +28,14 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSaved?: () => void;
+  /** When provided the sheet opens in edit mode pre-filled with this visit */
+  editVisit?: ParkVisit;
 }
 
 type Step = 'park' | 'details';
 
-export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
-  const { logVisit } = useVisitedParks();
+export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) {
+  const { logVisit, updateVisit } = useVisitedParks();
 
   // Steps
   const [step, setStep] = useState<Step>('park');
@@ -42,7 +45,7 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
   const [selectedPark, setSelectedPark] = useState<NationalPark | null>(null);
 
   // Details state
-  const [selectedTrail, setSelectedTrail] = useState('');
+  const [selectedTrails, setSelectedTrails] = useState<string[]>([]);
   const [customTrail, setCustomTrail] = useState('');
   const [showCustomTrailInput, setShowCustomTrailInput] = useState(false);
   const [distanceText, setDistanceText] = useState('');
@@ -55,6 +58,33 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
   const [elevGainText, setElevGainText] = useState('');
   const [selectedActivityType, setSelectedActivityType] = useState('');
   const [rating, setRating] = useState(0);
+
+  // When opened in edit mode, pre-fill all fields from the existing visit
+  useEffect(() => {
+    if (visible && editVisit) {
+      const park = PARKS.find((p) => p.id === editVisit.parkId) ?? null;
+      setSelectedPark(park);
+      // Split stored trail string back into array; filter out any that aren't
+      // in the known trails list so they land in customTrail instead
+      const known = park ? (PARK_TRAILS[park.npsCode] ?? []) : [];
+      const allTrails = editVisit.trailName ? editVisit.trailName.split(', ') : [];
+      const knownSelected = allTrails.filter((t) => known.includes(t));
+      const customPart = allTrails.filter((t) => !known.includes(t)).join(', ');
+      setSelectedTrails(knownSelected);
+      setCustomTrail(customPart);
+      setShowCustomTrailInput(customPart.length > 0);
+      setDistanceText(editVisit.distanceMiles != null ? String(editVisit.distanceMiles) : '');
+      setElevGainText(editVisit.elevationGainFt != null ? String(editVisit.elevationGainFt) : '');
+      setSelectedActivityType(editVisit.activityType ?? '');
+      setRating(editVisit.rating ?? 0);
+      // Format date to MM/DD/YYYY
+      const d = new Date(editVisit.dateVisited);
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      setDateText(`${mm}/${dd}/${d.getFullYear()}`);
+      setStep('details');
+    }
+  }, [visible, editVisit]);
 
   // Filtered park list
   const filteredParks = useMemo<NationalPark[]>(() => {
@@ -73,26 +103,31 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
 
   function handleSelectPark(park: NationalPark) {
     setSelectedPark(park);
-    setSelectedTrail('');
+    setSelectedTrails([]);
     setCustomTrail('');
     setShowCustomTrailInput(false);
     setStep('details');
   }
 
-  function handleSelectTrail(trail: string) {
-    setSelectedTrail(trail);
-    setShowCustomTrailInput(false);
-    setCustomTrail('');
+  function handleToggleTrail(trail: string) {
+    setSelectedTrails((prev) =>
+      prev.includes(trail) ? prev.filter((t) => t !== trail) : [...prev, trail],
+    );
   }
 
   function handleCustomTrailToggle() {
-    setShowCustomTrailInput(true);
-    setSelectedTrail('');
+    setShowCustomTrailInput((prev) => !prev);
   }
 
   async function handleSave() {
     if (!selectedPark) return;
-    const trailName = showCustomTrailInput ? customTrail : selectedTrail;
+    const allTrails = [
+      ...selectedTrails,
+      ...(customTrail.trim() && (showCustomTrailInput || availableTrails.length === 0)
+        ? [customTrail.trim()]
+        : []),
+    ];
+    const trailName = allTrails.join(', ');
     const distanceMiles = parseFloat(distanceText);
     const elevationGainFt = parseFloat(elevGainText);
     const parsedDate = parseDateInput(dateText);
@@ -103,7 +138,11 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
       activityType: selectedActivityType || undefined,
       rating: rating > 0 ? rating : undefined,
     };
-    await logVisit(selectedPark.id, selectedPark.name, trailName, opts);
+    if (editVisit) {
+      await updateVisit(editVisit.visitId, selectedPark.id, selectedPark.name, trailName, opts);
+    } else {
+      await logVisit(selectedPark.id, selectedPark.name, trailName, opts);
+    }
     onSaved?.();
     handleClose();
   }
@@ -112,7 +151,7 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
     setStep('park');
     setParkSearch('');
     setSelectedPark(null);
-    setSelectedTrail('');
+    setSelectedTrails([]);
     setCustomTrail('');
     setShowCustomTrailInput(false);
     setDistanceText('');
@@ -130,7 +169,7 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
 
   function handleBack() {
     setStep('park');
-    setSelectedTrail('');
+    setSelectedTrails([]);
     setCustomTrail('');
     setShowCustomTrailInput(false);
     setDistanceText('');
@@ -151,7 +190,13 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
     setDateText(formatted);
   }
 
-  const finalTrailLabel = showCustomTrailInput ? customTrail.trim() : selectedTrail;
+  const allSelectedTrails = [
+    ...selectedTrails,
+    ...(customTrail.trim() && (showCustomTrailInput || availableTrails.length === 0)
+      ? [customTrail.trim()]
+      : []),
+  ];
+  const finalTrailLabel = allSelectedTrails.join(', ');
 
   return (
     <Modal
@@ -181,7 +226,7 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
                     <MaterialCommunityIcons name="map-marker-plus" size={20} color={C.onPrimary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.sheetTitle}>Log New Outing</Text>
+                    <Text style={styles.sheetTitle}>{editVisit ? 'Edit Outing' : 'Log New Outing'}</Text>
                     <Text style={styles.sheetSubtitle}>Choose a national park</Text>
                   </View>
                   <TouchableOpacity onPress={handleClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -276,17 +321,17 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
                 >
                   {/* Trail picker */}
                   <View style={styles.fieldSection}>
-                    <Text style={styles.fieldLabel}>Trail hiked (optional)</Text>
+                    <Text style={styles.fieldLabel}>Trails hiked (optional · select multiple)</Text>
 
                     {availableTrails.length > 0 ? (
                       <>
                         {availableTrails.map((trail) => {
-                          const active = !showCustomTrailInput && selectedTrail === trail;
+                          const active = selectedTrails.includes(trail);
                           return (
                             <TouchableOpacity
                               key={trail}
                               style={[styles.trailRow, active && styles.trailRowActive]}
-                              onPress={() => handleSelectTrail(trail)}
+                              onPress={() => handleToggleTrail(trail)}
                               activeOpacity={0.7}
                             >
                               <MaterialCommunityIcons
@@ -300,27 +345,34 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
                               >
                                 {trail}
                               </Text>
-                              {active && (
-                                <Ionicons name="checkmark-circle" size={18} color={C.onPrimary} />
-                              )}
+                              <Ionicons
+                                name={active ? 'checkbox' : 'square-outline'}
+                                size={18}
+                                color={active ? C.onPrimary : C.outlineVariant}
+                              />
                             </TouchableOpacity>
                           );
                         })}
 
-                        {/* "Other" row */}
+                        {/* "Other" toggle */}
                         <TouchableOpacity
-                          style={[styles.trailRow, styles.trailRowOther, showCustomTrailInput && styles.trailRowActive]}
+                          style={[styles.trailRow, styles.trailRowOther, showCustomTrailInput && styles.trailRowChecked]}
                           onPress={handleCustomTrailToggle}
                           activeOpacity={0.7}
                         >
                           <Ionicons
                             name="pencil-outline"
                             size={16}
-                            color={showCustomTrailInput ? C.onPrimary : C.onSurfaceVariant}
+                            color={showCustomTrailInput ? C.secondary : C.onSurfaceVariant}
                           />
-                          <Text style={[styles.trailRowText, { color: showCustomTrailInput ? C.onPrimary : C.onSurfaceVariant }]}>
+                          <Text style={[styles.trailRowText, { color: showCustomTrailInput ? C.onSurface : C.onSurfaceVariant }]}>
                             Other / enter trail name...
                           </Text>
+                          <Ionicons
+                            name={showCustomTrailInput ? 'checkbox' : 'square-outline'}
+                            size={18}
+                            color={showCustomTrailInput ? C.secondary : C.outlineVariant}
+                          />
                         </TouchableOpacity>
 
                         {showCustomTrailInput && (
@@ -351,13 +403,13 @@ export function LogOutingSheet({ visible, onClose, onSaved }: Props) {
                           style={styles.input}
                           placeholder="e.g. Canyon loop, Ridge trail..."
                           placeholderTextColor={C.outlineVariant}
-                          value={selectedTrail}
-                          onChangeText={setSelectedTrail}
+                          value={customTrail}
+                          onChangeText={setCustomTrail}
                           returnKeyType="done"
-                          maxLength={80}
+                          maxLength={120}
                         />
-                        {selectedTrail.length > 0 && (
-                          <TouchableOpacity onPress={() => setSelectedTrail('')} activeOpacity={0.7}>
+                        {customTrail.length > 0 && (
+                          <TouchableOpacity onPress={() => setCustomTrail('')} activeOpacity={0.7}>
                             <Ionicons name="close-circle" size={16} color={C.outlineVariant} />
                           </TouchableOpacity>
                         )}
@@ -774,6 +826,10 @@ const styles = StyleSheet.create({
   },
   trailRowOther: {
     borderStyle: 'dashed',
+  },
+  trailRowChecked: {
+    borderColor: C.secondary,
+    backgroundColor: `${C.secondary}14`,
   },
   trailRowText: {
     flex: 1,

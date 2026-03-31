@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { HapticTab } from '@/components/haptic-tab';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { ParkAtlas } from '@/constants/theme';
-import { Platform } from 'react-native';
+import { Platform, View } from 'react-native';
 
 export default function TabLayout() {
   return (
@@ -13,6 +13,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: `${ParkAtlas.onSurface}80`,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarBackground: () => (
+          <View style={{ flex: 1, backgroundColor: ParkAtlas.background }} />
+        ),
         tabBarStyle: {
           backgroundColor: ParkAtlas.background,
           borderTopColor: `${ParkAtlas.surfaceContainerHighest}80`,
@@ -57,12 +60,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="activity"
-        options={{
-          title: 'Social',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="settings"

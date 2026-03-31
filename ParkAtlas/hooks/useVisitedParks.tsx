@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 
 const VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
@@ -27,13 +27,17 @@ interface VisitedParksState {
   visits: ParkVisit[];
   loading: boolean;
   logVisit: (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => Promise<void>;
+  updateVisit: (visitId: string, parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => Promise<void>;
   removeVisit: (visitId: string) => Promise<void>;
   hasVisited: (parkId: string) => boolean;
   visitsForPark: (parkId: string) => ParkVisit[];
   totalStats: { totalOutings: number; uniqueParks: number; totalMiles: number; totalElevationFt: number };
 }
 
-export function useVisitedParks(): VisitedParksState {
+const VisitedParksContext = createContext<VisitedParksState | null>(null);
+
+/** Wrap your root layout with this so every useVisitedParks() call shares the same state. */
+export function VisitedParksProvider({ children }: { children: React.ReactNode }) {
   const [visits, setVisits] = useState<ParkVisit[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,6 +86,32 @@ export function useVisitedParks(): VisitedParksState {
     await persist(current.filter((v) => v.visitId !== visitId));
   }, []);
 
+  const updateVisit = useCallback(async (
+    visitId: string,
+    parkId: string,
+    parkName: string,
+    trailName: string,
+    opts?: LogVisitOptions,
+  ) => {
+    const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
+    const current = await loadFromDisk();
+    const updated = current.map((v): ParkVisit => {
+      if (v.visitId !== visitId) return v;
+      return {
+        ...v,
+        parkId,
+        parkName,
+        trailName: trailName.trim(),
+        dateVisited: dateVisited ?? v.dateVisited,
+        distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
+        elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
+        activityType: activityType || undefined,
+        rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
+      };
+    });
+    await persist(updated);
+  }, []);
+
   const hasVisited = useCallback((parkId: string) => {
     return visits.some((v) => v.parkId === parkId);
   }, [visits]);
@@ -97,7 +127,17 @@ export function useVisitedParks(): VisitedParksState {
     totalElevationFt: visits.reduce((s, v) => s + (v.elevationGainFt ?? 0), 0),
   };
 
-  return { visits, loading, logVisit, removeVisit, hasVisited, visitsForPark, totalStats };
+  return (
+    <VisitedParksContext.Provider value={{ visits, loading, logVisit, updateVisit, removeVisit, hasVisited, visitsForPark, totalStats }}>
+      {children}
+    </VisitedParksContext.Provider>
+  );
+}
+
+export function useVisitedParks(): VisitedParksState {
+  const ctx = useContext(VisitedParksContext);
+  if (!ctx) throw new Error('useVisitedParks must be used inside <VisitedParksProvider>');
+  return ctx;
 }
 
 async function loadFromDisk(): Promise<ParkVisit[]> {

@@ -4,6 +4,11 @@
   },
   "dependencies": {
     "expo": "^55.0.8",
-    "expo-location": "~55.1.4"
-  }
+    "expo-location": "~55.1.4",
+    "react": "19.2.0",
+    "react-native": "0.83.2"
+  },
+  "name": "react",
+  "version": "1.0.0",
+  "scripts": {}
 }

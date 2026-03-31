@@ -6,14 +6,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
 import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
+import { matchedParksFromCoords } from '@/utils/parkMatcher';
 import { StravaActivity } from '@/hooks/useStrava';
 import { LogOutingSheet } from '../../components/LogOutingSheet';
+import { AppDrawer } from '@/components/AppDrawer';
+import { StatBreakdownSheet, StatType } from '@/components/StatBreakdownSheet';
+import { useAuth } from '@/hooks/useAuth';
 
 function relativeDate(iso: string): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
@@ -39,8 +44,45 @@ const milestones = [
 
 export default function HomeScreen() {
   const { athlete, activities, totalMiles, trailCount, parksCount, visitedParks, parkForActivity, loading } = useStravaData();
-  const { visits } = useVisitedParks();
+  const { visits, removeVisit } = useVisitedParks();
+  const { user } = useAuth();
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
+  const [activeStat, setActiveStat] = useState<StatType | null>(null);
+
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+
+  // Build the list of years represented in data (always includes current year)
+  const availableYears = useMemo(() => {
+    const years = new Set<number>([currentYear]);
+    activities.forEach((a) => years.add(new Date(a.start_date).getFullYear()));
+    visits.forEach((v) => years.add(new Date(v.dateVisited).getFullYear()));
+    return [...years].sort((a, b) => a - b);
+  }, [activities, visits]);
+
+  // Year-filtered activities and visits
+  const yearActivities = useMemo(() =>
+    activities.filter((a) => new Date(a.start_date).getFullYear() === selectedYear),
+    [activities, selectedYear]
+  );
+  const yearVisits = useMemo(() =>
+    visits.filter((v) => new Date(v.dateVisited).getFullYear() === selectedYear),
+    [visits, selectedYear]
+  );
+
+  // Year-scoped stats
+  const yearMiles = useMemo(() =>
+    yearActivities.reduce((s, a) => s + (a.distance ?? 0), 0) / 1609.34,
+    [yearActivities]
+  );
+  const yearTrailCount = yearActivities.length + yearVisits.length;
+  const yearParksCount = useMemo(() => {
+    const ids = new Set(matchedParksFromCoords(yearActivities.map((a) => a.start_latlng)).map((p) => p.id));
+    yearVisits.forEach((v) => ids.add(v.parkId));
+    return ids.size;
+  }, [yearActivities, yearVisits]);
 
   // Merge Strava-detected park IDs + manually logged park IDs for combined count
   const combinedParksCount = useMemo(() => {
@@ -73,13 +115,17 @@ export default function HomeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
             <Ionicons name="menu" size={26} color={C.onPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerBrand}>ParkAtlas</Text>
         </View>
         <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          <Ionicons name="person" size={20} color={C.onPrimary} />
+          {user?.avatarUrl ? (
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
+          ) : (
+            <Ionicons name="person" size={20} color={C.onPrimary} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -102,34 +148,52 @@ export default function HomeScreen() {
 
         {/* Stats */}
         <View style={styles.statsSection}>
+          {/* Year selector */}
+          <View style={styles.yearPickerRow}>
+            <Text style={styles.yearLabel}>
+              {selectedYear === currentYear ? `${selectedYear} YTD` : `${selectedYear}`}
+            </Text>
+            <View style={styles.yearPills}>
+              {availableYears.map((y) => (
+                <TouchableOpacity
+                  key={y}
+                  style={[styles.yearPill, y === selectedYear && styles.yearPillActive]}
+                  onPress={() => setSelectedYear(y)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.yearPillText, y === selectedYear && styles.yearPillTextActive]}>{y}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
+            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('miles')}>
               <MaterialCommunityIcons name="map-marker-distance" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>{totalMiles > 0 ? totalMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
+                <Text style={styles.statValue}>{yearMiles > 0 ? yearMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
                 <Text style={styles.statLabel}>MILES</Text>
               </View>
-            </View>
-            <View style={styles.statItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('trails')}>
               <MaterialCommunityIcons name="terrain" size={22} color={`${C.primary}66`} />
               <View>
-                <Text style={styles.statValue}>{trailCount > 0 ? trailCount : (loading ? '—' : '0')}</Text>
+                <Text style={styles.statValue}>{yearTrailCount > 0 ? yearTrailCount : (loading ? '—' : '0')}</Text>
                 <Text style={styles.statLabel}>TRAILS</Text>
               </View>
-            </View>
-            <View style={styles.statItem}>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('parks')}>
               <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.statValue}>{combinedParksCount > 0 ? combinedParksCount : (loading ? '—' : '0')}</Text>
+                  <Text style={styles.statValue}>{yearParksCount > 0 ? yearParksCount : (loading ? '—' : '0')}</Text>
                   <Text style={styles.statLabelInline}>/ 63</Text>
                 </View>
                 <Text style={styles.statLabel}>PARKS</Text>
                 <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${Math.round((combinedParksCount / 63) * 100)}%` }]} />
+                  <View style={[styles.progressFill, { width: `${Math.round((yearParksCount / 63) * 100)}%` }]} />
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -240,7 +304,27 @@ export default function HomeScreen() {
                 } else {
                   const visit = item.data;
                   return (
-                    <TouchableOpacity key={`m_${visit.visitId}`} style={styles.journeyCard} activeOpacity={0.7}>
+                    <TouchableOpacity
+                      key={`m_${visit.visitId}`}
+                      style={styles.journeyCard}
+                      activeOpacity={0.7}
+                      onPress={() =>
+                        Alert.alert(
+                          visit.trailName || visit.parkName,
+                          'What would you like to do?',
+                          [
+                            { text: 'Edit', onPress: () => { setEditingVisit(visit); setSheetVisible(true); } },
+                            { text: 'Delete', style: 'destructive', onPress: () =>
+                              Alert.alert('Delete Entry', `Remove "${visit.trailName || visit.parkName}" from your log?`, [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
+                              ])
+                            },
+                            { text: 'Cancel', style: 'cancel' },
+                          ],
+                        )
+                      }
+                    >
                       <View style={[styles.journeyThumb, styles.journeyThumbManual]}>
                         <MaterialCommunityIcons name="map-marker-check" size={22} color={C.primary} />
                       </View>
@@ -305,7 +389,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Connected Devices */}
+        {/* Connected Devices — commented out for later
         <View style={[styles.section, { marginBottom: 48 }]}>
           <View style={styles.devicesCard}>
             <Text style={styles.devicesTitle}>Connected Devices</Text>
@@ -330,6 +414,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+        */}
       </ScrollView>
 
       {/* FAB */}
@@ -339,8 +424,18 @@ export default function HomeScreen() {
 
       <LogOutingSheet
         visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        onSaved={() => setSheetVisible(false)}
+        onClose={() => { setSheetVisible(false); setEditingVisit(null); }}
+        onSaved={() => { setSheetVisible(false); setEditingVisit(null); }}
+        editVisit={editingVisit ?? undefined}
+      />
+      <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <StatBreakdownSheet
+        statType={activeStat}
+        yearVisits={yearVisits}
+        yearActivities={yearActivities}
+        selectedYear={selectedYear}
+        onClose={() => setActiveStat(null)}
+        onEditVisit={(v) => { setActiveStat(null); setEditingVisit(v); setSheetVisible(true); }}
       />
     </SafeAreaView>
   );
@@ -383,6 +478,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   scroll: {
     flex: 1,
@@ -411,9 +512,42 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
   },
+  yearPickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  yearLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2.5,
+    color: `${C.onSurface}88`,
+  },
+  yearPills: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  yearPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 99,
+    backgroundColor: C.surfaceContainerHighest,
+  },
+  yearPillActive: {
+    backgroundColor: C.primary,
+  },
+  yearPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+  },
+  yearPillTextActive: {
+    color: C.onPrimary,
+  },
   statsSection: {
     paddingHorizontal: 24,
-    paddingTop: 28,
+    paddingTop: 20,
     paddingBottom: 28,
     backgroundColor: C.surfaceContainerLow,
     borderTopWidth: StyleSheet.hairlineWidth,
