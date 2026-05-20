@@ -2,7 +2,9 @@
   "expo": {
     "name": "ParkAtlas",
     "slug": "ParkAtlas",
-    "version": "1.0.0",
+    "description": "Track visits, hikes, camps, and memorable stops across all 63 U.S. National Parks.",
+    "version": "1.2",
+    "sdkVersion": "55.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon-square.png",
     "scheme": "parkatlas",
@@ -36,14 +38,6 @@
     "plugins": [
       "expo-router",
       [
-        "react-native-health",
-        {
-          "isClinicalDataEnabled": false,
-          "healthSharePermission": "Allow ParkAtlas to read your fitness and trail activity data from Apple Health.",
-          "healthUpdatePermission": "Allow ParkAtlas to save your trail outings to Apple Health."
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
@@ -55,7 +49,6 @@
           }
         }
       ],
-      "react-native-health",
       "expo-secure-store",
       "expo-apple-authentication",
       [
@@ -72,6 +65,13 @@
         {
           "photosPermission": "Allow ParkAtlas to access your photo library to set your profile photo.",
           "cameraPermission": "Allow ParkAtlas to use your camera to take a profile photo."
+        }
+      ],
+      "expo-mail-composer",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow ParkAtlas to access your contacts to find friends already using the app."
         }
       ]
     ],

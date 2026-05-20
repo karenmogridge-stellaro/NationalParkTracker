@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import {
   View,
   Text,
@@ -10,442 +10,523 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
 import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
-import { matchedParksFromCoords } from '@/utils/parkMatcher';
-import { StravaActivity } from '@/hooks/useStrava';
-import { PARKS } from '@/data/parksData';
+import { useFriends } from '@/hooks/useFriends';
 import { LogOutingSheet } from '../../components/LogOutingSheet';
 import { AppDrawer } from '@/components/AppDrawer';
-import { StatBreakdownSheet, StatType } from '@/components/StatBreakdownSheet';
 import { useAuth } from '@/hooks/useAuth';
+import { StravaActivity } from '@/hooks/useStrava';
+import { PARKS } from '@/data/parksData';
+import { STATE_PARKS } from '@/data/stateParksData';
+import { fetchFriendActivities, FriendActivity } from '@/utils/userDirectoryApi';
 
-function relativeDate(iso: string): string {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days === 0) return 'TODAY';
-  if (days === 1) return 'YESTERDAY';
-  if (days < 7) return `${days} DAYS AGO`;
-  if (days < 14) return '1 WEEK AGO';
-  return `${Math.floor(days / 7)} WEEKS AGO`;
-}
-
-function formatMovingTime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-function dayKey(iso: string): string {
-  return new Date(iso).toISOString().slice(0, 10);
-}
-
-function longestConsecutiveStreak(dayKeys: string[]): number {
-  if (dayKeys.length === 0) return 0;
-  const days = Array.from(new Set(dayKeys)).sort();
-  let longest = 1;
-  let current = 1;
-
-  for (let i = 1; i < days.length; i += 1) {
-    const prev = new Date(`${days[i - 1]}T00:00:00Z`).getTime();
-    const next = new Date(`${days[i]}T00:00:00Z`).getTime();
-    const diffDays = Math.round((next - prev) / 86_400_000);
-    if (diffDays === 1) {
-      current += 1;
-      longest = Math.max(longest, current);
-    } else {
-      current = 1;
-    }
-  }
-
-  return longest;
-}
-
-const REGION_RULES = [
-  { name: 'Alaska', color: '#455a64', states: ['AK'] },
-  { name: 'Northeast', color: '#c2185b', states: ['ME', 'OH', 'WV', 'VA', 'MI', 'MN', 'IN', 'MO'] },
-  { name: 'Pacific', color: '#1565c0', states: ['CA', 'OR', 'WA', 'HI', 'AS'] },
-  { name: 'Rockies', color: '#6a1b9a', states: ['CO', 'WY', 'MT', 'ND', 'SD'] },
-  { name: 'Southeast', color: '#2e7d32', states: ['FL', 'SC', 'TN', 'KY', 'AR', 'VI'] },
-  { name: 'Southwest', color: '#ef6c00', states: ['AZ', 'NM', 'NV', 'TX', 'UT'] },
+const SEASON_MONTHS = [
+  { label: 'APR', month: 3 },
+  { label: 'MAY', month: 4 },
+  { label: 'JUN', month: 5 },
+  { label: 'JUL', month: 6 },
+  { label: 'AUG', month: 7 },
+  { label: 'SEP', month: 8 },
 ] as const;
 
+const ADVENTURE_IMAGES = [
+  'https://images.unsplash.com/photo-1601758261160-ecf8f9f4a4ea?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1508261305438-4f788f2f9d29?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1400&q=80',
+];
+
+const STAT_RING_TRACK = '#D8D8D8';
+const STAT_RING_PROGRESS = '#1F4D3A';
+
+function fullMonthYear(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
+function firstName(name?: string): string {
+  if (!name || !name.trim()) return 'Explorer';
+  return name.trim().split(/\s+/)[0];
+}
+
+function imageForKey(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return ADVENTURE_IMAGES[hash % ADVENTURE_IMAGES.length];
+}
+
+type FeedItem =
+  | { type: 'strava'; data: StravaActivity }
+  | { type: 'manual'; data: ParkVisit }
+  | { type: 'friend'; data: FriendActivity & { userName: string } };
+
+type CommunityMode = 'mine' | 'friends';
+
+type AdventureCardItem = {
+  key: string;
+  title: string;
+  subtitle: string;
+  distance: string;
+  imageUri: string;
+  tag: string;
+  onPress?: () => void;
+};
+
+function StatProgress({ progress, value }: { progress: number; value: string }) {
+  const pct = Math.max(0, Math.min(1, progress));
+  const rotation = `${pct * 360}deg`;
+  return (
+    <View style={styles.statProgressWrap}>
+      <View style={styles.statProgressTrack} />
+      {pct > 0 ? (
+        <View
+          style={[
+            styles.statProgressFill,
+            {
+              transform: [{ rotate: rotation }],
+            },
+          ]}
+        />
+      ) : null}
+      <View style={styles.statProgressCenter}>
+        <Text style={styles.statProgressText}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
-  const { athlete, activities, totalMiles, trailCount, parksCount, visitedParks, parkForActivity, loading } = useStravaData();
+  const { activities, visitedParks, parkForActivity } = useStravaData();
   const { visits, removeVisit } = useVisitedParks();
   const { user } = useAuth();
-  const router = useRouter();
+  const { myFriends } = useFriends();
+
   const [sheetVisible, setSheetVisible] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
-  const [activeStat, setActiveStat] = useState<StatType | null>(null);
+  const [communityMode, setCommunityMode] = useState<CommunityMode>('mine');
+  const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
 
-  const allActivities = activities;
-  const allVisits = visits;
+  React.useEffect(() => {
+    if (communityMode === 'friends' && myFriends.length > 0) {
+      fetchFriendActivities(myFriends.map((f) => f.id)).then((activities) => {
+        const enriched = activities.map((a) => ({
+          ...a,
+          userName: myFriends.find((f) => f.id === a.userId)?.name || a.userName,
+        }));
+        setFriendActivities(enriched);
+      });
+      return;
+    }
 
-  // All-time stats
-  const overallMiles = useMemo(() =>
-    allActivities.reduce((s, a) => s + (a.distance ?? 0), 0) / 1609.34,
-    [allActivities]
-  );
-  const overallTrailCount = allActivities.length + allVisits.length;
-  const overallParksCount = useMemo(() => {
-    const ids = new Set(matchedParksFromCoords(allActivities.map((a) => a.start_latlng)).map((p) => p.id));
-    allVisits.forEach((v) => ids.add(v.parkId));
-    return ids.size;
-  }, [allActivities, allVisits]);
+    setFriendActivities([]);
+  }, [communityMode, myFriends]);
 
-  // Merge Strava-detected park IDs + manually logged park IDs for combined count
-  const combinedParksCount = useMemo(() => {
-    const stravaIds = new Set(visitedParks.map((p) => p.id));
-    visits.forEach((v) => stravaIds.add(v.parkId));
-    return stravaIds.size;
+  const parkById = useMemo(() => {
+    const map = new Map<string, (typeof PARKS)[number] | (typeof STATE_PARKS)[number]>();
+    PARKS.forEach((park) => map.set(park.id, park));
+    STATE_PARKS.forEach((park) => map.set(park.id, park));
+    return map;
+  }, []);
+
+  const nationalVisited = useMemo(() => {
+    // Only count visits to national parks (PARKS dataset)
+    const nationalIds = new Set(PARKS.map((p) => p.id));
+    const visitedNationalIds = new Set(visitedParks.filter((p) => nationalIds.has(p.id)).map((p) => p.id));
+    visits.forEach((v) => { if (nationalIds.has(v.parkId)) visitedNationalIds.add(v.parkId); });
+    return visitedNationalIds.size;
   }, [visitedParks, visits]);
 
-  const regionProgress = useMemo(() => {
-    const visitedParkIds = new Set<string>();
-    matchedParksFromCoords(allActivities.map((a) => a.start_latlng)).forEach((p) => visitedParkIds.add(p.id));
-    allVisits.forEach((v) => visitedParkIds.add(v.parkId));
+  const stateVisited = useMemo(() => {
+    // Only count visits to state parks (STATE_PARKS dataset)
+    const stateIds = new Set(STATE_PARKS.map((p) => p.id));
+    const visitedStateIds = new Set<string>();
+    visits.forEach((v) => { if (stateIds.has(v.parkId)) visitedStateIds.add(v.parkId); });
+    return visitedStateIds.size;
+  }, [visits]);
 
-    return REGION_RULES.map((region) => {
-      const stateSet = new Set(region.states);
-      const parksInRegion = PARKS.filter((p) => stateSet.has(p.state));
-      const visited = parksInRegion.reduce((sum, park) => sum + (visitedParkIds.has(park.id) ? 1 : 0), 0);
-      return {
-        name: region.name,
-        color: region.color,
-        total: parksInRegion.length,
-        visited,
-      };
+  const seasonalMiles = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const mileageByMonth = new Map<number, number>();
+    const roundMiles = (value: number) => Math.round(value * 10) / 10;
+    const dateForVisit = (visit: ParkVisit): Date => {
+      if (visit.dateVisited) {
+        const explicit = new Date(visit.dateVisited);
+        if (!Number.isNaN(explicit.getTime())) return explicit;
+      }
+
+      // Fall back to timestamp embedded in visitId: <parkId>_<epochMs>
+      const maybeTs = Number(String(visit.visitId || '').split('_').pop());
+      if (Number.isFinite(maybeTs) && maybeTs > 0) {
+        const fromId = new Date(maybeTs);
+        if (!Number.isNaN(fromId.getTime())) return fromId;
+      }
+
+      return new Date();
+    };
+
+    SEASON_MONTHS.forEach(({ month }) => mileageByMonth.set(month, 0));
+
+    activities.forEach((activity) => {
+      const date = new Date(activity.start_date);
+      if (date.getFullYear() !== currentYear) return;
+      if (!mileageByMonth.has(date.getMonth())) return;
+      const miles = (activity.distance ?? 0) / 1609.34;
+      if (!Number.isFinite(miles) || miles <= 0) return;
+      mileageByMonth.set(date.getMonth(), (mileageByMonth.get(date.getMonth()) ?? 0) + miles);
     });
-  }, [allActivities, allVisits]);
 
-  const longestStreak = useMemo(() => {
-    const outingDayKeys = [
-      ...allActivities.map((a) => dayKey(a.start_date)),
-      ...allVisits.map((v) => dayKey(v.dateVisited)),
-    ];
-    return longestConsecutiveStreak(outingDayKeys);
-  }, [allActivities, allVisits]);
+    visits.forEach((visit) => {
+      const date = dateForVisit(visit);
+      if (date.getFullYear() !== currentYear) return;
+      if (!mileageByMonth.has(date.getMonth())) return;
+      const miles = visit.distanceMiles ?? 0;
+      if (!Number.isFinite(miles) || miles <= 0) return;
+      mileageByMonth.set(date.getMonth(), (mileageByMonth.get(date.getMonth()) ?? 0) + miles);
+    });
 
-  const milestones = useMemo(() => [
-    { label: 'First Peak', icon: 'trophy-outline', locked: overallTrailCount < 1 },
-    { label: 'Forest Dweller', icon: 'tree-outline', locked: combinedParksCount < 5 },
-    { label: '10-Day Streak', icon: 'fire', locked: longestStreak < 10 },
-    { label: '63 Club', icon: 'pine-tree', locked: combinedParksCount < 63 },
-  ], [overallTrailCount, combinedParksCount, longestStreak]);
-
-  // Combine Strava activities + manual visits for the activity feed (most recent 4)
-  type FeedItem =
-    | { type: 'strava'; data: StravaActivity }
-    | { type: 'manual'; data: ParkVisit };
-
-  const feedItems = useMemo<FeedItem[]>(() => {
-    const strava: FeedItem[] = activities.slice(0, 4).map((a) => ({ type: 'strava', data: a }));
-    const manual: FeedItem[] = visits.slice(0, 4).map((v) => ({ type: 'manual', data: v }));
-    return [...strava, ...manual]
-      .sort((a, b) => {
-        const dateA = a.type === 'strava' ? a.data.start_date : a.data.dateVisited;
-        const dateB = b.type === 'strava' ? b.data.start_date : b.data.dateVisited;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      })
-      .slice(0, 4);
+    return SEASON_MONTHS.map(({ label, month }) => ({
+      label,
+      month,
+      miles: roundMiles(mileageByMonth.get(month) ?? 0),
+    }));
   }, [activities, visits]);
 
-  const recentActivities = activities.slice(0, 2);
+  const seasonalTotal = useMemo(
+    () => seasonalMiles.reduce((sum, m) => sum + m.miles, 0),
+    [seasonalMiles]
+  );
+
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const strava: FeedItem[] = activities.slice(0, 10).map((a) => ({ type: 'strava', data: a }));
+    const manual: FeedItem[] = visits.slice(0, 10).map((v) => ({ type: 'manual', data: v }));
+
+    return [...strava, ...manual]
+      .sort((a, b) => {
+        const dateA = a.type === 'strava' ? a.data.start_date : (a.data.dateVisited || '1970-01-01');
+        const dateB = b.type === 'strava' ? b.data.start_date : (b.data.dateVisited || '1970-01-01');
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      })
+      .slice(0, 8);
+  }, [activities, visits]);
+
+  const displayedFeed = useMemo(() => {
+    if (communityMode === 'mine') return feedItems;
+    // In friends mode, convert friend activities to feed items
+    return friendActivities
+      .map((activity) => ({
+        type: 'friend' as const,
+        data: activity,
+      }))
+      .sort((a, b) => {
+        const dateA = a.data.dateVisited || '1970-01-01';
+        const dateB = b.data.dateVisited || '1970-01-01';
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      })
+      .slice(0, 8);
+  }, [communityMode, feedItems, friendActivities]);
+
+  const onCardPress = useCallback((item: FeedItem) => {
+    if (item.type !== 'manual') return;
+
+    const visit = item.data;
+    Alert.alert(
+      visit.trailName || visit.parkName,
+      'What would you like to do?',
+      [
+        {
+          text: 'Edit',
+          onPress: () => {
+            setEditingVisit(visit);
+            setSheetVisible(true);
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Delete Entry', `Remove "${visit.trailName || visit.parkName}" from your log?`, [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
+            ]),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }, [removeVisit]);
+
+  const fallbackCards = useMemo<AdventureCardItem[]>(() => [
+    {
+      key: 'fallback_zion',
+      title: 'Zion',
+      subtitle: 'Utah · May 2024',
+      distance: '24.5 mi',
+      imageUri: imageForKey('fallback_zion'),
+      tag: 'Sarah visited',
+    },
+    {
+      key: 'fallback_teton',
+      title: 'Grand Teton',
+      subtitle: 'Wyoming · Apr 2024',
+      distance: '18.2 mi',
+      imageUri: imageForKey('fallback_teton'),
+      tag: 'James explored',
+    },
+    {
+      key: 'fallback_olympic',
+      title: 'Olympic',
+      subtitle: 'Washington · Mar 2024',
+      distance: '31.0 mi',
+      imageUri: imageForKey('fallback_olympic'),
+      tag: 'You visited',
+    },
+  ], []);
+
+  const adventureCards = useMemo<AdventureCardItem[]>(() => {
+    if (displayedFeed.length === 0) {
+      return communityMode === 'friends' ? [] : fallbackCards;
+    }
+
+    return displayedFeed.map((item) => {
+      const isStrava = item.type === 'strava';
+      const isFriend = item.type === 'friend';
+      const date = isStrava ? item.data.start_date : (item.data as any).dateVisited;
+      const key = isStrava ? `strava_${item.data.id}` : isFriend ? `friend_${(item.data as any).userId}_${(item.data as any).parkId}` : `manual_${(item.data as any).visitId}`;
+      const park = isStrava ? parkForActivity(item.data as StravaActivity) : parkById.get((item.data as any).parkId);
+      const parkName = park?.name || (isStrava ? 'Unknown Park' : (item.data as any).parkName);
+      const parkState = park?.state || 'Park';
+      const distance = isStrava
+        ? `${((item.data as StravaActivity).distance / 1609.34).toFixed(1)} mi`
+        : `${((item.data as any).distanceMiles ?? 0).toFixed(1)} mi`;
+      const dateLabel = fullMonthYear(date);
+      const friendName = isFriend ? (item.data as any).userName : firstName(user?.name);
+
+      return {
+        key,
+        title: parkName,
+        subtitle: dateLabel ? `${parkState} · ${dateLabel}` : parkState,
+        distance,
+        imageUri: !isStrava && !isFriend ? (item.data as ParkVisit).photoUri || imageForKey(key) : imageForKey(key),
+        tag: `${friendName} visited`,
+        onPress: isStrava || isFriend ? undefined : () => onCardPress(item as { type: 'manual'; data: ParkVisit }),
+      };
+    });
+  }, [displayedFeed, fallbackCards, parkForActivity, parkById, communityMode, user?.name, onCardPress]);
+
+  const isFirstTimeEmpty = activities.length === 0 && visits.length === 0 && visitedParks.length === 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
-            <Ionicons name="menu" size={26} color={C.onPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerBrand}>Park it. Mark it.</Text>
-        </View>
-        <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name="person" size={20} color={C.onPrimary} />
-          )}
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, isFirstTimeEmpty && styles.scrollContentEmpty]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome */}
-        <View style={[styles.section, { backgroundColor: '#fff' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={[styles.section, { marginBottom: 14 }]}>
+          <View style={styles.greetingRow}>
             <Image
               source={require('../../assets/images/parkatlas-logo.png')}
-              style={styles.welcomeLogo}
+              style={styles.greetingLogo}
               resizeMode="contain"
             />
             <View style={{ flex: 1 }}>
-              <Text style={styles.welcomeSub}>Log your visits across all 63 U.S. National Parks — hikes, camps, and scenic drives — all in one place.</Text>
+              <Text style={styles.greetingTitle}>Hello, {firstName(user?.name)}.</Text>
+              <Text style={styles.greetingSub}>Ready for your next expedition?</Text>
             </View>
           </View>
         </View>
 
-        {/* Stats */}
-        <View style={styles.statsSection}>
-          {/* Scope label */}
-          <View style={styles.yearPickerRow}>
-            <Text style={styles.yearLabel}>ALL TIME</Text>
-            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6} onPress={() => router.navigate('/(tabs)/directory' as any)}>
-              <Text style={styles.sectionLinkText}>SHOW MORE</Text>
-              <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.statsGrid}>
-            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('miles')}>
-              <MaterialCommunityIcons name="map-marker-distance" size={22} color={`${C.primary}66`} />
-              <View>
-                <Text style={styles.statValue}>{overallMiles > 0 ? overallMiles.toFixed(1) : (loading ? '—' : '0')}</Text>
-                <Text style={styles.statLabel}>MILES</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('trails')}>
-              <MaterialCommunityIcons name="terrain" size={22} color={`${C.primary}66`} />
-              <View>
-                <Text style={styles.statValue}>{overallTrailCount > 0 ? overallTrailCount : (loading ? '—' : '0')}</Text>
-                <Text style={styles.statLabel}>TRAILS</Text>
-              </View>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.statItem} activeOpacity={0.7} onPress={() => setActiveStat('parks')}>
-              <MaterialCommunityIcons name="pine-tree" size={22} color={`${C.primary}66`} />
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                  <Text style={styles.statValue}>{overallParksCount > 0 ? overallParksCount : (loading ? '—' : '0')}</Text>
-                  <Text style={styles.statLabelInline}>/ 63</Text>
-                </View>
-                <Text style={styles.statLabel}>PARKS</Text>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${Math.round((overallParksCount / 63) * 100)}%` }]} />
-                </View>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+        {isFirstTimeEmpty ? (
+          <View style={styles.firstTimeEmptyWrap}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1400&q=80' }}
+              style={styles.firstTimeHeroImage}
+            />
+            <Text style={styles.firstTimeTitle}>Start your adventure</Text>
+            <Text style={styles.firstTimeSub}>Track the parks you visit and build your journey over time.</Text>
 
-        <View style={styles.sectionDivider} />
+            <TouchableOpacity
+              style={styles.firstTimePrimaryBtn}
+              activeOpacity={0.85}
+              onPress={() => setSheetVisible(true)}
+            >
+              <Text style={styles.firstTimePrimaryBtnText}>Log your first park</Text>
+            </TouchableOpacity>
 
-        {/* Progress by Region */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MaterialCommunityIcons name="image-filter-hdr" size={18} color={C.primary} />
-              <Text style={styles.sectionTitle}>PROGRESS BY REGION</Text>
+            <TouchableOpacity
+              style={styles.firstTimeSecondaryBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/explore')}
+            >
+              <Text style={styles.firstTimeSecondaryBtnText}>Explore parks</Text>
+            </TouchableOpacity>
+
+            <View style={styles.firstTimeSupportRow}>
+              <Text style={styles.firstTimeSupportText}>0/63 National</Text>
+              <Text style={styles.firstTimeSupportText}>0/120 State</Text>
+              <Text style={styles.firstTimeSupportText}>0 mi</Text>
             </View>
           </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingVertical: 8, rowGap: 20 }}>
-            {regionProgress.map((r) => {
-              const pct = r.total > 0 ? r.visited / r.total : 0;
-              const SIZE = 64;
-              const STROKE = 5;
-              const R = (SIZE - STROKE) / 2;
-              const CIRC = 2 * Math.PI * R;
-              const dash = pct * CIRC;
-              return (
-                <View key={r.name} style={{ alignItems: 'center', gap: 6, width: '30%' }}>
-                  <View style={{ width: SIZE, height: SIZE }}>
-                    {/* background ring */}
-                    <View style={{
-                      position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-                      borderWidth: STROKE, borderColor: `${C.outlineVariant}99`,
-                    }} />
-                    {/* progress arc via border trick — use a thin colored top border */}
-                    {pct > 0 && (
-                      <View style={{
-                        position: 'absolute', width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-                        borderWidth: STROKE,
-                        borderTopColor: r.color,
-                        borderRightColor: pct > 0.25 ? r.color : 'transparent',
-                        borderBottomColor: pct > 0.5 ? r.color : 'transparent',
-                        borderLeftColor: pct > 0.75 ? r.color : 'transparent',
-                        transform: [{ rotate: '-90deg' }],
-                      }} />
-                    )}
-                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 16, fontWeight: '700', color: C.onSurface }}>{r.visited}/{r.total}</Text>
-                    </View>
+        ) : (
+          <>
+            <View style={styles.statsRow}>
+              <View style={styles.statTile}>
+                <View style={styles.statTileContentRow}>
+                  <StatProgress
+                    progress={nationalVisited / 63}
+                    value={`${Math.round((nationalVisited / 63) * 100)}%`}
+                  />
+                  <View style={styles.statTileTextCol}>
+                    <Text style={styles.statTileValue} numberOfLines={1}>{nationalVisited}/63</Text>
+                    <Text style={styles.statTileLabel} numberOfLines={1}>National</Text>
                   </View>
-                  <Text style={{ fontSize: 12, color: C.onSurfaceVariant }}>{r.name}</Text>
                 </View>
-              );
-            })}
-          </View>
-        </View>
+              </View>
 
-        <View style={styles.sectionDivider} />
+              <View style={styles.statTile}>
+                <View style={styles.statTileContentRow}>
+                  <StatProgress
+                    progress={stateVisited / 120}
+                    value={`${Math.round((stateVisited / 120) * 100)}%`}
+                  />
+                  <View style={styles.statTileTextCol}>
+                    <Text style={styles.statTileValue} numberOfLines={1}>{stateVisited}/120</Text>
+                    <Text style={styles.statTileLabel} numberOfLines={1}>State</Text>
+                  </View>
+                </View>
+              </View>
 
-        {/* My Journeys */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MaterialCommunityIcons name="hiking" size={18} color={C.primary} />
-              <Text style={styles.sectionTitle}>ACTIVITY</Text>
+              <View style={styles.statTile}>
+                <View style={styles.statTileContentRow}>
+                  <View style={styles.statTileSpacer} />
+                  <View style={styles.statTileTextCol}>
+                    <Text style={styles.statTileValue} numberOfLines={1}>{Math.round(seasonalTotal)} mi</Text>
+                    <Text style={styles.statTileLabel} numberOfLines={1}>Miles</Text>
+                  </View>
+                </View>
+              </View>
             </View>
-            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6} onPress={() => router.navigate('/(tabs)/directory' as any)}>
-              <Text style={styles.sectionLinkText}>VIEW ALL</Text>
-              <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
-            </TouchableOpacity>
-          </View>
 
-          {feedItems.length > 0
-            ? feedItems.map((item) => {
-                if (item.type === 'strava') {
-                  const act = item.data;
-                  const miles = (act.distance / 1609.34).toFixed(1);
-                  const elevFt = Math.round(act.total_elevation_gain * 3.28084);
-                  const park = parkForActivity(act);
-                  return (
-                    <TouchableOpacity key={`s_${act.id}`} style={styles.journeyCard} activeOpacity={0.7}>
-                      <View style={styles.journeyBody}>
-                        <View style={styles.journeyTopRow}>
-                          <Text style={styles.journeyParkTitle} numberOfLines={1}>{park?.name ?? 'Unknown Park'}</Text>
-                          <Text style={styles.journeyDate}>{relativeDate(act.start_date)}</Text>
+            <View style={styles.section}>
+              <View style={styles.recentHeader}>
+                <Text style={styles.recentTitle}>Recent Adventures</Text>
+                <View style={styles.toggleWrap}>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, communityMode === 'mine' && styles.toggleButtonActive]}
+                    onPress={() => setCommunityMode('mine')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.toggleText, communityMode === 'mine' && styles.toggleTextActive]}>MINE</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.toggleButton, communityMode === 'friends' && styles.toggleButtonActive]}
+                    onPress={() => setCommunityMode('friends')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.toggleText, communityMode === 'friends' && styles.toggleTextActive]}>FRIENDS</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.cardsList}>
+                {adventureCards.length === 0 && communityMode === 'friends' ? (
+                  <View style={styles.emptyFriendsFeed}>
+                    {/* Ghost preview cards */}
+                    <View style={styles.ghostCardsWrap} pointerEvents="none">
+                      {[
+                        { name: 'Alex', park: 'Zion', img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=400&q=60' },
+                        { name: 'Jordan', park: 'Yosemite', img: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=400&q=60' },
+                      ].map((item, i) => (
+                        <View key={i} style={[styles.ghostCard, i === 1 && styles.ghostCardOffset]}>
+                          <Image source={{ uri: item.img }} style={styles.ghostCardImage} blurRadius={3} />
+                          <View style={styles.ghostCardOverlay} />
+                          <View style={styles.ghostCardLabel}>
+                            <Text style={styles.ghostCardLabelText}>{item.name} • {item.park}</Text>
+                          </View>
                         </View>
-                        <Text style={styles.journeyTrailLine} numberOfLines={1}>{act.name}</Text>
-                        <View style={styles.journeyStats}>
-                          {act.distance > 0 && <Text style={[styles.journeyChip, styles.journeyChipGreen]}>{miles} mi</Text>}
-                          {act.total_elevation_gain > 0 && <Text style={[styles.journeyChip, styles.journeyChipBrown]}>+{elevFt} ft</Text>}
-                        </View>
-                      </View>
-                      <View style={styles.journeyBadge}>
-                        <Text style={styles.journeyBadgeText}>STRAVA</Text>
-                      </View>
+                      ))}
+                    </View>
+
+                    <Text style={styles.emptyFriendsFeedTitle}>Follow friends to see their adventures</Text>
+                    <Text style={styles.emptyFriendsFeedText}>See where your friends have been — and get inspired for your next trip.</Text>
+
+                    <TouchableOpacity
+                      style={styles.emptyFriendsCTA}
+                      activeOpacity={0.85}
+                      onPress={() => router.push('/(tabs)/directory')}
+                    >
+                      <Text style={styles.emptyFriendsCTAText}>Find Your People</Text>
                     </TouchableOpacity>
-                  );
-                } else {
-                  const visit = item.data;
+
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => router.push('/(tabs)/directory')}
+                    >
+                      <Text style={styles.emptyFriendsInvite}>Invite a friend</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {adventureCards.map((card) => {
                   return (
                     <TouchableOpacity
-                      key={`m_${visit.visitId}`}
-                      style={styles.journeyCard}
-                      activeOpacity={0.7}
-                      onPress={() =>
-                        Alert.alert(
-                          visit.trailName || visit.parkName,
-                          'What would you like to do?',
-                          [
-                            { text: 'Edit', onPress: () => { setEditingVisit(visit); setSheetVisible(true); } },
-                            { text: 'Delete', style: 'destructive', onPress: () =>
-                              Alert.alert('Delete Entry', `Remove "${visit.trailName || visit.parkName}" from your log?`, [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
-                              ])
-                            },
-                            { text: 'Cancel', style: 'cancel' },
-                          ],
-                        )
-                      }
+                      key={card.key}
+                      style={styles.adventureCard}
+                      activeOpacity={0.9}
+                      onPress={card.onPress}
+                      disabled={!card.onPress}
                     >
-                      <View style={styles.journeyBody}>
-                        <View style={styles.journeyTopRow}>
-                          <Text style={styles.journeyParkTitle} numberOfLines={1}>{visit.parkName}</Text>
-                          <Text style={styles.journeyDate}>{relativeDate(visit.dateVisited)}</Text>
+                      <View style={styles.cardImageWrap}>
+                        <Image source={{ uri: card.imageUri }} style={styles.cardImage} />
+                        <View style={styles.imageTag}>
+                          <Text style={styles.imageTagText}>{card.tag}</Text>
                         </View>
-                        <Text style={styles.journeyTrailLine} numberOfLines={1}>{visit.trailName || 'Park visit'}</Text>
-                        <View style={styles.journeyStats}>
-                          {visit.distanceMiles ? (
-                            <Text style={[styles.journeyChip, styles.journeyChipGreen]}>{visit.distanceMiles.toFixed(1)} mi</Text>
-                          ) : null}
-                          {visit.activityType ? <Text style={styles.journeyChip}>{visit.activityType}</Text> : null}
+                      </View>
+
+                      <View style={styles.cardMetaRow}>
+                        <View style={styles.cardMetaLeft}>
+                          <Text style={styles.cardTitle}>{card.title}</Text>
+                          <Text style={styles.cardSub}>{card.subtitle}</Text>
                         </View>
+                        <Text style={styles.cardDistance}>{card.distance}</Text>
                       </View>
                     </TouchableOpacity>
                   );
-                }
-              })
-            : null}
-
-          <TouchableOpacity style={styles.dashedButton} activeOpacity={0.6} onPress={() => setSheetVisible(true)}>
-            <Text style={styles.dashedButtonText}>+ LOG NEW OUTING</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Milestones */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>EARNED MILESTONES</Text>
-            <TouchableOpacity style={styles.sectionLink} activeOpacity={0.6}>
-              <Text style={styles.sectionLinkText}>VIEW ALL</Text>
-              <MaterialCommunityIcons name="arrow-right" size={12} color={C.primary} style={{ opacity: 0.7 }} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.milestonesGrid}>
-            {milestones.map((m) => (
-              <View key={m.label} style={[styles.milestoneCard, m.locked && styles.milestoneCardLocked]}>
-                <View style={[styles.milestoneIconBg, m.locked && styles.milestoneIconBgLocked]}>
-                  <MaterialCommunityIcons
-                    name={m.icon as any}
-                    size={24}
-                    color={m.locked ? C.outline : C.primary}
-                  />
-                </View>
-                <Text style={[styles.milestoneLabel, m.locked && styles.milestoneLabelLocked]}>
-                  {m.label.toUpperCase()}
-                </Text>
+                })}
               </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Connected Devices — commented out for later
-        <View style={[styles.section, { marginBottom: 48 }]}>
-          <View style={styles.devicesCard}>
-            <Text style={styles.devicesTitle}>Connected Devices</Text>
-            <View style={styles.deviceRow}>
-              <MaterialCommunityIcons name="watch" size={22} color={`${C.primary}80`} />
-              <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName}>GARMIN FĒNIX 7</Text>
-                <Text style={styles.deviceStatus}>SYNCED 2M AGO</Text>
-              </View>
-              <View style={[styles.dot, { backgroundColor: C.primary }]} />
             </View>
-            <View style={[styles.deviceRow, styles.deviceRowBorder]}>
-              <MaterialCommunityIcons name="heart" size={22} color={`${C.primary}99`} />
-              <View style={styles.deviceInfo}>
-                <Text style={styles.deviceName}>APPLE HEALTH</Text>
-                <Text style={styles.deviceStatus}>ALWAYS ACTIVE</Text>
-              </View>
-              <View style={[styles.dot, { backgroundColor: `${C.primary}66` }]} />
-            </View>
-            <TouchableOpacity style={styles.pairButton} activeOpacity={0.6}>
-              <Text style={styles.pairButtonText}>PAIR NEW DEVICE</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        */}
+          </>
+        )}
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
-        <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
-      </TouchableOpacity>
+      {!isFirstTimeEmpty ? (
+        <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
+          <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
+        </TouchableOpacity>
+      ) : null}
 
       <LogOutingSheet
         visible={sheetVisible}
-        onClose={() => { setSheetVisible(false); setEditingVisit(null); }}
-        onSaved={() => { setSheetVisible(false); setEditingVisit(null); }}
+        onClose={() => {
+          setSheetVisible(false);
+          setEditingVisit(null);
+        }}
+        onSaved={() => {
+          setSheetVisible(false);
+          setEditingVisit(null);
+        }}
         editVisit={editingVisit ?? undefined}
       />
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <StatBreakdownSheet
-        statType={activeStat}
-        yearVisits={allVisits}
-        yearActivities={allActivities}
-        selectedYear="All Time"
-        onClose={() => setActiveStat(null)}
-        onEditVisit={(v) => { setActiveStat(null); setEditingVisit(v); setSheetVisible(true); }}
-      />
     </SafeAreaView>
   );
 }
@@ -455,392 +536,399 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    backgroundColor: C.primary,
-  },
-  headerLeft: {
+  greetingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  headerBrand: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: C.onPrimary,
-    letterSpacing: -0.3,
-  },
-  headerLogo: {
-    width: 110,
-    height: 34,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  greetingLogo: {
+    width: 68,
+    height: 68,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 24,
+    paddingBottom: 110,
+  },
+  scrollContentEmpty: {
+    flexGrow: 1,
+    paddingBottom: 36,
   },
   section: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    gap: 16,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
-  journalLabel: {
-    fontSize: 14,
+  greetingTitle: {
+    fontSize: 30,
+    lineHeight: 34,
     fontWeight: '700',
-    letterSpacing: 2.5,
-    color: `${C.primary}99`,
+    color: C.onSurface,
+    letterSpacing: -0.8,
   },
-  welcomeTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: C.primary,
-    letterSpacing: -0.5,
-    lineHeight: 27,
-  },
-  welcomeSub: {
-    fontSize: 13,
-    color: C.onSurfaceVariant,
-    lineHeight: 19,
-    marginTop: 4,
-  },
-  welcomeLogo: {
-    width: 90,
-    height: 90,
-  },
-  yearPickerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  yearLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2.5,
-    color: `${C.onSurface}88`,
-  },
-  yearPills: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  yearPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 99,
-    backgroundColor: C.surfaceContainerHighest,
-  },
-  yearPillActive: {
-    backgroundColor: C.primary,
-  },
-  yearPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.onSurfaceVariant,
-  },
-  yearPillTextActive: {
-    color: C.onPrimary,
-  },
-  statsSection: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 28,
-    backgroundColor: C.surfaceContainerLow,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: C.surfaceContainerHighest,
-    marginTop: 12,
-  },
-  sectionDivider: {
-    height: 1,
-    marginHorizontal: 24,
-    marginTop: 8,
-    marginBottom: 2,
-    backgroundColor: C.outlineVariant,
-    opacity: 0.7,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  statItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: C.primary,
-  },
-  statLabel: {
+  greetingSub: {
+    marginTop: 3,
     fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 1.8,
-    color: `${C.onSurface}66`,
-    marginTop: 1,
+    color: C.onSurfaceVariant,
+    letterSpacing: 0.2,
   },
-  statLabelInline: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: `${C.onSurface}66`,
+  firstTimeEmptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingBottom: 24,
   },
-  progressTrack: {
-    height: 5,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 99,
-    marginTop: 5,
-    overflow: 'hidden',
+  firstTimeHeroImage: {
+    width: '100%',
+    maxWidth: 320,
+    height: 240,
+    borderRadius: 18,
+    marginBottom: 22,
   },
-  progressFill: {
-    height: '100%',
+  firstTimeTitle: {
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: '800',
+    color: C.onSurface,
+    textAlign: 'center',
+    letterSpacing: -0.6,
+  },
+  firstTimeSub: {
+    marginTop: 8,
+    fontSize: 16,
+    lineHeight: 22,
+    color: C.onSurfaceVariant,
+    textAlign: 'center',
+    maxWidth: 330,
+  },
+  firstTimePrimaryBtn: {
+    marginTop: 26,
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 999,
     backgroundColor: C.primary,
-    borderRadius: 99,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
-  sectionTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    letterSpacing: 2,
-    color: C.primary,
+  firstTimePrimaryBtnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.onPrimary,
+    letterSpacing: 0.2,
   },
-  sectionLink: {
-    flexDirection: 'row',
+  firstTimeSecondaryBtn: {
+    marginTop: 10,
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    gap: 3,
-  },
-  sectionLinkText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2,
-    color: `${C.primary}b3`,
-  },
-  journeyCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
     paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.outlineVariant,
   },
-  journeyBody: {
-    flex: 1,
-    gap: 3,
-  },
-  journeyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  journeyParkTitle: {
-    flex: 1,
-    fontSize: 14,
+  firstTimeSecondaryBtnText: {
+    fontSize: 15,
     fontWeight: '700',
     color: C.onSurface,
   },
-  journeyDate: {
-    fontSize: 11,
-    color: C.onSurfaceVariant,
-    fontWeight: '600',
+  firstTimeSupportRow: {
+    marginTop: 18,
+    flexDirection: 'row',
+    gap: 16,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  journeyTrailLine: {
+  firstTimeSupportText: {
     fontSize: 12,
-    color: C.primary,
-    fontWeight: '600',
-  },
-  journeyStats: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-    marginTop: 2,
-  },
-  journeyChip: {
-    fontSize: 11,
     fontWeight: '600',
     color: C.onSurfaceVariant,
-    backgroundColor: C.surfaceContainerHighest,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    opacity: 0.8,
   },
-  journeyChipGreen: {
-    color: C.primary,
-    backgroundColor: `${C.primary}18`,
-  },
-  journeyChipBrown: {
-    color: C.tertiary,
-    backgroundColor: `${C.tertiary}18`,
-  },
-  journeyBadge: {
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    flexShrink: 0,
-  },
-  journeyBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: C.onSurfaceVariant,
-  },
-  dashedButton: {
-    paddingVertical: 16,
-    backgroundColor: C.primary,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  dashedButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2.5,
-    color: C.background,
-  },
-  milestonesGrid: {
+  statsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    flexWrap: 'nowrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
-  milestoneCard: {
+  statTile: {
     flex: 1,
-    minWidth: '40%',
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: `${C.surfaceContainerHighest}99`,
-    borderRadius: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 12,
+    minHeight: 92,
+    borderRadius: 16,
+    backgroundColor: '#FFF',
+    padding: 6,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  statTileContentRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 4,
   },
-  milestoneCardLocked: {
-    opacity: 0.3,
+  statTileTextCol: {
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0,
   },
-  milestoneIconBg: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: `${C.primary}0d`,
+  statTileSpacer: {
+    width: 36,
+    height: 36,
+  },
+  statTileValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.onSurface,
+    letterSpacing: -0.2,
+  },
+  statTileLabel: {
+    marginTop: 1,
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6f7772',
+  },
+  statProgressWrap: {
+    width: 36,
+    height: 36,
+  },
+  statProgressTrack: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 18,
+    borderWidth: 2.5,
+    borderColor: STAT_RING_TRACK,
+  },
+  statProgressFill: {
+    position: 'absolute',
+    inset: 0,
+    borderRadius: 18,
+    borderWidth: 2.5,
+    borderColor: STAT_RING_PROGRESS,
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
+    transform: [{ rotate: '-90deg' }],
+  },
+  statProgressCenter: {
+    position: 'absolute',
+    inset: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  milestoneIconBgLocked: {
-    backgroundColor: `${C.surfaceContainerHighest}80`,
-  },
-  milestoneLabel: {
-    fontSize: 16,
+  statProgressText: {
+    fontSize: 8,
     fontWeight: '700',
-    letterSpacing: 1.5,
-    color: `${C.onSurface}b3`,
-    textAlign: 'center',
+    color: C.onSurface,
   },
-  milestoneLabelLocked: {
-    fontStyle: 'italic',
-    fontWeight: '400',
+  recentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 12,
   },
-  devicesCard: {
-    backgroundColor: `${C.surfaceContainer}66`,
-    padding: 20,
+  recentTitle: {
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.2,
+    color: C.onSurface,
+    fontWeight: '700',
+    flex: 1,
+  },
+  toggleWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#dde3df',
+    borderRadius: 999,
+    padding: 3,
+    gap: 4,
+  },
+  toggleButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  toggleButtonActive: {
+    backgroundColor: C.primary,
+  },
+  toggleText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.3,
+    color: '#4a514e',
+  },
+  toggleTextActive: {
+    color: '#fff',
+  },
+  cardsList: {
+    gap: 14,
+  },
+  adventureCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardImageWrap: {
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: `${C.surfaceContainerHighest}50`,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  cardImage: {
+    width: '100%',
+    height: 165,
+    backgroundColor: '#dce2de',
+  },
+  imageTag: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  imageTagText: {
+    fontSize: 10,
+    color: C.onSurface,
+    fontWeight: '600',
+  },
+  cardMetaRow: {
+    marginTop: 7,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  cardMetaLeft: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 24,
+    lineHeight: 27,
+    fontWeight: '700',
+    color: C.onSurface,
+    letterSpacing: -0.3,
+  },
+  cardSub: {
+    marginTop: 2,
+    fontSize: 14,
+    color: '#6a746f',
+  },
+  cardDistance: {
+    fontSize: 16,
+    color: C.onSurfaceVariant,
+    fontWeight: '700',
+    paddingTop: 2,
+  },
+  emptyFriendsFeed: {
+    borderRadius: 20,
+    backgroundColor: '#f5f7f6',
+    overflow: 'hidden',
+    paddingBottom: 24,
+    alignItems: 'center',
     gap: 0,
   },
-  devicesTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: C.primary,
-    letterSpacing: 0.5,
-    marginBottom: 16,
-  },
-  deviceRow: {
+  ghostCardsWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    backgroundColor: `${C.surface}cc`,
+    height: 120,
+    width: '100%',
+    marginBottom: 20,
+  },
+  ghostCard: {
+    position: 'absolute',
+    left: 16,
+    top: 12,
+    width: '55%',
+    height: 96,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  ghostCardOffset: {
+    left: undefined,
+    right: 16,
+    top: 20,
+  },
+  ghostCardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  ghostCardOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(245,247,246,0.55)',
+  },
+  ghostCardLabel: {
+    position: 'absolute',
+    bottom: 8,
+    left: 10,
+    backgroundColor: 'rgba(255,255,255,0.82)',
     borderRadius: 8,
-    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  deviceRowBorder: {
-    borderTopWidth: 0,
-  },
-  deviceInfo: {
-    flex: 1,
-  },
-  deviceName: {
-    fontSize: 18,
+  ghostCardLabelText: {
+    fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 1.5,
     color: C.onSurface,
+    letterSpacing: 0.2,
   },
-  deviceStatus: {
-    fontSize: 16,
+  emptyFriendsFeedTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.onSurface,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    marginBottom: 6,
+  },
+  emptyFriendsFeedText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.onSurfaceVariant,
+    textAlign: 'center',
+    paddingHorizontal: 28,
+    marginBottom: 20,
+  },
+  emptyFriendsCTA: {
+    backgroundColor: C.primary,
+    borderRadius: 28,
+    paddingVertical: 13,
+    paddingHorizontal: 36,
+    marginBottom: 14,
+  },
+  emptyFriendsCTAText: {
+    color: '#ffffff',
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 1,
-    color: `${C.onSurface}66`,
-    marginTop: 1,
+    letterSpacing: 0.3,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  pairButton: {
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: `${C.primary}1a`,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  pairButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 2,
-    color: `${C.primary}99`,
+  emptyFriendsInvite: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.primary,
+    textDecorationLine: 'underline',
   },
   fab: {
     position: 'absolute',
     right: 24,
-    bottom: 96,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    bottom: 90,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: C.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: C.onSurface,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowColor: '#0f2e0d',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.28,
     shadowRadius: 12,
     elevation: 8,
   },

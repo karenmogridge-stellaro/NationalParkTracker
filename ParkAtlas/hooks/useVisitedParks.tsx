@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as StoreReview from 'expo-store-review';
 import { useAuth } from '@/hooks/useAuth';
 
 const LEGACY_VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
+const REVIEW_PROMPTED_LEGACY_FILE = `${FileSystem.documentDirectory}review_prompted.json`;
+const GUEST_USER_ID = 'guest_user';  // Anonymous/offline user ID for unsigned-in users
 
 function visitsFileForUser(userId: string): string {
   // Keep filenames filesystem-safe and deterministic per account.
@@ -10,12 +13,19 @@ function visitsFileForUser(userId: string): string {
   return `${FileSystem.documentDirectory}visited_parks_${safeUserId}.json`;
 }
 
+function reviewPromptedFileForUser(userId: string): string {
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${FileSystem.documentDirectory}review_prompted_${safeUserId}.json`;
+}
+
 export interface ParkVisit {
   visitId: string;          // unique: parkId + timestamp
   parkId: string;
   parkName: string;
   trailName: string;        // empty string if no trail selected
-  dateVisited: string;      // ISO date string
+  photoUri?: string;        // optional user-uploaded outing photo (data URI or local URI)
+  dateVisited?: string;     // ISO date string (missing when user chose unknown date)
+  dateUnknown?: boolean;
   distanceMiles?: number;   // optional manual distance in miles
   elevationGainFt?: number; // optional elevation gain in feet
   activityType?: string;    // e.g. 'Hike', 'Backpack', 'Camp', 'Scenic Drive', 'Wildlife'
@@ -23,8 +33,10 @@ export interface ParkVisit {
 }
 
 export interface LogVisitOptions {
+  photoUri?: string | null;
   distanceMiles?: number;
   dateVisited?: string;
+  dateUnknown?: boolean;
   elevationGainFt?: number;
   activityType?: string;
   rating?: number;
@@ -36,6 +48,7 @@ interface VisitedParksState {
   logVisit: (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => Promise<void>;
   updateVisit: (visitId: string, parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => Promise<void>;
   removeVisit: (visitId: string) => Promise<void>;
+  deleteAllDataForCurrentUser: () => Promise<void>;
   hasVisited: (parkId: string) => boolean;
   visitsForPark: (parkId: string) => ParkVisit[];
   totalStats: { totalOutings: number; uniqueParks: number; totalMiles: number; totalElevationFt: number };
@@ -48,23 +61,22 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   const { user } = useAuth();
   const [visits, setVisits] = useState<ParkVisit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reviewPrompted, setReviewPrompted] = useState(false);
+  const [reviewPromptLoaded, setReviewPromptLoaded] = useState(false);
 
   // Load user-scoped visits from disk whenever the authenticated user changes.
+  // Falls back to GUEST_USER_ID if not logged in, enabling offline data persistence.
   useEffect(() => {
     (async () => {
-      if (!user?.id) {
-        setVisits([]);
-        setLoading(false);
-        return;
-      }
-
+      const userId = user?.id || GUEST_USER_ID;
       setLoading(true);
       try {
-        const userFile = visitsFileForUser(user.id);
+        const userFile = visitsFileForUser(userId);
         const info = await FileSystem.getInfoAsync(userFile);
 
         // One-time migration path: if this user has no file yet, seed from legacy shared file.
-        if (!info.exists) {
+        if (!info.exists && !user?.id) {
+          // Only try legacy migration for guest users on first load
           const legacy = await loadFromDiskFile(LEGACY_VISITS_FILE);
           if (legacy.length > 0) {
             await FileSystem.writeAsStringAsync(userFile, JSON.stringify(legacy));
@@ -86,35 +98,104 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     })();
   }, [user?.id]);
 
+  useEffect(() => {
+    (async () => {
+      const userId = user?.id || GUEST_USER_ID;
+      setReviewPromptLoaded(false);
+      try {
+        const userFile = reviewPromptedFileForUser(userId);
+        const info = await FileSystem.getInfoAsync(userFile);
+        if (info.exists) {
+          setReviewPrompted(true);
+          return;
+        }
+
+        // One-time migration path for old single-user prompt flag.
+        const legacyInfo = await FileSystem.getInfoAsync(REVIEW_PROMPTED_LEGACY_FILE);
+        if (legacyInfo.exists) {
+          await FileSystem.writeAsStringAsync(userFile, '1');
+          setReviewPrompted(true);
+          return;
+        }
+
+        setReviewPrompted(false);
+      } catch {
+        setReviewPrompted(false);
+      } finally {
+        setReviewPromptLoaded(true);
+      }
+    })();
+  }, [user?.id]);
+
+  const markReviewPrompted = useCallback(async () => {
+    if (reviewPrompted) return;
+    const userId = user?.id || GUEST_USER_ID;
+    await FileSystem.writeAsStringAsync(reviewPromptedFileForUser(userId), '1');
+    setReviewPrompted(true);
+  }, [reviewPrompted, user?.id]);
+
+  useEffect(() => {
+    (async () => {
+      if (!user?.id || !reviewPromptLoaded || reviewPrompted) return;
+      const uniqueParks = new Set(visits.map((v) => v.parkId)).size;
+      if (uniqueParks < 5) return;
+
+      const available = await StoreReview.isAvailableAsync();
+      await markReviewPrompted();
+      if (available) {
+        await StoreReview.requestReview();
+      }
+    })();
+  }, [markReviewPrompted, reviewPromptLoaded, reviewPrompted, user?.id, visits]);
+
   const persist = useCallback(async (updated: ParkVisit[]) => {
-    if (!user?.id) return;
-    await FileSystem.writeAsStringAsync(visitsFileForUser(user.id), JSON.stringify(updated));
+    const userId = user?.id || GUEST_USER_ID;
+    await FileSystem.writeAsStringAsync(visitsFileForUser(userId), JSON.stringify(updated));
     setVisits(updated);
   }, [user?.id]);
 
   const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => {
-    if (!user?.id) return;
-    const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
+    const userId = user?.id || GUEST_USER_ID;
+    const { photoUri, distanceMiles, dateVisited, dateUnknown, elevationGainFt, activityType, rating } = opts ?? {};
+    const hasExplicitDate = dateUnknown !== undefined || dateVisited !== undefined;
+    const visitDate = hasExplicitDate
+      ? (dateUnknown ? undefined : dateVisited)
+      : new Date().toISOString();
     const visit: ParkVisit = {
       visitId: `${parkId}_${Date.now()}`,
       parkId,
       parkName,
       trailName: trailName.trim(),
-      dateVisited: dateVisited ?? new Date().toISOString(),
+      photoUri: photoUri || undefined,
+      dateVisited: visitDate,
+      dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : false,
       distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
       elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
       activityType: activityType || undefined,
       rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     };
-    const current = await loadFromDiskForUser(user.id);
+    const current = await loadFromDiskForUser(userId);
     await persist([visit, ...current]);
   }, [persist, user?.id]);
 
   const removeVisit = useCallback(async (visitId: string) => {
-    if (!user?.id) return;
-    const current = await loadFromDiskForUser(user.id);
+    const userId = user?.id || GUEST_USER_ID;
+    const current = await loadFromDiskForUser(userId);
     await persist(current.filter((v) => v.visitId !== visitId));
   }, [persist, user?.id]);
+
+  const deleteAllDataForCurrentUser = useCallback(async () => {
+    const userId = user?.id || GUEST_USER_ID;
+    await Promise.all([
+      FileSystem.deleteAsync(visitsFileForUser(userId), { idempotent: true }).catch(() => {}),
+      FileSystem.deleteAsync(reviewPromptedFileForUser(userId), { idempotent: true }).catch(() => {}),
+      // Best-effort cleanup of legacy shared files.
+      FileSystem.deleteAsync(LEGACY_VISITS_FILE, { idempotent: true }).catch(() => {}),
+      FileSystem.deleteAsync(REVIEW_PROMPTED_LEGACY_FILE, { idempotent: true }).catch(() => {}),
+    ]);
+    setVisits([]);
+    setReviewPrompted(false);
+  }, [user?.id]);
 
   const updateVisit = useCallback(async (
     visitId: string,
@@ -123,17 +204,22 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     trailName: string,
     opts?: LogVisitOptions,
   ) => {
-    if (!user?.id) return;
-    const { distanceMiles, dateVisited, elevationGainFt, activityType, rating } = opts ?? {};
-    const current = await loadFromDiskForUser(user.id);
+    const userId = user?.id || GUEST_USER_ID;
+    const { photoUri, distanceMiles, dateVisited, dateUnknown, elevationGainFt, activityType, rating } = opts ?? {};
+    const current = await loadFromDiskForUser(userId);
     const updated = current.map((v): ParkVisit => {
       if (v.visitId !== visitId) return v;
+      const hasExplicitDate = dateUnknown !== undefined || dateVisited !== undefined;
+      const visitDate = hasExplicitDate ? (dateUnknown ? undefined : dateVisited) : v.dateVisited;
+      const nextPhotoUri = photoUri === null ? undefined : (photoUri ?? v.photoUri);
       return {
         ...v,
         parkId,
         parkName,
         trailName: trailName.trim(),
-        dateVisited: dateVisited ?? v.dateVisited,
+        photoUri: nextPhotoUri,
+        dateVisited: visitDate,
+        dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : v.dateUnknown,
         distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
         elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
         activityType: activityType || undefined,
@@ -159,7 +245,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   };
 
   return (
-    <VisitedParksContext.Provider value={{ visits, loading, logVisit, updateVisit, removeVisit, hasVisited, visitsForPark, totalStats }}>
+    <VisitedParksContext.Provider value={{ visits, loading, logVisit, updateVisit, removeVisit, deleteAllDataForCurrentUser, hasVisited, visitsForPark, totalStats }}>
       {children}
     </VisitedParksContext.Provider>
   );
@@ -169,10 +255,6 @@ export function useVisitedParks(): VisitedParksState {
   const ctx = useContext(VisitedParksContext);
   if (!ctx) throw new Error('useVisitedParks must be used inside <VisitedParksProvider>');
   return ctx;
-}
-
-async function loadFromDisk(): Promise<ParkVisit[]> {
-  return loadFromDiskFile(LEGACY_VISITS_FILE);
 }
 
 async function loadFromDiskForUser(userId: string): Promise<ParkVisit[]> {

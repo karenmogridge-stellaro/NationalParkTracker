@@ -3,7 +3,9 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as FileSystem from 'expo-file-system/legacy';
 import { AUTH_USER_KEY, BIOMETRIC_ENABLED_KEY, credentialsKey } from '@/constants/authConfig';
+import { upsertProductionUserProfile } from '@/utils/userDirectoryApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -12,12 +14,22 @@ export interface AuthUser {
   name: string;
   email: string;
   avatarUrl?: string;
+  phone?: string;
   provider: 'apple' | 'email';
 }
 
 interface StoredCredentials {
   passwordHash: string;
   salt: string;
+}
+
+const STRAVA_ACCESS_TOKEN_KEY = 'strava_access_token';
+const STRAVA_REFRESH_TOKEN_KEY = 'strava_refresh_token';
+const STRAVA_TOKEN_EXPIRY_KEY = 'strava_token_expiry';
+const STRAVA_CACHE_FILE = `${FileSystem.documentDirectory}strava_data.json`;
+
+function appleProfileKey(appleUserId: string): string {
+  return `parkatlas_apple_profile_${appleUserId}`;
 }
 
 // ─── Auth Error ───────────────────────────────────────────────────────────────
@@ -61,7 +73,9 @@ interface AuthContextValue {
   /** Dev-only bypass (never shown in production builds) */
   signInDev: () => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (name: string, avatarUrl?: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
+  updateProfile: (name: string, avatarUrl?: string, phone?: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -78,17 +92,17 @@ const AuthContext = createContext<AuthContextValue>({
   dismissBiometricPrompt: () => {},
   signInDev: async () => {},
   signOut: async () => {},
+  deleteAccount: async () => {},
   updateProfile: async () => {},
+  changePassword: async () => {},
 });
 
 // ─── Password helpers ─────────────────────────────────────────────────────────
 
 function generateSalt(): string {
-  const bytes = new Uint8Array(16);
-  Crypto.getRandomValues(bytes);
-  return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
+  // Prefer Expo Crypto native random bytes for reliability in production builds.
+  const bytes = Crypto.getRandomBytes(16);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function hashPassword(password: string, salt: string): Promise<string> {
@@ -138,17 +152,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Helper: persist & unlock ──────────────────────────────────────────────────
   async function persistUser(authUser: AuthUser) {
     await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(authUser));
+    if (authUser.provider === 'apple') {
+      const appleUserId = authUser.id.replace(/^apple_/, '');
+      await SecureStore.setItemAsync(appleProfileKey(appleUserId), JSON.stringify(authUser));
+    }
     setPendingBiometricUser(null);
     setUser(authUser);
+    void upsertProductionUserProfile(authUser);
   }
 
   // ── Update Profile ────────────────────────────────────────────────────────────
-  const updateProfile = useCallback(async (name: string, avatarUrl?: string) => {
+  const updateProfile = useCallback(async (name: string, avatarUrl?: string, phone?: string) => {
     if (!user) return;
     const updated: AuthUser = {
       ...user,
       name: name.trim(),
       ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+      ...(phone !== undefined ? { phone: phone.trim() } : {}),
     };
     await persistUser(updated);
   }, [user]);
@@ -167,15 +187,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const cached: AuthUser | null = stored ? JSON.parse(stored) : null;
       const isSameAppleUser =
         cached?.provider === 'apple' && cached.id === `apple_${credential.user}`;
+      const appleCachedRaw = await SecureStore.getItemAsync(appleProfileKey(credential.user));
+      const appleCached: AuthUser | null = appleCachedRaw ? JSON.parse(appleCachedRaw) : null;
 
       const firstName = credential.fullName?.givenName ?? '';
       const lastName = credential.fullName?.familyName ?? '';
       const fullName = [firstName, lastName].filter(Boolean).join(' ');
+      const email = credential.email ?? (appleCached?.email || (isSameAppleUser ? cached!.email : ''));
 
       const authUser: AuthUser = {
         id: `apple_${credential.user}`,
-        name: fullName || (isSameAppleUser ? cached!.name : 'Park Explorer'),
-        email: credential.email ?? (isSameAppleUser ? cached!.email : ''),
+        name:
+          fullName ||
+          appleCached?.name ||
+          (isSameAppleUser ? cached!.name : '') ||
+          (email ? email.split('@')[0] : 'Explorer'),
+        email,
+        ...((isSameAppleUser && cached?.phone) || appleCached?.phone
+          ? { phone: appleCached?.phone || cached?.phone }
+          : {}),
         provider: 'apple',
       };
       await persistUser(authUser);
@@ -245,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       id: `email_${normalizedEmail}`,
       name: isSame ? cached!.name : normalizedEmail.split('@')[0],
       email: normalizedEmail,
+      ...(isSame && cached?.phone ? { phone: cached.phone } : {}),
       provider: 'email',
     };
     await persistUser(authUser);
@@ -296,6 +327,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    const currentUser = user;
+
+    await Promise.all([
+      SecureStore.deleteItemAsync(AUTH_USER_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(STRAVA_ACCESS_TOKEN_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(STRAVA_REFRESH_TOKEN_KEY).catch(() => {}),
+      SecureStore.deleteItemAsync(STRAVA_TOKEN_EXPIRY_KEY).catch(() => {}),
+      FileSystem.deleteAsync(STRAVA_CACHE_FILE, { idempotent: true }).catch(() => {}),
+    ]);
+
+    if (currentUser?.provider === 'email' && currentUser.email) {
+      await SecureStore.deleteItemAsync(credentialsKey(currentUser.email.trim().toLowerCase())).catch(() => {});
+    }
+
+    setBiometricEnabledState(false);
+    setPendingBiometricUser(null);
+    setUser(null);
+  }, [user]);
+
+  // ── Change Password (email accounts only) ───────────────────────────────────
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    if (!user || user.provider !== 'email') {
+      throw new AuthError('INVALID_CREDENTIALS', 'Password changes are only available for email accounts.');
+    }
+
+    const nextPassword = newPassword.trim();
+    if (nextPassword.length < 8) {
+      throw new AuthError('WEAK_PASSWORD', 'Password must be at least 8 characters.');
+    }
+
+    const email = user.email.trim().toLowerCase();
+    const credsRaw = await SecureStore.getItemAsync(credentialsKey(email));
+    if (!credsRaw) {
+      throw new AuthError('USER_NOT_FOUND', 'No account found with this email.');
+    }
+
+    const { passwordHash, salt }: StoredCredentials = JSON.parse(credsRaw);
+    const inputHash = await hashPassword(currentPassword, salt);
+    if (inputHash !== passwordHash) {
+      throw new AuthError('INVALID_CREDENTIALS', 'Current password is incorrect.');
+    }
+
+    const nextSalt = generateSalt();
+    const nextHash = await hashPassword(nextPassword, nextSalt);
+    const updatedCredentials: StoredCredentials = { passwordHash: nextHash, salt: nextSalt };
+    await SecureStore.setItemAsync(credentialsKey(email), JSON.stringify(updatedCredentials));
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -312,7 +393,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         dismissBiometricPrompt,
         signInDev,
         signOut,
+        deleteAccount,
         updateProfile,
+        changePassword,
       }}
     >
       {children}

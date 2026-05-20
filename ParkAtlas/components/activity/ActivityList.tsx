@@ -15,7 +15,6 @@ const activities = [
 export function ActivityList() {
   const [selected, setSelected] = useState<any | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const [addVisible, setAddVisible] = useState(false);
 
   const handleCardPress = (activity: any) => {
     setSelected(activity);
@@ -28,7 +27,7 @@ export function ActivityList() {
   };
 
   const handleAdd = () => {
-    setAddVisible(true);
+    setModalVisible(false);
   };
 
   return (

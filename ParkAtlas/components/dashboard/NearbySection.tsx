@@ -5,7 +5,7 @@ export function NearbySection() {
   // TODO: Replace with real nearby parks/trails data and map
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle" style={styles.label}>What's Nearby</ThemedText>
+      <ThemedText type="subtitle" style={styles.label}>What&apos;s Nearby</ThemedText>
       <View style={styles.cardsRow}>
         {/* Placeholder cards */}
         <View style={styles.card}><ThemedText>Yosemite NP</ThemedText></View>

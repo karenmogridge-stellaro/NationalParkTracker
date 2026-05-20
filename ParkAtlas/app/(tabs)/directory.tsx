@@ -1,364 +1,593 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  TextInput,
-  FlatList,
   Alert,
+  Image,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { ParkAtlas as C } from '@/constants/theme';
-import { useStravaData } from '../../hooks/useStravaData';
-import { StravaActivity } from '../../hooks/useStrava';
-import { useVisitedParks, ParkVisit } from '../../hooks/useVisitedParks';
-import { LogOutingSheet } from '../../components/LogOutingSheet';
 import { AppDrawer } from '@/components/AppDrawer';
+import { FriendProfile, useFriends } from '@/hooks/useFriends';
 import { useAuth } from '@/hooks/useAuth';
+import { isDirectoryApiConfigured, matchRegisteredUsersByContacts } from '@/utils/userDirectoryApi';
 
-function relativeDate(iso: string): string {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+type ConnectionState = 'add' | 'requested' | 'friends' | 'incoming';
+
+function normalize(value?: string | null): string {
+  return (value || '').trim().toLowerCase();
 }
 
-type FeedItem =
-  | { kind: 'strava'; data: StravaActivity }
-  | { kind: 'manual'; data: ParkVisit };
+function phoneDigits(value?: string | null): string {
+  return (value || '').replace(/\D+/g, '');
+}
 
-export default function DirectoryScreen() {
-  const { activities, parkForActivity, loading } = useStravaData();
-  const { visits, removeVisit } = useVisitedParks();
+function avatarFor(profile: FriendProfile): string {
+  return profile.avatar || 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=160&q=80';
+}
+
+export default function FriendsPage() {
   const { user } = useAuth();
-  const [searchText, setSearchText] = useState('');
-  const [selectedYear, setSelectedYear] = useState<number | 'all'>('all');
-  const [sheetVisible, setSheetVisible] = useState(false);
-  const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
+  const directoryApiReady = isDirectoryApiConfigured();
+  const {
+    directoryUsers,
+    myFriends,
+    incomingRequests,
+    requestedIds,
+    contactsSynced,
+    matchedContactIds,
+    sendFriendRequest,
+    acceptRequest,
+    ignoreRequest,
+    markContactsSynced,
+    setDirectoryUsers,
+    setMatchedContactIds,
+    recordInviteSent,
+  } = useFriends();
+
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [inviteEntry, setInviteEntry] = useState('');
+  const [syncingContacts, setSyncingContacts] = useState(false);
+  const [showContactMatches, setShowContactMatches] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [findSectionY, setFindSectionY] = useState(0);
+  const [scrollToFindPending, setScrollToFindPending] = useState(false);
+  const scrollRef = useRef<ScrollView | null>(null);
 
-  const availableYears = useMemo(() => {
-    const years = new Set<number>();
-    activities.forEach((a) => years.add(new Date(a.start_date).getFullYear()));
-    visits.forEach((v) => years.add(new Date(v.dateVisited).getFullYear()));
-    return [...years].sort((a, b) => b - a);
-  }, [activities, visits]);
+  const myFriendIds = useMemo(() => new Set(myFriends.map((f) => f.id)), [myFriends]);
+  const incomingIds = useMemo(() => new Set(incomingRequests.map((f) => f.id)), [incomingRequests]);
 
-  const allItems = useMemo<FeedItem[]>(() => {
-    const strava: FeedItem[] = activities.map((a) => ({ kind: 'strava', data: a }));
-    const manual: FeedItem[] = visits.map((v) => ({ kind: 'manual', data: v }));
-    return [...strava, ...manual].sort((a, b) => {
-      const da = a.kind === 'strava' ? a.data.start_date : a.data.dateVisited;
-      const db = b.kind === 'strava' ? b.data.start_date : b.data.dateVisited;
-      return new Date(db).getTime() - new Date(da).getTime();
-    });
-  }, [activities, visits]);
-
-  const filteredItems = useMemo<FeedItem[]>(() => {
-    const q = searchText.trim().toLowerCase();
-    return allItems.filter((item) => {
-      if (selectedYear !== 'all') {
-        const date = item.kind === 'strava' ? item.data.start_date : item.data.dateVisited;
-        if (new Date(date).getFullYear() !== selectedYear) return false;
-      }
-      if (q) {
-        if (item.kind === 'strava') {
-          const park = parkForActivity(item.data);
-          if (!item.data.name.toLowerCase().includes(q) && !(park?.name.toLowerCase().includes(q))) return false;
-        } else {
-          if (!item.data.parkName.toLowerCase().includes(q) && !item.data.trailName.toLowerCase().includes(q)) return false;
-        }
-      }
+  const discoverableUsers = useMemo(() => {
+    const seen = new Set<string>();
+    return [...directoryUsers, ...incomingRequests, ...myFriends].filter((u) => {
+      if (seen.has(u.id)) return false;
+      seen.add(u.id);
       return true;
     });
-  }, [allItems, selectedYear, searchText, parkForActivity]);
+  }, [directoryUsers, incomingRequests, myFriends]);
 
-  function handleDeleteVisit(visit: ParkVisit) {
-    Alert.alert(
-      'Delete Entry',
-      `Remove "${visit.trailName || visit.parkName}" from your log?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
-      ],
+  const suggestedUsers = useMemo(
+    () => discoverableUsers.filter((u) => !myFriendIds.has(u.id) && !requestedIds.has(u.id)).slice(0, 6),
+    [discoverableUsers, myFriendIds, requestedIds]
+  );
+
+  const searchResults = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    if (!q) return [];
+
+    return discoverableUsers
+      .filter((u) => `${u.name} ${u.username} ${u.email || ''} ${u.phone || ''}`.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [searchText, discoverableUsers]);
+
+  const contactMatches = useMemo(
+    () => discoverableUsers.filter((u) => matchedContactIds.has(u.id)).slice(0, 6),
+    [discoverableUsers, matchedContactIds]
+  );
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), 2000);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!scrollToFindPending || findSectionY <= 0) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, findSectionY - 12), animated: true });
+    setScrollToFindPending(false);
+  }, [scrollToFindPending, findSectionY]);
+
+  function stateFor(id: string): ConnectionState {
+    if (myFriendIds.has(id)) return 'friends';
+    if (incomingIds.has(id)) return 'incoming';
+    if (requestedIds.has(id)) return 'requested';
+    return 'add';
+  }
+
+  async function follow(profile: FriendProfile) {
+    const state = stateFor(profile.id);
+    if (state === 'friends' || state === 'requested') return;
+    if (state === 'incoming') {
+      await acceptRequest(profile);
+      setToast(`You're now following ${profile.name}`);
+      return;
+    }
+
+    await sendFriendRequest(profile.id);
+    setToast(`You're now following ${profile.name}`);
+  }
+
+  async function syncContacts() {
+    if (syncingContacts) return;
+
+    // expo-contacts is a native module — only works in a development build, not Expo Go
+    if (Constants.appOwnership === 'expo') {
+      Alert.alert(
+        'Development Build Required',
+        'Syncing contacts requires the full ParkAtlas app, not Expo Go. Use the TestFlight build to access this feature.'
+      );
+      return;
+    }
+    let ExpoContacts: typeof import('expo-contacts') | null = null;
+    try {
+      ExpoContacts = await import('expo-contacts');
+    } catch {
+      Alert.alert('Contacts unavailable', 'Finding friends from contacts requires the full ParkAtlas build.');
+      return;
+    }
+
+    setSyncingContacts(true);
+    try {
+      if (!directoryApiReady) {
+        Alert.alert(
+          'Friend matching setup in progress',
+          'This TestFlight build is not connected to ParkAtlas account matching yet. You can still invite friends with the Invite section below.'
+        );
+        return;
+      }
+
+      if (contactsSynced) {
+        const existing = await ExpoContacts.getPermissionsAsync();
+        if (existing.status === 'granted') {
+          setShowContactMatches(true);
+          return;
+        }
+        await markContactsSynced(false);
+      }
+
+      const confirmed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Find Friends from Contacts',
+          "We'll only use contacts to find matches on ParkAtlas.",
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Continue', onPress: () => resolve(true) },
+          ]
+        );
+      });
+      if (!confirmed) return;
+
+      const permission = await ExpoContacts.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        Alert.alert('Contacts permission needed', 'Allow contacts access to find people you know on ParkAtlas.');
+        return;
+      }
+
+      const result = await ExpoContacts.getContactsAsync({
+        fields: [ExpoContacts.Fields.Emails, ExpoContacts.Fields.PhoneNumbers, ExpoContacts.Fields.Name],
+        pageSize: 1000,
+      });
+
+      const contacts = result.data ?? [];
+      const emails = contacts.flatMap((c) => (c.emails || []).map((e) => normalize(e.email)).filter(Boolean));
+      const phones = contacts.flatMap((c) => (c.phoneNumbers || []).map((p) => phoneDigits(p.number)).filter(Boolean));
+
+      const remoteMatches = await matchRegisteredUsersByContacts({ emails, phones });
+      const matchedProfiles: FriendProfile[] = remoteMatches.map((u) => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=160&q=80',
+        meta: '@' + u.username,
+        status: 'offline',
+        email: undefined,
+        phone: undefined,
+      }));
+
+      if (matchedProfiles.length > 0) {
+        await setDirectoryUsers(matchedProfiles);
+        await setMatchedContactIds(matchedProfiles.map((p) => p.id));
+      } else {
+        const fallbackMatchedIds = discoverableUsers
+          .filter((profile) => {
+            const profileEmail = normalize(profile.email);
+            const profilePhone = phoneDigits(profile.phone || profile.meta);
+            const profileName = normalize(profile.name);
+            return contacts.some((contact) => {
+              const contactName = normalize(contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`);
+              const contactEmails = (contact.emails || []).map((e) => normalize(e.email));
+              const contactPhones = (contact.phoneNumbers || []).map((p) => phoneDigits(p.number));
+              return (
+                (profileEmail && contactEmails.includes(profileEmail)) ||
+                (profilePhone && contactPhones.includes(profilePhone)) ||
+                (contactName && (contactName.includes(profileName) || profileName.includes(contactName)))
+              );
+            });
+          })
+          .map((p) => p.id);
+
+        await setMatchedContactIds(fallbackMatchedIds);
+
+        if (fallbackMatchedIds.length === 0) {
+          Alert.alert(
+            'No matches found yet',
+            'None of your contacts were found in ParkAtlas yet. Ask friends to create an account first, then try again.'
+          );
+        }
+      }
+
+      await markContactsSynced(true);
+      setShowContactMatches(true);
+      setToast('Contacts synced');
+    } catch {
+      Alert.alert('Unable to sync contacts', 'Please try again.');
+    } finally {
+      setSyncingContacts(false);
+    }
+  }
+
+  async function shareInviteLink() {
+    const inviteCode = `${(user?.id || 'guest').slice(0, 6)}-${Date.now().toString(36).slice(-6)}`;
+    const deepLinkUrl = `parkatlas://invite?code=${inviteCode}`;
+    const appStoreUrl = 'https://apps.apple.com/app/id6760982981';
+
+    try {
+      const result = await Share.share({
+        title: 'Join me on ParkAtlas',
+        message: `I'm tracking my park visits on ParkAtlas - join me.\n\nOpen in app: ${deepLinkUrl}\nDownload ParkAtlas: ${appStoreUrl}`,
+        url: deepLinkUrl,
+      });
+
+      if (result.action === Share.sharedAction) {
+        await recordInviteSent(deepLinkUrl);
+        setToast('Invite link shared');
+      }
+    } catch {
+      Alert.alert('Unable to share', 'Please try again.');
+    }
+  }
+
+  function sendDirectInvite() {
+    const value = inviteEntry.trim();
+    if (!value) return;
+
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    const validPhone = phoneDigits(value).length >= 10;
+    if (!validEmail && !validPhone) {
+      Alert.alert('Enter phone or email', 'Please provide a valid phone number or email address.');
+      return;
+    }
+
+    setInviteEntry('');
+    setToast('Invited');
+  }
+
+  function renderPersonRow(profile: FriendProfile) {
+    const state = stateFor(profile.id);
+
+    return (
+      <View key={profile.id} style={styles.personRow}>
+        <View style={styles.personLeft}>
+          <Image source={{ uri: avatarFor(profile) }} style={styles.avatar} />
+          <Text style={styles.personName} numberOfLines={1}>{profile.name}</Text>
+        </View>
+
+        {state === 'friends' ? (
+          <Text style={styles.statusText}>Following</Text>
+        ) : state === 'requested' ? (
+          <Text style={styles.statusText}>Requested</Text>
+        ) : state === 'incoming' ? (
+          <View style={styles.inlineActions}>
+            <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => { void ignoreRequest(profile.id); }}>
+              <Text style={styles.ghostBtnText}>Ignore</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }}>
+              <Text style={styles.followBtnText}>Accept</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }}>
+            <Text style={styles.followBtnText}>Follow</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity activeOpacity={0.7} onPress={() => setDrawerOpen(true)}>
-            <Ionicons name="menu" size={26} color={C.onPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.headerBrand}>My Activity</Text>
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Friends</Text>
+          <Text style={styles.subtitle}>See what your friends are exploring.</Text>
         </View>
-        <TouchableOpacity style={styles.avatar} activeOpacity={0.7}>
-          {user?.avatarUrl ? (
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatarImage} />
-          ) : (
-            <Ionicons name="person" size={20} color={C.onPrimary} />
-          )}
-        </TouchableOpacity>
-      </View>
 
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color={C.outline} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search trails & parks..."
-            placeholderTextColor={C.outline}
-            value={searchText}
-            onChangeText={setSearchText}
-          />
-          {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={18} color={C.outline} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Year filter */}
-      {availableYears.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterRow}
-          contentContainerStyle={styles.filterScroll}
-        >
-          <TouchableOpacity
-            style={[styles.filterPill, selectedYear === 'all' && styles.filterPillActive]}
-            onPress={() => setSelectedYear('all')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.filterPillText, selectedYear === 'all' && styles.filterPillTextActive]}>All Years</Text>
+        {myFriends.length === 0 ? null : (
+          <TouchableOpacity style={styles.findMoreRow} activeOpacity={0.8} onPress={() => setScrollToFindPending(true)}>
+            <Ionicons name="people-outline" size={16} color={C.primary} />
+            <Text style={styles.findMoreText}>Find more friends</Text>
           </TouchableOpacity>
-          {availableYears.map((y) => (
-            <TouchableOpacity
-              key={y}
-              style={[styles.filterPill, selectedYear === y && styles.filterPillActive]}
-              onPress={() => setSelectedYear(y)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.filterPillText, selectedYear === y && styles.filterPillTextActive]}>{y}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+        )}
 
-      {/* Results count */}
-      <View style={styles.countRow}>
-        <Text style={styles.countText}>
-          {filteredItems.length} {filteredItems.length === 1 ? 'outing' : 'outings'}
-        </Text>
-      </View>
-
-      {/* List */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={(item) =>
-          item.kind === 'strava' ? `s_${item.data.id}` : `m_${item.data.visitId}`
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="hiking" size={40} color={C.outlineVariant} />
-            <Text style={styles.emptyText}>
-              {loading ? 'Loading...' : 'No outings found'}
-            </Text>
-            <Text style={styles.emptyHint}>Log a new outing to get started</Text>
+        <View style={styles.findSection} onLayout={(event) => setFindSectionY(event.nativeEvent.layout.y)}>
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={18} color={C.onSurfaceVariant} />
+            <TextInput
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search name or email..."
+              placeholderTextColor="#6d746c"
+              autoCorrect={false}
+              autoCapitalize="none"
+              style={styles.searchInput}
+            />
           </View>
-        }
-        renderItem={({ item }) => {
-          if (item.kind === 'strava') {
-            const act = item.data;
-            const miles = (act.distance / 1609.34).toFixed(1);
-            const elevFt = Math.round(act.total_elevation_gain * 3.28084);
-            const park = parkForActivity(act);
-            return (
-              <View style={styles.card}>
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTopRow}>
-                    <Text style={styles.cardParkTitle} numberOfLines={1}>{park?.name ?? 'Unknown Park'}</Text>
-                    <Text style={styles.cardDate}>{relativeDate(act.start_date)}</Text>
-                  </View>
-                  <Text style={styles.cardTrailLine} numberOfLines={1}>{act.name}</Text>
-                  <View style={styles.cardChips}>
-                    {act.distance > 0 && <Text style={[styles.chip, styles.chipGreen]}>{miles} mi</Text>}
-                    {act.total_elevation_gain > 0 && <Text style={[styles.chip, styles.chipBrown]}>+{elevFt} ft</Text>}
-                  </View>
-                </View>
-                <View style={styles.cardBadge}>
-                  <Text style={styles.cardBadgeText}>STRAVA</Text>
-                </View>
-              </View>
-            );
-          } else {
-            const visit = item.data;
-            return (
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.7}
-                onPress={() =>
-                  Alert.alert(visit.trailName || visit.parkName, 'What would you like to do?', [
-                    { text: 'Edit', onPress: () => { setEditingVisit(visit); setSheetVisible(true); } },
-                    { text: 'Delete', style: 'destructive', onPress: () => handleDeleteVisit(visit) },
-                    { text: 'Cancel', style: 'cancel' },
-                  ])
-                }
-              >
-                <View style={styles.cardBody}>
-                  <View style={styles.cardTopRow}>
-                    <Text style={styles.cardParkTitle} numberOfLines={1}>{visit.parkName}</Text>
-                    <Text style={styles.cardDate}>{relativeDate(visit.dateVisited)}</Text>
-                  </View>
-                  <Text style={styles.cardTrailLine} numberOfLines={1}>{visit.trailName || 'Park visit'}</Text>
-                  <View style={styles.cardChips}>
-                    {visit.distanceMiles ? <Text style={[styles.chip, styles.chipGreen]}>{visit.distanceMiles.toFixed(1)} mi</Text> : null}
-                    {visit.activityType ? <Text style={styles.chip}>{visit.activityType}</Text> : null}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }
-        }}
-      />
 
-      {/* FAB */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
-        <MaterialCommunityIcons name="plus" size={26} color="#fff" />
-      </TouchableOpacity>
+          {searchText.trim().length > 0 ? (
+            <View style={styles.sectionBlock}>
+              {searchResults.length === 0 ? <Text style={styles.emptyText}>No results</Text> : searchResults.map(renderPersonRow)}
+            </View>
+          ) : null}
 
-      <LogOutingSheet
-        visible={sheetVisible}
-        onClose={() => { setSheetVisible(false); setEditingVisit(null); }}
-        onSaved={() => { setSheetVisible(false); setEditingVisit(null); }}
-        editVisit={editingVisit ?? undefined}
-      />
+          <View style={styles.sectionBlock}>
+            <Text style={styles.sectionTitle}>Suggested</Text>
+            {suggestedUsers.length === 0 ? <Text style={styles.emptyText}>No suggestions yet</Text> : suggestedUsers.map(renderPersonRow)}
+          </View>
+
+          <TouchableOpacity style={styles.contactsRow} activeOpacity={0.8} onPress={() => { void syncContacts(); }}>
+            <View style={styles.contactsLeft}>
+              <Ionicons name="people-circle-outline" size={20} color={C.primary} />
+              <Text style={styles.contactsText}>{syncingContacts ? 'Finding from contacts...' : 'Find from contacts'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
+          </TouchableOpacity>
+
+          {!directoryApiReady ? (
+            <Text style={styles.contactsHint}>Account matching is not enabled in this build yet.</Text>
+          ) : null}
+
+          {showContactMatches ? (
+            <View style={styles.sectionBlock}>
+              {contactMatches.length === 0 ? <Text style={styles.emptyText}>No contact matches yet</Text> : contactMatches.map(renderPersonRow)}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.inviteSection}>
+          <Text style={styles.sectionTitle}>Invite</Text>
+          <View style={styles.inviteRow}>
+            <TextInput
+              value={inviteEntry}
+              onChangeText={setInviteEntry}
+              placeholder="Enter phone or email"
+              placeholderTextColor="#6d746c"
+              style={styles.inviteInput}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity style={styles.followBtn} activeOpacity={0.85} onPress={sendDirectInvite}>
+              <Text style={styles.followBtnText}>Send</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.shareTextBtn} activeOpacity={0.8} onPress={() => { void shareInviteLink(); }}>
+            <Text style={styles.shareText}>Share invite link</Text>
+          </TouchableOpacity>
+        </View>
+
+        {toast ? (
+          <View style={styles.toast}>
+            <Text style={styles.toastText}>{toast}</Text>
+          </View>
+        ) : null}
+      </ScrollView>
+
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: C.background },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    backgroundColor: C.primary,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerBrand: { fontSize: 24, fontWeight: '700', color: C.onPrimary, letterSpacing: -0.3 },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: { width: 40, height: 40, borderRadius: 20 },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 4,
+  safe: {
+    flex: 1,
     backgroundColor: C.background,
   },
-  searchBar: {
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 32,
+    gap: 18,
+  },
+  header: {
+    gap: 4,
+  },
+  title: {
+    fontSize: 40,
+    lineHeight: 42,
+    letterSpacing: -0.6,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.onSurfaceVariant,
+  },
+  findMoreRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: C.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    gap: 7,
   },
-  searchInput: { flex: 1, fontSize: 14, color: C.onSurface, padding: 0 },
-  filterRow: { paddingVertical: 6 },
-  filterScroll: { paddingHorizontal: 20, gap: 8, alignItems: 'center' },
-  filterPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: C.surfaceContainerHighest,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
+  findMoreText: {
+    fontSize: 14,
+    color: C.primary,
+    fontWeight: '700',
   },
-  filterPillActive: { backgroundColor: C.primary, borderColor: C.primary },
-  filterPillText: { fontSize: 12, fontWeight: '700', color: C.onSurfaceVariant },
-  filterPillTextActive: { color: C.onPrimary },
-  countRow: { paddingHorizontal: 20, paddingBottom: 6 },
-  countText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.5, color: `${C.onSurface}66` },
-  listContent: { paddingHorizontal: 16, paddingBottom: 100 },
-  card: {
+  findSection: {
+    gap: 14,
+  },
+  searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: C.outlineVariant,
+    borderRadius: 14,
+    backgroundColor: '#f5f8f6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  cardBody: { flex: 1, gap: 3 },
-  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  cardParkTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: C.onSurface },
-  cardDate: { fontSize: 11, color: C.onSurfaceVariant, fontWeight: '600' },
-  cardTrailLine: { fontSize: 12, color: C.primary, fontWeight: '600' },
-  cardChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
-  chip: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: C.onSurfaceVariant,
-    backgroundColor: C.surfaceContainerHighest,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  searchInput: {
+    flex: 1,
+    color: C.onSurface,
+    fontSize: 15,
+    paddingVertical: 0,
   },
-  chipGreen: { color: C.primary, backgroundColor: `${C.primary}18` },
-  chipBrown: { color: C.tertiary, backgroundColor: `${C.tertiary}18` },
-  cardBadge: {
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    flexShrink: 0,
+  sectionBlock: {
+    gap: 8,
   },
-  cardBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: C.onSurfaceVariant },
-  emptyState: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { fontSize: 15, color: C.onSurfaceVariant, fontWeight: '600' },
-  emptyHint: { fontSize: 13, color: C.outline },
-  fab: {
-    position: 'absolute',
-    bottom: 28,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: C.primary,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  personRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    gap: 10,
+    paddingVertical: 6,
+  },
+  personLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#eef2ef',
+  },
+  personName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  followBtn: {
+    backgroundColor: C.primary,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  followBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  statusText: {
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+    fontWeight: '700',
+  },
+  inlineActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ghostBtn: {
+    borderRadius: 999,
+    backgroundColor: '#edf2ee',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  ghostBtnText: {
+    fontSize: 12,
+    color: C.onSurface,
+    fontWeight: '700',
+  },
+  contactsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  contactsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactsText: {
+    fontSize: 15,
+    color: C.onSurface,
+    fontWeight: '600',
+  },
+  contactsHint: {
+    marginTop: -4,
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+  },
+  inviteSection: {
+    gap: 10,
+  },
+  inviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inviteInput: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: '#f5f8f6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: C.onSurface,
+    fontSize: 14,
+  },
+  shareTextBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  shareText: {
+    fontSize: 14,
+    color: C.primary,
+    fontWeight: '700',
+  },
+  emptyText: {
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+  },
+  toast: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#e7f1e8',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  toastText: {
+    color: '#18421f',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

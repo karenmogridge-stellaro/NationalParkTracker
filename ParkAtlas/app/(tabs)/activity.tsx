@@ -130,7 +130,7 @@ export default function ActivityScreen() {
                   <Text style={styles.activityDesc}>
                     <Text style={styles.activityName}>Marcus K.</Text>
                     {' '}completed{' '}
-                    <Text style={styles.activityHighlight}>"Eagle{"'"}s Nest Summit"</Text>
+                    <Text style={styles.activityHighlight}>{`"Eagle's Nest Summit"`}</Text>
                   </Text>
                   <Text style={styles.activityTime}>2 hours ago • Olympic National Park</Text>
                 </View>

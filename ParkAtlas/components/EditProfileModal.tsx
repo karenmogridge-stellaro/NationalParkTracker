@@ -27,6 +27,7 @@ interface Props {
 export function EditProfileModal({ visible, onClose }: Props) {
   const { user, updateProfile } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
   const [avatarUri, setAvatarUri] = useState<string | null>(user?.avatarUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -35,10 +36,11 @@ export function EditProfileModal({ visible, onClose }: Props) {
   useEffect(() => {
     if (visible) {
       setName(user?.name ?? '');
+      setPhone(user?.phone ?? '');
       setAvatarUri(user?.avatarUrl ?? null);
       setError('');
     }
-  }, [visible, user?.name, user?.avatarUrl]);
+  }, [visible, user?.name, user?.phone, user?.avatarUrl]);
 
   async function pickFromLibrary() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,7 +113,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
     setError('');
     try {
       // Pass null explicitly to clear, otherwise pass current value (may be unchanged or new)
-      await updateProfile(trimmed, avatarUri ?? undefined);
+      await updateProfile(trimmed, avatarUri ?? undefined, phone.trim() || undefined);
       onClose();
     } catch {
       setError('Failed to save. Please try again.');
@@ -182,6 +184,20 @@ export function EditProfileModal({ visible, onClose }: Props) {
             <Ionicons name="lock-closed-outline" size={14} color={`${C.onSurface}55`} />
           </View>
           <Text style={styles.hintText}>Email cannot be changed here.</Text>
+
+          {/* Phone (optional) */}
+          <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Phone Number (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="e.g. (555) 555-1234"
+            placeholderTextColor={`${C.onSurface}55`}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Text style={styles.hintText}>Used to improve friend contact matching.</Text>
 
           {/* Save button */}
           <TouchableOpacity

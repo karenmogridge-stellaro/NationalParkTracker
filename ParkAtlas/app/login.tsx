@@ -101,7 +101,10 @@ export default function LoginScreen() {
           default: setFieldErrors({ general: 'Something went wrong. Please try again.' });
         }
       } else {
-        setFieldErrors({ general: 'Something went wrong. Please try again.' });
+        const message = e instanceof Error && e.message
+          ? e.message
+          : 'Something went wrong. Please try again.';
+        setFieldErrors({ general: message });
       }
     } finally {
       setEmailLoading(false);

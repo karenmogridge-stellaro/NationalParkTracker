@@ -26,10 +26,13 @@ interface Props {
   selectedYear: string | number;
   onClose: () => void;
   onEditVisit: (visit: ParkVisit) => void;
+  onQuickAdd?: () => void;
 }
 
-function relativeDate(iso: string): string {
+function relativeDate(iso?: string, unknown?: boolean): string {
+  if (unknown || !iso) return 'Unknown date';
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  if (Number.isNaN(days) || days < 0) return 'Unknown date';
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days}d ago`;
@@ -55,7 +58,7 @@ const ICONS: Record<StatType, string> = {
   parks: 'pine-tree',
 };
 
-export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selectedYear, onClose, onEditVisit }: Props) {
+export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selectedYear, onClose, onEditVisit, onQuickAdd }: Props) {
   const { removeVisit } = useVisitedParks();
 
   function handleDelete(visit: ParkVisit) {
@@ -88,8 +91,8 @@ export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selec
         ? yearVisits.filter((v) => (v.distanceMiles ?? 0) > 0).map((v) => ({ kind: 'manual', data: v }))
         : yearVisits.map((v) => ({ kind: 'manual', data: v }));
       return [...stravaRows, ...manualRows].sort((a, b) => {
-        const da = a.kind === 'strava' ? a.data.start_date : a.data.dateVisited;
-        const db = b.kind === 'strava' ? b.data.start_date : b.data.dateVisited;
+        const da = a.kind === 'strava' ? a.data.start_date : (a.data.dateVisited ?? '1900-01-01T00:00:00.000Z');
+        const db = b.kind === 'strava' ? b.data.start_date : (b.data.dateVisited ?? '1900-01-01T00:00:00.000Z');
         return new Date(db).getTime() - new Date(da).getTime();
       });
     }
@@ -139,7 +142,7 @@ export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selec
             {visit.trailName || visit.parkName}
           </Text>
           <View style={styles.rowChips}>
-            <Text style={styles.chip}>{relativeDate(visit.dateVisited)}</Text>
+            <Text style={styles.chip}>{relativeDate(visit.dateVisited, visit.dateUnknown)}</Text>
             {visit.parkName && visit.trailName ? <Text style={[styles.chip, styles.chipGreen]}>{visit.parkName}</Text> : null}
             {visit.distanceMiles ? <Text style={styles.chip}>{visit.distanceMiles.toFixed(1)} mi</Text> : null}
             {visit.activityType ? <Text style={styles.chip}>{visit.activityType}</Text> : null}
@@ -194,6 +197,22 @@ export function StatBreakdownSheet({ statType, yearVisits, yearActivities, selec
               <Ionicons name="close" size={22} color={C.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
+
+          {statType === 'parks' && onQuickAdd ? (
+            <View style={styles.quickAddWrap}>
+              <TouchableOpacity
+                style={styles.quickAddBtn}
+                activeOpacity={0.8}
+                onPress={() => {
+                  onClose();
+                  onQuickAdd();
+                }}
+              >
+                <MaterialCommunityIcons name="plus-circle-outline" size={18} color={C.onPrimary} />
+                <Text style={styles.quickAddText}>Quick Add Park</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {rows.length === 0 ? (
             <View style={styles.empty}>
@@ -279,6 +298,26 @@ const styles = StyleSheet.create({
     color: C.onSurfaceVariant,
     fontWeight: '600',
     marginTop: 1,
+  },
+  quickAddWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  quickAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: C.primary,
+    borderRadius: 10,
+    paddingVertical: 11,
+  },
+  quickAddText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onPrimary,
+    letterSpacing: 0.3,
   },
   list: {
     paddingHorizontal: 16,

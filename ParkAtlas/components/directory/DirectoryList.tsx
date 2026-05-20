@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, TextInput, FlatList, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { MaterialCommunityIcons as _PineIcon } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { PARKS } from '../../data/parksData';
 
@@ -28,13 +27,13 @@ export default function DirectoryList() {
         setLocationLoading(false);
         return;
       }
-      let loc = await Location.getCurrentPositionAsync({});
+      await Location.getCurrentPositionAsync({});
       // In a real app, use loc.coords to search for nearby parks
       setSearch('');
       setLocationError('');
       // For demo, just show a message
       setLocationError('Location search not implemented in demo.');
-    } catch (e) {
+    } catch {
       setLocationError('Could not get location.');
     }
     setLocationLoading(false);
@@ -70,7 +69,7 @@ export default function DirectoryList() {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
             <View style={{ width: 38, height: 38, borderRadius: 8, marginRight: 12, backgroundColor: '#e8f5e9', alignItems: 'center', justifyContent: 'center' }}>
-              <_PineIcon name="pine-tree" size={22} color="#1b5e20" />
+              <MaterialCommunityIcons name="pine-tree" size={22} color="#1b5e20" />
             </View>
             <View style={{ flex: 1 }}>
               <ThemedText type="subtitle" style={{ color: '#1b5e20', fontWeight: '700', fontSize: 17 }}>{item.name}</ThemedText>

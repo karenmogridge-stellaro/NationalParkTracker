@@ -104,11 +104,17 @@ export function AppDrawer({ visible, onClose }: Props) {
 
         <View style={styles.divider} />
 
-        {/* Sign out */}
-        <TouchableOpacity style={styles.signOutItem} activeOpacity={0.7} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={20} color="#c0392b" />
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
+        {user ? (
+          <TouchableOpacity style={styles.signOutItem} activeOpacity={0.7} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={20} color="#c0392b" />
+            <Text style={styles.signOutText}>Sign out</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.signInItem} activeOpacity={0.7} onPress={() => navigate('/login')}>
+            <Ionicons name="log-in-outline" size={20} color={C.primary} />
+            <Text style={styles.signInText}>Sign in or create account</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </Modal>
   );
@@ -209,5 +215,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#c0392b',
+  },
+  signInItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 13,
+  },
+  signInText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.primary,
   },
 });

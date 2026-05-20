@@ -1,11 +1,15 @@
 
 import { Tabs } from 'expo-router';
 import { HapticTab } from '@/components/haptic-tab';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { ParkAtlas } from '@/constants/theme';
 import { Platform, View } from 'react-native';
+import { useFriends } from '@/hooks/useFriends';
 
 export default function TabLayout() {
+  const { incomingRequests } = useFriends();
+  const pendingRequestCount = incomingRequests.length;
+
   return (
     <Tabs
       screenOptions={{
@@ -23,10 +27,9 @@ export default function TabLayout() {
           elevation: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: '700',
-          letterSpacing: 1,
-          textTransform: 'uppercase',
+          letterSpacing: 0.2,
           marginBottom: Platform.OS === 'ios' ? 0 : 4,
         },
       }}
@@ -52,9 +55,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="directory"
         options={{
-          title: 'Activity',
+          title: 'Friends',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'hiking' : 'hiking'} size={24} color={color} />
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -66,6 +69,13 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: 'Settings',
+          tabBarBadge: pendingRequestCount > 0 ? (pendingRequestCount > 99 ? '99+' : pendingRequestCount) : undefined,
+          tabBarBadgeStyle: {
+            backgroundColor: '#c62828',
+            color: '#ffffff',
+            fontSize: 10,
+            fontWeight: '700',
+          },
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'settings' : 'settings-outline'} size={24} color={color} />
           ),
