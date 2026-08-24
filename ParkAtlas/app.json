@@ -12,9 +12,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.parkatlas.mobile",
-      "associatedDomains": [
-        "applinks:parkatlas.app"
-      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
