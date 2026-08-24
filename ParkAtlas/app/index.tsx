@@ -4,7 +4,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { ParkAtlas as C } from '@/constants/theme';
 
 export default function Index() {
-  const { loading } = useAuth();
+  const { loading, user, signOut } = useAuth();
+
+  async function continueWithoutAccount() {
+    // Only sign out if a session actually exists — a signed-in user landing
+    // here (e.g. via back-navigation) shouldn't be silently logged out.
+    if (user) {
+      await signOut();
+    }
+    router.replace('/(tabs)/home');
+  }
 
   if (loading) {
     return (
@@ -16,17 +25,21 @@ export default function Index() {
 
   return (
     <View style={styles.screen}>
-      <Image source={require('../assets/images/parkatlas-logo.png')} style={styles.logo} resizeMode="contain" />
-      <Text style={styles.title}>Welcome to ParkAtlas</Text>
-      <Text style={styles.subtitle}>Sign in to sync your profile, or continue without an account.</Text>
+      <View style={styles.contentWrap}>
+        <Image source={require('../assets/images/parkatlas-logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.title}>
+          Find your next park with <Text style={styles.titleBrand}>ParkAtlas</Text>
+        </Text>
+        <Text style={styles.subtitle}>Sign in to sync your parks or continue without an account.</Text>
 
-      <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.85} onPress={() => router.push('/login')}>
-        <Text style={styles.primaryBtnText}>Log In</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.85} onPress={() => router.push('/login')}>
+          <Text style={styles.primaryBtnText}>Log In</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.secondaryBtn} activeOpacity={0.85} onPress={() => router.replace('/(tabs)/home')}>
-        <Text style={styles.secondaryBtnText}>Continue Without Account</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryLink} activeOpacity={0.75} onPress={() => { void continueWithoutAccount(); }}>
+          <Text style={styles.secondaryLinkText}>Continue without an account</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -35,14 +48,17 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: C.background,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 24,
   },
+  contentWrap: {
+    marginTop: '14%',
+  },
   logo: {
-    width: 120,
-    height: 120,
+    width: 136,
+    height: 136,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   title: {
     fontSize: 32,
@@ -52,9 +68,13 @@ const styles = StyleSheet.create({
     color: C.onSurface,
     textAlign: 'center',
   },
+  titleBrand: {
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
   subtitle: {
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 22,
     fontSize: 15,
     lineHeight: 21,
     color: C.onSurfaceVariant,
@@ -72,19 +92,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: C.onPrimary,
   },
-  secondaryBtn: {
-    marginTop: 10,
-    minHeight: 52,
-    borderRadius: 26,
+  secondaryLink: {
+    marginTop: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    backgroundColor: C.surfaceContainerLow,
   },
-  secondaryBtnText: {
+  secondaryLinkText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: C.onSurface,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+    textDecorationLine: 'underline',
   },
 });

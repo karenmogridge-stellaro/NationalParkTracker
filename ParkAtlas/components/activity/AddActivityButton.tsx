@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 24,
     bottom: 32,
-    backgroundColor: '#388e3c',
+    backgroundColor: '#1b4332',
     borderRadius: 32,
     flexDirection: 'row',
     alignItems: 'center',

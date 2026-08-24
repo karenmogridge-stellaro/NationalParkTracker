@@ -1,8 +1,8 @@
 import { Platform } from 'react-native';
 
 export const ParkAtlas = {
-  primary: '#154212',
-  secondary: '#496800',
+  primary: '#1b4332',
+  secondary: '#1b4332',
   tertiary: '#52320b',
   background: '#ffffff',
   surface: '#ffffff',
@@ -29,10 +29,12 @@ export const Colors = {
   dark: {
     text: '#ECEDEE',
     background: '#151718',
-    tint: '#a1d494',
+    // A lighter tint of the new brand green (#1b4332) — the brand color itself is
+    // nearly the same darkness as the dark background and disappears when selected.
+    tint: '#95d5b2',
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: '#a1d494',
+    tabIconSelected: '#95d5b2',
   },
 };
 

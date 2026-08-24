@@ -64,7 +64,7 @@ export function ActivityDetailModal({ visible, activity, onClose, onSave }: Prop
               <ThemedText style={{ color: '#fff', fontWeight: '700' }}>Save</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-              <ThemedText style={{ color: '#388e3c', fontWeight: '700' }}>Close</ThemedText>
+              <ThemedText style={{ color: '#1b4332', fontWeight: '700' }}>Close</ThemedText>
             </TouchableOpacity>
           </View>
         </View>
@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     padding: 10,
     borderRadius: 8,
-    backgroundColor: '#388e3c',
+    backgroundColor: '#1b4332',
     minWidth: 70,
     alignItems: 'center',
   },

@@ -26,6 +26,7 @@ export const STATE_PARKS: StatePark[] = [
   { id: 'sp_ca_1', name: 'Big Basin Redwoods State Park', state: 'CA', lat: 37.17, lng: -122.22, radiusKm: 20, npsCode: '', type: 'state' },
   { id: 'sp_ca_2', name: 'Point Reyes National Seashore (State)', state: 'CA', lat: 38.05, lng: -122.88, radiusKm: 25, npsCode: '', type: 'state' },
   { id: 'sp_ca_3', name: 'Anza-Borrego Desert State Park', state: 'CA', lat: 33.26, lng: -116.39, radiusKm: 60, npsCode: '', type: 'state' },
+  { id: 'sp_ca_4', name: 'McArthur-Burney Falls Memorial State Park', state: 'CA', lat: 41.012, lng: -121.646, radiusKm: 12, npsCode: '', type: 'state' },
 
   // Colorado
   { id: 'sp_co_1', name: 'Roxborough State Park', state: 'CO', lat: 39.44, lng: -105.07, radiusKm: 10, npsCode: '', type: 'state' },

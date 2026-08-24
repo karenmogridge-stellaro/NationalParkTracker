@@ -38,7 +38,7 @@ export function ActivityList() {
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => handleCardPress(item)} activeOpacity={0.8}>
-            <MaterialCommunityIcons name="map-marker-radius" size={32} color="#1b5e20" style={{ marginRight: 12 }} />
+            <MaterialCommunityIcons name="map-marker-radius" size={32} color="#1b4332" style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.park}>{item.park}</ThemedText>
               <ThemedText style={styles.trail}>{item.trail}</ThemedText>
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 8,
-    color: '#1b5e20', // deep green for ADA contrast
+    color: '#1b4332', // deep green for ADA contrast
     fontSize: 19,
     fontWeight: '700',
     letterSpacing: 0.1,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   park: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1b5e20',
+    color: '#1b4332',
     marginBottom: 2,
   },
   trail: {
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    color: '#388e3c',
+    color: '#1b4332',
     fontWeight: '600',
   },
 });

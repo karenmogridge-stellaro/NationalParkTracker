@@ -56,7 +56,7 @@ export default function DirectoryList() {
           disabled={locationLoading}
           accessibilityLabel="Use current location"
         >
-          <MaterialCommunityIcons name="crosshairs-gps" size={26} color="#1b5e20" />
+          <MaterialCommunityIcons name="crosshairs-gps" size={26} color="#1b4332" />
         </TouchableOpacity>
       </View>
       <ThemedText style={styles.searchHint}>
@@ -69,10 +69,10 @@ export default function DirectoryList() {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card}>
             <View style={{ width: 38, height: 38, borderRadius: 8, marginRight: 12, backgroundColor: '#e8f5e9', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialCommunityIcons name="pine-tree" size={22} color="#1b5e20" />
+              <MaterialCommunityIcons name="pine-tree" size={22} color="#1b4332" />
             </View>
             <View style={{ flex: 1 }}>
-              <ThemedText type="subtitle" style={{ color: '#1b5e20', fontWeight: '700', fontSize: 17 }}>{item.name}</ThemedText>
+              <ThemedText type="subtitle" style={{ color: '#1b4332', fontWeight: '700', fontSize: 17 }}>{item.name}</ThemedText>
               <ThemedText style={styles.state}>{item.state}</ThemedText>
             </View>
           </TouchableOpacity>

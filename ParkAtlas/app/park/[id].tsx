@@ -190,7 +190,7 @@ export default function ParkDetailScreen() {
           {detail.camping ? (
             <>
               <View style={styles.availableBadge}>
-                <Ionicons name="checkmark-circle" size={16} color="#2e7d32" />
+                <Ionicons name="checkmark-circle" size={16} color="#1b4332" />
                 <Text style={styles.availableText}>Camping Available</Text>
               </View>
               {detail.campsiteCount ? (
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   availableText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#2e7d32',
+    color: '#1b4332',
   },
   peakSeasonBadge: {
     flexDirection: 'row',

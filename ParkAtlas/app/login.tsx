@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -10,15 +11,22 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { collection, doc, documentId, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { useAuth, AuthError } from '@/hooks/useAuth';
 import { ParkAtlas as C } from '@/constants/theme';
+import { consumePendingInviteCode, peekPendingInviteCode } from '@/utils/pendingInvite';
+import { findPendingInviteCodeForContact } from '@/utils/inviteApi';
+import { peekPendingAction, consumePendingAction } from '@/utils/pendingAction';
+import { db } from '@/utils/firebase';
 
 type Mode = 'signin' | 'signup';
 
 export default function LoginScreen() {
+  const router = useRouter();
   const {
     signInWithApple,
     signInWithEmail,
@@ -32,7 +40,8 @@ export default function LoginScreen() {
   } = useAuth();
 
   const [mode, setMode] = useState<Mode>('signin');
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -40,20 +49,199 @@ export default function LoginScreen() {
   const [emailLoading, setEmailLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
-    name?: string;
+    firstName?: string;
+    lastName?: string;
     email?: string;
     password?: string;
     general?: string;
   }>({});
 
+  const firstNameRef = useRef<TextInput>(null);
+  const lastNameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
+  const hasPendingInvite = Boolean(peekPendingInviteCode());
+
+  async function hasPendingIncomingRequest(userId: string): Promise<boolean> {
+    if (!userId) return false;
+    try {
+      const pendingReqSnap = await getDocs(
+        query(
+          collection(db, 'friend_requests'),
+          where('toUserId', '==', userId),
+          where('status', '==', 'pending'),
+          limit(1)
+        )
+      );
+      return !pendingReqSnap.empty;
+    } catch {
+      return false;
+    }
+  }
+
+  async function resolveUserIdsFromEmailAuth(emailHint?: string): Promise<string[]> {
+    const normalizedEmail = emailHint?.trim().toLowerCase();
+    if (!normalizedEmail) return [];
+
+    const ids = new Set<string>();
+    const docIds = [encodeURIComponent(normalizedEmail), normalizedEmail];
+
+    for (const docId of docIds) {
+      try {
+        const snap = await getDoc(doc(db, 'email_auth', docId));
+        if (!snap.exists()) continue;
+        const data = snap.data() as { userId?: unknown };
+        if (typeof data.userId === 'string' && data.userId.trim()) {
+          ids.add(data.userId.trim());
+        }
+      } catch {
+        // Ignore individual lookup failures.
+      }
+    }
+
+    return Array.from(ids);
+  }
+
+  async function resolveUserIdsForEmail(emailHint?: string): Promise<string[]> {
+    const normalizedEmail = emailHint?.trim().toLowerCase();
+    if (!normalizedEmail) return [];
+
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, 'users'),
+          where('email', '==', normalizedEmail),
+          limit(10)
+        )
+      );
+      return snap.docs.map((docSnap) => docSnap.id).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  async function hasPendingIncomingRequestForEmail(emailHint?: string): Promise<boolean> {
+    const normalizedEmail = emailHint?.trim().toLowerCase();
+    if (!normalizedEmail) return false;
+
+    try {
+      const pendingReqSnap = await getDocs(
+        query(
+          collection(db, 'friend_requests'),
+          where('status', '==', 'pending'),
+          limit(120)
+        )
+      );
+
+      const toUserIds = Array.from(
+        new Set(
+          pendingReqSnap.docs
+            .map((snap) => snap.data()?.toUserId)
+            .filter((id): id is string => typeof id === 'string' && id.length > 0)
+        )
+      );
+
+      // Batch profile lookups (10 per Firestore 'in' query) instead of one getDoc per
+      // candidate — this was previously up to 120 sequential round trips on every login.
+      const chunks: string[][] = [];
+      for (let i = 0; i < toUserIds.length; i += 10) {
+        chunks.push(toUserIds.slice(i, i + 10));
+      }
+
+      const snapshots = await Promise.all(
+        chunks.map((chunk) =>
+          getDocs(query(collection(db, 'users'), where(documentId(), 'in', chunk))).catch(() => null)
+        )
+      );
+
+      return snapshots.some((snapshot) =>
+        snapshot?.docs.some((userSnap) => {
+          const data = userSnap.data() as { email?: unknown };
+          const userEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
+          return userEmail === normalizedEmail;
+        })
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  async function routeAfterAuthSuccess(emailHint?: string, userIdHint?: string) {
+    const fallbackEmailUserId = emailHint?.trim()
+      ? `email_${emailHint.trim().toLowerCase()}`
+      : undefined;
+    const resolvedUserId = userIdHint || fallbackEmailUserId;
+
+    let pendingInviteCode = consumePendingInviteCode();
+
+    if (!pendingInviteCode && emailHint?.trim()) {
+      try {
+        pendingInviteCode = await findPendingInviteCodeForContact(emailHint.trim().toLowerCase());
+      } catch {
+        // Non-blocking fallback: route normally if invite lookup fails.
+      }
+    }
+
+    if (pendingInviteCode) {
+      router.replace(`/invite/${encodeURIComponent(pendingInviteCode)}`);
+      return;
+    }
+
+    const candidateUserIds = Array.from(
+      new Set(
+        [
+          ...(resolvedUserId ? [resolvedUserId] : []),
+          ...(await resolveUserIdsFromEmailAuth(emailHint)),
+          ...(await resolveUserIdsForEmail(emailHint)),
+        ].filter(Boolean)
+      )
+    );
+
+    for (const candidateUserId of candidateUserIds) {
+      const hasPendingRequest = await hasPendingIncomingRequest(candidateUserId);
+      if (hasPendingRequest) {
+        router.replace('/(tabs)/directory?pendingIncoming=1');
+        return;
+      }
+    }
+
+    if (await hasPendingIncomingRequestForEmail(emailHint)) {
+      router.replace('/(tabs)/directory?pendingIncoming=1');
+      return;
+    }
+
+    const pendingAction = peekPendingAction();
+
+    if (pendingAction?.type === 'follow') {
+      // Keep action pending so directory screen can complete it and show confirmation.
+      router.replace('/(tabs)/directory');
+      return;
+    }
+
+    if (pendingAction?.type === 'viewProfile') {
+      const action = consumePendingAction();
+      if (action && action.type === 'viewProfile') {
+        router.replace(`/friend/${encodeURIComponent(action.userId)}`);
+        return;
+      }
+    }
+
+    if (pendingAction?.type === 'keepExploring' || pendingAction?.type === 'scrollFeed') {
+      consumePendingAction();
+      router.replace('/(tabs)/home');
+      return;
+    }
+
+    // High-five pending actions are resumed on Home feed after auth.
+    router.replace('/(tabs)/home');
+  }
 
   // ── Apple ──────────────────────────────────────────────────────────────────
   async function handleAppleSignIn() {
     setAppleLoading(true);
     try {
       await signInWithApple();
+      await routeAfterAuthSuccess();
     } catch {
       // Cancellations are silent; errors already logged in useAuth
     } finally {
@@ -66,8 +254,11 @@ export default function LoginScreen() {
     setFieldErrors({});
     const errors: typeof fieldErrors = {};
 
-    if (mode === 'signup' && !name.trim()) {
-      errors.name = 'Name is required.';
+    if (mode === 'signup' && !firstName.trim()) {
+      errors.firstName = 'First name is required.';
+    }
+    if (mode === 'signup' && !lastName.trim()) {
+      errors.lastName = 'Last name is required.';
     }
     if (!email.trim()) {
       errors.email = 'Email is required.';
@@ -85,18 +276,42 @@ export default function LoginScreen() {
 
     setEmailLoading(true);
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const derivedEmailUserId = `email_${normalizedEmail}`;
       if (mode === 'signup') {
-        await signUpWithEmail(email, password, name);
+        await signUpWithEmail(email, password, firstName, lastName);
       } else {
         await signInWithEmail(email, password);
       }
+      await routeAfterAuthSuccess(email, derivedEmailUserId);
     } catch (e) {
       if (e instanceof AuthError) {
         switch (e.code) {
           case 'INVALID_EMAIL':    setFieldErrors({ email: e.message });    break;
           case 'WEAK_PASSWORD':    setFieldErrors({ password: e.message }); break;
           case 'EMAIL_EXISTS':     setFieldErrors({ email: e.message });    break;
-          case 'USER_NOT_FOUND':   setFieldErrors({ email: e.message });    break;
+          case 'SERVICE_UNAVAILABLE':
+            setFieldErrors({
+              general: 'Cloud sign-in is temporarily unavailable. Please try again in a moment.',
+            });
+            break;
+          case 'APPLE_SIGN_IN_REQUIRED':
+            setFieldErrors({
+              general: 'This email is tied to an Apple account. Tap Continue with Apple to sign in.',
+            });
+            break;
+          case 'PASSWORD_NOT_SET':
+            setFieldErrors({
+              email: 'Account found, but no email password is set yet. Tap Sign up with this same email/password once to restore access.',
+            });
+            break;
+          case 'USER_NOT_FOUND':
+            setFieldErrors({
+              email: mode === 'signin'
+                ? 'No cloud account found for that email yet. If this account was created before the Firestore migration, tap Sign up with the same email/password once to restore access.'
+                : e.message,
+            });
+            break;
           case 'INVALID_CREDENTIALS': setFieldErrors({ password: e.message }); break;
           default: setFieldErrors({ general: 'Something went wrong. Please try again.' });
         }
@@ -121,10 +336,17 @@ export default function LoginScreen() {
           'Face ID failed',
           'Could not verify your identity. Please sign in manually.',
         );
+      } else {
+        await routeAfterAuthSuccess(pendingBiometricUser?.email, pendingBiometricUser?.id);
       }
     } finally {
       setBiometricLoading(false);
     }
+  }
+
+  async function handleDevSignIn() {
+    await signInDev();
+    await routeAfterAuthSuccess(undefined, 'dev_user');
   }
 
   const showBiometricPrompt = pendingBiometricUser != null;
@@ -138,7 +360,11 @@ export default function LoginScreen() {
       <View style={styles.heroSection}>
         <SafeAreaView edges={['top']}>
           <View style={styles.logoWrap}>
-            <MaterialCommunityIcons name="pine-tree" size={52} color={C.onPrimary} />
+            <Image
+              source={require('../assets/images/parkatlas-logo.png')}
+              style={styles.heroLogoImage}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.appName}>ParkAtlas</Text>
           <Text style={styles.tagline}>
@@ -203,6 +429,13 @@ export default function LoginScreen() {
             : 'Join to start tracking your adventures.'}
         </Text>
 
+        {hasPendingInvite && (
+          <View style={styles.pendingInviteBanner}>
+            <Ionicons name="mail-open-outline" size={16} color={C.primary} />
+            <Text style={styles.pendingInviteText}>Resuming your invite after sign in</Text>
+          </View>
+        )}
+
         {/* General error */}
         {!!fieldErrors.general && (
           <View style={styles.generalError}>
@@ -214,23 +447,54 @@ export default function LoginScreen() {
         {/* ── Name (sign-up only) ────────────────────────────────────────── */}
         {mode === 'signup' && (
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full name</Text>
+            <Text style={styles.inputLabel}>First name *</Text>
             <TextInput
-              style={[styles.input, !!fieldErrors.name && styles.inputError]}
-              placeholder="Jane Smith"
+              ref={firstNameRef}
+              style={[styles.input, !!fieldErrors.firstName && styles.inputError]}
+              placeholder="Jane"
               placeholderTextColor={C.outlineVariant}
-              value={name}
+              value={firstName}
               onChangeText={v => {
-                setName(v);
-                setFieldErrors(e => ({ ...e, name: undefined }));
+                setFirstName(v);
+                setFieldErrors(e => ({ ...e, firstName: undefined }));
               }}
               autoCapitalize="words"
               autoCorrect={false}
+              autoComplete="given-name"
+              textContentType="givenName"
+              importantForAutofill="yes"
+              returnKeyType="next"
+              onSubmitEditing={() => lastNameRef.current?.focus()}
+            />
+            {!!fieldErrors.firstName && (
+              <Text style={styles.errorText}>{fieldErrors.firstName}</Text>
+            )}
+          </View>
+        )}
+
+        {mode === 'signup' && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Last name *</Text>
+            <TextInput
+              ref={lastNameRef}
+              style={[styles.input, !!fieldErrors.lastName && styles.inputError]}
+              placeholder="Smith"
+              placeholderTextColor={C.outlineVariant}
+              value={lastName}
+              onChangeText={v => {
+                setLastName(v);
+                setFieldErrors(e => ({ ...e, lastName: undefined }));
+              }}
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoComplete="family-name"
+              textContentType="familyName"
+              importantForAutofill="yes"
               returnKeyType="next"
               onSubmitEditing={() => emailRef.current?.focus()}
             />
-            {!!fieldErrors.name && (
-              <Text style={styles.errorText}>{fieldErrors.name}</Text>
+            {!!fieldErrors.lastName && (
+              <Text style={styles.errorText}>{fieldErrors.lastName}</Text>
             )}
           </View>
         )}
@@ -251,6 +515,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            importantForAutofill="yes"
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
           />
@@ -374,7 +641,7 @@ export default function LoginScreen() {
 
         {/* ── Dev bypass ────────────────────────────────────────────────── */}
         {__DEV__ && (
-          <TouchableOpacity style={styles.devBtn} onPress={signInDev} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.devBtn} onPress={handleDevSignIn} activeOpacity={0.7}>
             <Text style={styles.devBtnText}>Skip Sign In (Dev)</Text>
           </TouchableOpacity>
         )}
@@ -404,14 +671,21 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   logoWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 110,
+    height: 110,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 16,
+  },
+  heroLogoImage: {
+    width: '100%',
+    height: '100%',
   },
   appName: {
     fontSize: 38,
@@ -569,6 +843,22 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     color: '#c0392b',
+    lineHeight: 18,
+  },
+  pendingInviteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#e8f1ec',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  pendingInviteText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1b4332',
+    fontWeight: '600',
     lineHeight: 18,
   },
 

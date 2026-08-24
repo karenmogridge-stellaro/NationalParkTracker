@@ -126,16 +126,25 @@ function QuickSelectChips({ chips }: QuickSelectChipsProps) {
 }
 
 function PhotoDropzoneOrPicker({ photoUris, onPress }: PhotoDropzoneOrPickerProps) {
+  const hasPhotos = photoUris.length > 0;
   return (
     <View>
-      <Text style={styles.fieldLabel}>Your Adventure Photos</Text>
+      <Text style={styles.fieldLabel}>Your Adventure Photo</Text>
       <TouchableOpacity style={styles.photoDropzone} activeOpacity={0.8} onPress={onPress}>
-        {photoUris.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoPreviewRow}>
-            {photoUris.map((uri, idx) => (
-              <Image key={`${uri}_${idx}`} source={{ uri }} style={styles.photoPreview} />
-            ))}
-          </ScrollView>
+        {hasPhotos ? (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoPreviewRow}>
+              {photoUris.map((uri, idx) => (
+                <Image key={`${uri}_${idx}`} source={{ uri }} style={styles.photoPreview} />
+              ))}
+            </ScrollView>
+            <View style={styles.photoActionHintRow}>
+              <Ionicons name="camera-outline" size={16} color={C.primary} />
+              {/* Only one photo is ever saved per visit (see photoUris[0] at save time below),
+                  so this must read as replace, not add — matching the single-select picker. */}
+              <Text style={styles.photoActionHintText}>Tap to replace photo</Text>
+            </View>
+          </>
         ) : (
           <>
             <Ionicons name="images-outline" size={32} color={C.outline} />
@@ -144,6 +153,7 @@ function PhotoDropzoneOrPicker({ photoUris, onPress }: PhotoDropzoneOrPickerProp
           </>
         )}
       </TouchableOpacity>
+      <Text style={styles.dropzoneFooterHint}>You can update photos any time while editing.</Text>
     </View>
   );
 }
@@ -321,7 +331,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     setParkError('');
     setShowParkResults(false);
     setShowTrailResults(false);
-  }, [visible, editVisit, allParkOptions]);
+  }, [visible, editVisit?.visitId, allParkOptions]);
 
   if (!visible) return null;
 
@@ -332,19 +342,22 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      selectionLimit: 6,
-      quality: 0.7,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsMultipleSelection: false,
+        allowsEditing: true,
+        aspect: [4, 3],
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+        shouldDownloadFromNetwork: true,
+      });
 
-    if (result.canceled) return;
-    const nextUris = result.assets
-      .map((asset) => asset.uri)
-      .filter((uri): uri is string => !!uri);
-
-    if (nextUris.length > 0) setPhotoUris(nextUris);
+      if (result.canceled) return;
+      const selectedUri = result.assets[0]?.uri;
+      if (selectedUri) setPhotoUris([selectedUri]);
+    } catch {
+      Alert.alert('Photo Error', 'We could not read that photo. Please choose a different image.');
+    }
   }
 
   async function capturePhoto() {
@@ -354,15 +367,19 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.7,
-    });
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      setPhotoUris(uri ? [uri] : []);
+      if (!result.canceled && result.assets[0]) {
+        const uri = result.assets[0].uri;
+        setPhotoUris(uri ? [uri] : []);
+      }
+    } catch {
+      Alert.alert('Camera Error', 'We could not read that photo. Please try again.');
     }
   }
 
@@ -879,11 +896,27 @@ const styles = StyleSheet.create({
   photoPreviewRow: {
     gap: 10,
     alignItems: 'center',
+    paddingBottom: 4,
   },
   photoPreview: {
     width: 88,
     height: 88,
     borderRadius: 10,
+  },
+  photoActionHintRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  photoActionHintText: {
+    fontSize: 13,
+    color: C.primary,
+    fontWeight: '600',
+  },
+  dropzoneFooterHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: C.onSurfaceVariant,
   },
   commentsWrap: {
     alignItems: 'flex-start',

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -24,13 +24,45 @@ import { useFriends } from '@/hooks/useFriends';
 import { AppDrawer } from '@/components/AppDrawer';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { PrivacyPolicyModal } from '@/components/PrivacyPolicyModal';
+import { collection, documentId, getDocs, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '@/utils/firebase';
 // import { useStrava } from '@/hooks/useStrava';
+
+type ActivityInboxDoc = {
+  id: string;
+  toUid: string;
+  type: 'kudos_received' | 'request_accepted' | 'friend_logged' | string;
+  fromUid?: string;
+  eventId?: string;
+  parkName?: string;
+  createdAtIso?: string;
+};
+
+type OutgoingKudosDoc = {
+  id: string;
+  toUid: string;
+  eventId?: string;
+  createdAtIso?: string;
+};
+
+type IncomingKudosDoc = {
+  id: string;
+  fromUid: string;
+  eventId?: string;
+  createdAtIso?: string;
+};
+
+type ActivityRow = {
+  id: string;
+  message: string;
+  createdAtIso?: string;
+};
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { signOut, deleteAccount, user, biometricAvailable, biometricEnabled, setBiometricEnabled, changePassword } = useAuth();
   const { deleteAllDataForCurrentUser } = useVisitedParks();
-  const { incomingRequests, sentInvites, requestedIds, acceptRequest, ignoreRequest } = useFriends();
+  const { incomingRequests, sentInvites, requestedIds, directoryUsers, myFriends, acceptRequest, ignoreRequest } = useFriends();
   const [biometricSaving, setBiometricSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editProfileVisible, setEditProfileVisible] = useState(false);
@@ -45,10 +77,195 @@ export default function SettingsScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [activityInbox, setActivityInbox] = useState<ActivityInboxDoc[]>([]);
+  const [outgoingKudos, setOutgoingKudos] = useState<OutgoingKudosDoc[]>([]);
+  const [incomingKudos, setIncomingKudos] = useState<IncomingKudosDoc[]>([]);
+  const [userNamesById, setUserNamesById] = useState<Record<string, string>>({});
   const canChangePassword = user?.provider === 'email';
   const isSignedIn = !!user;
   const outgoingRequestCount = useMemo(() => requestedIds.size, [requestedIds]);
-  const totalNotificationCount = incomingRequests.length + sentInvites.length + outgoingRequestCount;
+  const outgoingRequestProfiles = useMemo(() => {
+    const profileById = new Map(directoryUsers.map((profile) => [profile.id, profile]));
+    return Array.from(requestedIds)
+      .map((id) => profileById.get(id))
+      .filter((profile): profile is NonNullable<typeof profileById extends Map<string, infer T> ? T : never> => !!profile)
+      .slice(0, 20);
+  }, [requestedIds, directoryUsers]);
+  // A kudos can show up in both activityInbox (as a 'kudos_received' activity doc)
+  // and incomingKudos (the kudos doc itself) — dedup by fromUid+eventId so it isn't
+  // counted twice in the badge, matching the dedup already applied to activityRows below.
+  const existingKudosKeys = useMemo(
+    () => new Set(
+      activityInbox
+        .filter((item) => item.type === 'kudos_received')
+        .map((item) => `${item.fromUid || ''}::${item.eventId || ''}`)
+    ),
+    [activityInbox]
+  );
+  const dedupedIncomingKudosCount = useMemo(
+    () => incomingKudos.filter((item) => !existingKudosKeys.has(`${item.fromUid}::${item.eventId || ''}`)).length,
+    [incomingKudos, existingKudosKeys]
+  );
+  const totalNotificationCount = incomingRequests.length + sentInvites.length + outgoingRequestCount + activityInbox.length + dedupedIncomingKudosCount + outgoingKudos.length;
+
+  useEffect(() => {
+    if (!user?.id) {
+      setActivityInbox([]);
+      return;
+    }
+
+    const inboxQuery = query(
+      collection(db, 'activity'),
+      where('toUid', '==', user.id),
+      limit(80)
+    );
+
+    const unsubscribe = onSnapshot(inboxQuery, (snapshot) => {
+      const rows: ActivityInboxDoc[] = snapshot.docs.map((snap) => {
+        const data = snap.data() as Record<string, any>;
+        const createdAtIso = typeof data?.createdAt?.toDate === 'function'
+          ? data.createdAt.toDate()?.toISOString()
+          : undefined;
+        return {
+          id: snap.id,
+          toUid: typeof data.toUid === 'string' ? data.toUid : '',
+          type: typeof data.type === 'string' ? data.type : '',
+          fromUid: typeof data.fromUid === 'string' ? data.fromUid : undefined,
+          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+          parkName: typeof data.parkName === 'string' ? data.parkName : undefined,
+          createdAtIso,
+        };
+      });
+
+      rows.sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime());
+      setActivityInbox(rows);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setOutgoingKudos([]);
+      return;
+    }
+
+    const outgoingQuery = query(
+      collection(db, 'kudos'),
+      where('fromUid', '==', user.id),
+      limit(80)
+    );
+
+    const unsubscribe = onSnapshot(outgoingQuery, (snapshot) => {
+      const rows: OutgoingKudosDoc[] = snapshot.docs.map((snap) => {
+        const data = snap.data() as Record<string, any>;
+        const createdAtIso = typeof data?.createdAt?.toDate === 'function'
+          ? data.createdAt.toDate()?.toISOString()
+          : undefined;
+        return {
+          id: snap.id,
+          toUid: typeof data.toUid === 'string' ? data.toUid : '',
+          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+          createdAtIso,
+        };
+      });
+
+      rows.sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime());
+      setOutgoingKudos(rows);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setIncomingKudos([]);
+      return;
+    }
+
+    const incomingQuery = query(
+      collection(db, 'kudos'),
+      where('toUid', '==', user.id),
+      limit(80)
+    );
+
+    const unsubscribe = onSnapshot(incomingQuery, (snapshot) => {
+      const rows: IncomingKudosDoc[] = snapshot.docs.map((snap) => {
+        const data = snap.data() as Record<string, any>;
+        const createdAtIso = typeof data?.createdAt?.toDate === 'function'
+          ? data.createdAt.toDate()?.toISOString()
+          : undefined;
+        return {
+          id: snap.id,
+          fromUid: typeof data.fromUid === 'string' ? data.fromUid : '',
+          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+          createdAtIso,
+        };
+      }).filter((row) => !!row.fromUid);
+
+      rows.sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime());
+      setIncomingKudos(rows);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const localNameMap = new Map<string, string>();
+    if (user?.id) {
+      localNameMap.set(user.id, (user.name || 'You').trim() || 'You');
+    }
+    directoryUsers.forEach((profile) => localNameMap.set(profile.id, profile.name || profile.username || profile.id));
+    myFriends.forEach((profile) => localNameMap.set(profile.id, profile.name || profile.username || profile.id));
+
+    const idsToFetch = new Set<string>();
+    activityInbox.forEach((row) => {
+      if (row.fromUid && !localNameMap.has(row.fromUid)) idsToFetch.add(row.fromUid);
+      if (row.toUid && !localNameMap.has(row.toUid)) idsToFetch.add(row.toUid);
+    });
+    outgoingKudos.forEach((row) => {
+      if (row.toUid && !localNameMap.has(row.toUid)) idsToFetch.add(row.toUid);
+    });
+    incomingKudos.forEach((row) => {
+      if (row.fromUid && !localNameMap.has(row.fromUid)) idsToFetch.add(row.fromUid);
+    });
+
+    if (idsToFetch.size === 0) {
+      setUserNamesById(Object.fromEntries(localNameMap.entries()));
+      return;
+    }
+
+    void (async () => {
+      const fetched = new Map<string, string>();
+      const ids = Array.from(idsToFetch);
+      for (let i = 0; i < ids.length; i += 10) {
+        const chunk = ids.slice(i, i + 10);
+        try {
+          const snapshot = await getDocs(
+            query(collection(db, 'users'), where(documentId(), 'in', chunk), limit(10))
+          );
+          snapshot.docs.forEach((snap) => {
+            const data = snap.data() as Record<string, any>;
+            const firstName = typeof data.first_name === 'string' ? data.first_name : '';
+            const lastName = typeof data.last_name === 'string' ? data.last_name : '';
+            const fullName = `${firstName} ${lastName}`.trim();
+            const name =
+              (typeof data.name === 'string' && data.name.trim()) ||
+              fullName ||
+              (typeof data.username === 'string' && data.username.trim()) ||
+              snap.id;
+            fetched.set(snap.id, name);
+          });
+        } catch {
+          // Best-effort name hydration for inbox.
+        }
+      }
+
+      const merged = new Map<string, string>(localNameMap);
+      fetched.forEach((name, id) => merged.set(id, name));
+      setUserNamesById(Object.fromEntries(merged.entries()));
+    })();
+  }, [activityInbox, outgoingKudos, incomingKudos, directoryUsers, myFriends, user?.id, user?.name]);
   // const [emailNewsletter, setEmailNewsletter] = useState(false);
   // const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   // const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
@@ -190,6 +407,81 @@ export default function SettingsScreen() {
     router.push('/(tabs)/directory');
   }
 
+  const friendlyName = useCallback((uid?: string, fallback: string = 'Someone'): string => {
+    if (!uid) return fallback;
+    if (uid === user?.id) return 'You';
+    return userNamesById[uid] || fallback;
+  }, [user?.id, userNamesById]);
+
+  function formatRelativeTime(iso?: string): string {
+    if (!iso) return 'Just now';
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return 'Just now';
+    const diffMs = Date.now() - date.getTime();
+    const mins = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  const activityRows = useMemo<ActivityRow[]>(() => {
+    const inboxRows: ActivityRow[] = activityInbox.map((item) => {
+      const fromName = friendlyName(item.fromUid);
+      if (item.type === 'kudos_received') {
+        return {
+          id: `inbox_${item.id}`,
+          message: `${fromName} gave you kudos`,
+          createdAtIso: item.createdAtIso,
+        };
+      }
+      if (item.type === 'request_accepted') {
+        return {
+          id: `inbox_${item.id}`,
+          message: `${fromName} accepted your friend request`,
+          createdAtIso: item.createdAtIso,
+        };
+      }
+      if (item.type === 'friend_logged') {
+        const place = item.parkName || 'a park';
+        return {
+          id: `inbox_${item.id}`,
+          message: `${fromName} logged ${place}`,
+          createdAtIso: item.createdAtIso,
+        };
+      }
+      return {
+        id: `inbox_${item.id}`,
+        message: `${fromName} sent an update`,
+        createdAtIso: item.createdAtIso,
+      };
+    });
+
+    const incomingKudosRows: ActivityRow[] = incomingKudos
+      .filter((item) => !existingKudosKeys.has(`${item.fromUid}::${item.eventId || ''}`))
+      .map((item) => ({
+        id: `kudos_in_${item.id}`,
+        message: `${friendlyName(item.fromUid)} gave you kudos`,
+        createdAtIso: item.createdAtIso,
+      }));
+
+    const outgoingRows: ActivityRow[] = outgoingKudos.map((item) => ({
+      id: `outgoing_${item.id}`,
+      message: `You gave ${friendlyName(item.toUid, 'a friend')} kudos`,
+      createdAtIso: item.createdAtIso,
+    }));
+
+    return [...inboxRows, ...incomingKudosRows, ...outgoingRows]
+      .sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime())
+      .slice(0, 30);
+  }, [activityInbox, outgoingKudos, incomingKudos, existingKudosKeys, friendlyName]);
+
+  const latestActivity = activityRows[0];
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
@@ -328,11 +620,18 @@ export default function SettingsScreen() {
             <View style={styles.rowTextWrap}>
               <Text style={styles.rowTitle}>Friend Requests & Invites</Text>
               <Text style={styles.rowSubtitle}>
-                {totalNotificationCount > 0
-                  ? `${incomingRequests.length} pending requests · ${sentInvites.length} invites sent`
-                  : 'No new friend notifications'}
+                {latestActivity
+                  ? `${latestActivity.message} · ${formatRelativeTime(latestActivity.createdAtIso)}`
+                  : totalNotificationCount > 0
+                    ? `${incomingRequests.length} pending requests · ${sentInvites.length} invites sent`
+                    : 'No new notifications'}
               </Text>
             </View>
+            {totalNotificationCount > 0 ? (
+              <View style={styles.notificationsBadge}>
+                <Text style={styles.notificationsBadgeText}>{Math.min(totalNotificationCount, 99)}</Text>
+              </View>
+            ) : null}
             <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
           </TouchableOpacity>
         </View>
@@ -452,6 +751,21 @@ export default function SettingsScreen() {
             <Text style={styles.feedbackSubtitle}>Review incoming friend requests and sent invites.</Text>
 
             <ScrollView style={styles.notificationsScroll} contentContainerStyle={styles.notificationsContent}>
+              <Text style={styles.notificationsSectionTitle}>Activity Inbox</Text>
+              {activityRows.length === 0 ? (
+                <Text style={styles.notificationsEmptyText}>No activity yet.</Text>
+              ) : (
+                activityRows.map((row) => (
+                  <View key={row.id} style={styles.activityInboxRow}>
+                    <MaterialCommunityIcons name="bell-ring-outline" size={16} color={C.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.activityInboxMessage}>{row.message}</Text>
+                      <Text style={styles.notificationMeta}>{formatRelativeTime(row.createdAtIso)}</Text>
+                    </View>
+                  </View>
+                ))
+              )}
+
               <Text style={styles.notificationsSectionTitle}>Pending Requests</Text>
               {incomingRequests.length > 0 ? (
                 <TouchableOpacity
@@ -517,11 +831,28 @@ export default function SettingsScreen() {
               )}
 
               <Text style={styles.notificationsSectionTitle}>Outgoing Requests</Text>
-              <Text style={styles.notificationsEmptyText}>
-                {outgoingRequestCount > 0
-                  ? `${outgoingRequestCount} friend request${outgoingRequestCount === 1 ? '' : 's'} pending response.`
-                  : 'No outgoing friend requests.'}
-              </Text>
+              {outgoingRequestCount === 0 ? (
+                <Text style={styles.notificationsEmptyText}>No outgoing friend requests.</Text>
+              ) : (
+                <>
+                  <Text style={styles.notificationsEmptyText}>
+                    {outgoingRequestCount} friend request{outgoingRequestCount === 1 ? '' : 's'} pending response.
+                  </Text>
+                  {outgoingRequestProfiles.length > 0 ? (
+                    outgoingRequestProfiles.map((profile) => (
+                      <View key={profile.id} style={styles.notificationInviteRow}>
+                        <Image source={{ uri: profile.avatar }} style={styles.notificationAvatar} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.notificationName}>{profile.name}</Text>
+                          <Text style={styles.notificationMeta}>@{profile.username}</Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.notificationsEmptyText}>Loading request names...</Text>
+                  )}
+                </>
+              )}
             </ScrollView>
 
             <View style={styles.feedbackActions}>
@@ -877,7 +1208,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   notificationsScroll: {
-    maxHeight: 340,
+    maxHeight: 460,
   },
   notificationsContent: {
     gap: 10,
@@ -948,6 +1279,18 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
   },
+  activityInboxRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  activityInboxMessage: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: C.onSurface,
+    fontWeight: '600',
+  },
   notificationUrl: {
     fontSize: 12,
     color: C.onSurface,
@@ -968,6 +1311,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: C.onPrimary,
   },
+  notificationsBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: C.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  notificationsBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.onPrimary,
+  },
   feedbackOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -981,6 +1338,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.outlineVariant,
     gap: 12,
+    maxHeight: '85%',
   },
   feedbackTitle: {
     fontSize: 18,

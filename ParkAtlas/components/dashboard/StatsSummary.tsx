@@ -9,7 +9,7 @@ export default function StatsSummary() {
       <ThemedText type="subtitle" style={styles.header}>My Stats</ThemedText>
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
-          <MaterialCommunityIcons name="pine-tree" size={28} color="#1b5e20" style={styles.icon} />
+          <MaterialCommunityIcons name="pine-tree" size={28} color="#1b4332" style={styles.icon} />
           <ThemedText style={styles.statValue}>12</ThemedText>
           <ThemedText style={styles.statLabel}>Parks</ThemedText>
         </View>
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 19,
     marginBottom: 18,
-    color: '#1b5e20',
+    color: '#1b4332',
     letterSpacing: 0.2,
   },
   statsRow: {
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 32,
     fontWeight: '700',
-    color: '#1b5e20',
+    color: '#1b4332',
     marginBottom: 2,
     letterSpacing: 0.2,
   },

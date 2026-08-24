@@ -4,14 +4,20 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as FileSystem from 'expo-file-system/legacy';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AUTH_USER_KEY, BIOMETRIC_ENABLED_KEY, credentialsKey } from '@/constants/authConfig';
+import { mergeDuplicateAccountsForEmail } from '@/utils/accountMerge';
+import { hasProfileWithoutPassword, requiresAppleSignIn, resolveAccountIdentity } from '@/utils/accountLinking';
 import { upsertProductionUserProfile } from '@/utils/userDirectoryApi';
+import { db } from '@/utils/firebase';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AuthUser {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   avatarUrl?: string;
   phone?: string;
@@ -23,6 +29,18 @@ interface StoredCredentials {
   salt: string;
 }
 
+type FirestoreCredentialsLookup = {
+  creds: StoredCredentials | null;
+  unavailable: boolean;
+};
+
+type FirestoreEmailAuthDoc = {
+  email?: string;
+  passwordHash?: string;
+  salt?: string;
+  userId?: string;
+};
+
 const STRAVA_ACCESS_TOKEN_KEY = 'strava_access_token';
 const STRAVA_REFRESH_TOKEN_KEY = 'strava_refresh_token';
 const STRAVA_TOKEN_EXPIRY_KEY = 'strava_token_expiry';
@@ -30,6 +48,121 @@ const STRAVA_CACHE_FILE = `${FileSystem.documentDirectory}strava_data.json`;
 
 function appleProfileKey(appleUserId: string): string {
   return `parkatlas_apple_profile_${appleUserId}`;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function emailAuthDocId(email: string): string {
+  return encodeURIComponent(normalizeEmail(email));
+}
+
+function legacyEmailAuthDocId(email: string): string {
+  return normalizeEmail(email);
+}
+
+let secureStoreFailedRef = { current: false };
+
+async function safeSecureStoreGetItemAsync(key: string): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(key);
+  } catch (error) {
+    console.warn('[useAuth] SecureStore read unavailable:', error);
+    secureStoreFailedRef.current = true;
+    return null;
+  }
+}
+
+async function safeSecureStoreSetItemAsync(key: string, value: string): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(key, value);
+  } catch (error) {
+    console.warn('[useAuth] SecureStore write unavailable:', error);
+    secureStoreFailedRef.current = true;
+  }
+}
+
+async function safeSecureStoreDeleteItemAsync(key: string): Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(key);
+  } catch (error) {
+    console.warn('[useAuth] SecureStore delete unavailable:', error);
+    secureStoreFailedRef.current = true;
+  }
+}
+
+async function getFirestoreEmailCredentials(email: string): Promise<FirestoreCredentialsLookup> {
+  try {
+    const docIds = [emailAuthDocId(email), legacyEmailAuthDocId(email)];
+
+    for (const docId of docIds) {
+      const snap = await getDoc(doc(db, 'email_auth', docId));
+      if (!snap.exists()) continue;
+
+      const data = snap.data() as FirestoreEmailAuthDoc & {
+        password_hash?: string;
+      };
+      const passwordHash =
+        typeof data.passwordHash === 'string'
+          ? data.passwordHash
+          : typeof data.password_hash === 'string'
+            ? data.password_hash
+            : null;
+      const salt = typeof data.salt === 'string' ? data.salt : null;
+
+      if (!passwordHash || !salt) {
+        continue;
+      }
+
+      return {
+        creds: { passwordHash, salt },
+        unavailable: false,
+      };
+    }
+
+    return { creds: null, unavailable: false };
+  } catch {
+    return { creds: null, unavailable: true };
+  }
+}
+
+async function setFirestoreEmailCredentials(email: string, creds: StoredCredentials, userId: string): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  const payload = {
+    email: normalizedEmail,
+    passwordHash: creds.passwordHash,
+    salt: creds.salt,
+    userId,
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
+
+  await Promise.all([
+    setDoc(doc(db, 'email_auth', emailAuthDocId(normalizedEmail)), payload, { merge: true }),
+    setDoc(doc(db, 'email_auth', legacyEmailAuthDocId(normalizedEmail)), payload, { merge: true }),
+  ]);
+}
+
+async function getLocalEmailCredentials(email: string): Promise<StoredCredentials | null> {
+  const normalizedEmail = normalizeEmail(email);
+  const raw = await safeSecureStoreGetItemAsync(credentialsKey(normalizedEmail));
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredCredentials>;
+    if (typeof parsed.passwordHash !== 'string' || typeof parsed.salt !== 'string') {
+      await safeSecureStoreDeleteItemAsync(credentialsKey(normalizedEmail));
+      return null;
+    }
+    return {
+      passwordHash: parsed.passwordHash,
+      salt: parsed.salt,
+    };
+  } catch {
+    await safeSecureStoreDeleteItemAsync(credentialsKey(normalizedEmail));
+    return null;
+  }
 }
 
 // ─── Auth Error ───────────────────────────────────────────────────────────────
@@ -41,7 +174,10 @@ export class AuthError extends Error {
       | 'INVALID_CREDENTIALS'
       | 'USER_NOT_FOUND'
       | 'WEAK_PASSWORD'
-      | 'INVALID_EMAIL',
+      | 'INVALID_EMAIL'
+      | 'SERVICE_UNAVAILABLE'
+      | 'APPLE_SIGN_IN_REQUIRED'
+      | 'PASSWORD_NOT_SET',
     message: string,
   ) {
     super(message);
@@ -62,7 +198,7 @@ interface AuthContextValue {
   /** Session exists but is locked behind biometrics */
   pendingBiometricUser: AuthUser | null;
   signInWithApple: () => Promise<void>;
-  signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Prompts Face ID / Touch ID and unlocks the pending session on success */
   unlockWithBiometrics: () => Promise<boolean>;
@@ -109,6 +245,15 @@ async function hashPassword(password: string, salt: string): Promise<string> {
   return Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, salt + password);
 }
 
+function splitDisplayName(name: string): { firstName: string; lastName: string } {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -117,6 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const [pendingBiometricUser, setPendingBiometricUser] = useState<AuthUser | null>(null);
+  const [secureStoreAvailable, setSecureStoreAvailable] = useState(true);
 
   // ── Load session on mount ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -127,15 +273,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const deviceSupports = hasHardware && isEnrolled;
         setBiometricAvailable(deviceSupports);
 
-        const bioRaw = await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY);
+        const bioRaw = await safeSecureStoreGetItemAsync(BIOMETRIC_ENABLED_KEY);
         const isBioEnabled = bioRaw === 'true';
         setBiometricEnabledState(isBioEnabled);
 
-        const stored = await SecureStore.getItemAsync(AUTH_USER_KEY);
+        const stored = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
+        
+        // If SecureStore failed, mark it as unavailable
+        if (secureStoreFailedRef.current) {
+          setSecureStoreAvailable(false);
+        }
+        
         if (stored) {
           const storedUser: AuthUser = JSON.parse(stored);
-          if (isBioEnabled && deviceSupports) {
+          if (isBioEnabled && deviceSupports && secureStoreFailedRef.current === false) {
             // Lock the session — show biometric prompt on login screen
+            // Only if SecureStore is actually working
             setPendingBiometricUser(storedUser);
           } else {
             setUser(storedUser);
@@ -151,10 +304,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Helper: persist & unlock ──────────────────────────────────────────────────
   async function persistUser(authUser: AuthUser) {
-    await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(authUser));
+    await safeSecureStoreSetItemAsync(AUTH_USER_KEY, JSON.stringify(authUser));
     if (authUser.provider === 'apple') {
       const appleUserId = authUser.id.replace(/^apple_/, '');
-      await SecureStore.setItemAsync(appleProfileKey(appleUserId), JSON.stringify(authUser));
+      await safeSecureStoreSetItemAsync(appleProfileKey(appleUserId), JSON.stringify(authUser));
     }
     setPendingBiometricUser(null);
     setUser(authUser);
@@ -164,9 +317,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Update Profile ────────────────────────────────────────────────────────────
   const updateProfile = useCallback(async (name: string, avatarUrl?: string, phone?: string) => {
     if (!user) return;
+    const { firstName, lastName } = splitDisplayName(name);
     const updated: AuthUser = {
       ...user,
       name: name.trim(),
+      firstName,
+      lastName,
       ...(avatarUrl !== undefined ? { avatarUrl } : {}),
       ...(phone !== undefined ? { phone: phone.trim() } : {}),
     };
@@ -183,11 +339,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ],
       });
 
-      const stored = await SecureStore.getItemAsync(AUTH_USER_KEY);
+      const stored = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
       const cached: AuthUser | null = stored ? JSON.parse(stored) : null;
       const isSameAppleUser =
         cached?.provider === 'apple' && cached.id === `apple_${credential.user}`;
-      const appleCachedRaw = await SecureStore.getItemAsync(appleProfileKey(credential.user));
+      const appleCachedRaw = await safeSecureStoreGetItemAsync(appleProfileKey(credential.user));
       const appleCached: AuthUser | null = appleCachedRaw ? JSON.parse(appleCachedRaw) : null;
 
       const firstName = credential.fullName?.givenName ?? '';
@@ -202,6 +358,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           appleCached?.name ||
           (isSameAppleUser ? cached!.name : '') ||
           (email ? email.split('@')[0] : 'Explorer'),
+        firstName: firstName || appleCached?.firstName || (isSameAppleUser ? cached?.firstName : undefined),
+        lastName: lastName || appleCached?.lastName || (isSameAppleUser ? cached?.lastName : undefined),
         email,
         ...((isSameAppleUser && cached?.phone) || appleCached?.phone
           ? { phone: appleCached?.phone || cached?.phone }
@@ -220,33 +378,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUpWithEmail = useCallback(async (
     email: string,
     password: string,
-    name: string,
+    firstName: string,
+    lastName: string,
   ) => {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       throw new AuthError('INVALID_EMAIL', 'Please enter a valid email address.');
+    }
+    if (!cleanFirstName || !cleanLastName) {
+      throw new Error('First and last name are required.');
     }
     if (password.length < 8) {
       throw new AuthError('WEAK_PASSWORD', 'Password must be at least 8 characters.');
     }
 
-    const existing = await SecureStore.getItemAsync(credentialsKey(normalizedEmail));
-    if (existing) {
+    const identity = await resolveAccountIdentity(normalizedEmail);
+    const isRestoringProfileOnlyAccount = hasProfileWithoutPassword(identity);
+    if (identity.kind !== 'none' && !isRestoringProfileOnlyAccount) {
+      if (requiresAppleSignIn(identity)) {
+        throw new AuthError(
+          'APPLE_SIGN_IN_REQUIRED',
+          'This email already belongs to an Apple Sign-In account. Tap Continue with Apple instead of creating a new password account.'
+        );
+      }
+
+      throw new AuthError('EMAIL_EXISTS', 'An account with this email already exists. Please sign in instead.');
+    }
+
+    const [existingFirestoreLookup, existingLocal] = await Promise.all([
+      getFirestoreEmailCredentials(normalizedEmail),
+      getLocalEmailCredentials(normalizedEmail),
+    ]);
+    const existingFirestore = existingFirestoreLookup.creds;
+    if (existingFirestore || existingLocal) {
       throw new AuthError('EMAIL_EXISTS', 'An account with this email already exists.');
     }
 
     const salt = generateSalt();
     const passwordHash = await hashPassword(password, salt);
     const credentials: StoredCredentials = { passwordHash, salt };
-    await SecureStore.setItemAsync(credentialsKey(normalizedEmail), JSON.stringify(credentials));
+    await safeSecureStoreSetItemAsync(credentialsKey(normalizedEmail), JSON.stringify(credentials));
+
+    // Restoring a profile-only account reuses its existing canonical id instead of minting
+    // a new one, so friendships/activity/invites stay attached to the original identity.
+    const userId = isRestoringProfileOnlyAccount && identity.userId ? identity.userId : `email_${normalizedEmail}`;
+    await setFirestoreEmailCredentials(normalizedEmail, credentials, userId);
 
     const authUser: AuthUser = {
-      id: `email_${normalizedEmail}`,
-      name: name.trim(),
+      id: userId,
+      name: `${cleanFirstName} ${cleanLastName}`,
+      firstName: cleanFirstName,
+      lastName: cleanLastName,
       email: normalizedEmail,
       provider: 'email',
     };
+
+    try {
+      await mergeDuplicateAccountsForEmail(normalizedEmail, userId);
+    } catch {
+      // Non-blocking: account merge failures should not block sign-up.
+    }
+
     await persistUser(authUser);
   }, []);
 
@@ -254,30 +449,97 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const normalizedEmail = email.trim().toLowerCase();
 
-    const credsRaw = await SecureStore.getItemAsync(credentialsKey(normalizedEmail));
-    if (!credsRaw) {
+    const [firestoreLookup, localCreds] = await Promise.all([
+      getFirestoreEmailCredentials(normalizedEmail),
+      getLocalEmailCredentials(normalizedEmail),
+    ]);
+
+    const firestoreCreds = firestoreLookup.creds;
+
+    let creds: StoredCredentials | null = firestoreCreds;
+    if (!creds && localCreds) creds = localCreds;
+
+    if (!creds) {
+      if (firestoreLookup.unavailable) {
+        throw new AuthError('SERVICE_UNAVAILABLE', 'Cloud sign-in is temporarily unavailable. Please try again.');
+      }
+
+      const identity = await resolveAccountIdentity(normalizedEmail);
+      if (identity.kind !== 'none') {
+        if (requiresAppleSignIn(identity)) {
+          throw new AuthError(
+            'APPLE_SIGN_IN_REQUIRED',
+            'This account uses Apple Sign-In. Tap Continue with Apple to access it.'
+          );
+        }
+
+        if (hasProfileWithoutPassword(identity)) {
+          throw new AuthError(
+            'PASSWORD_NOT_SET',
+            'This account exists, but no email password is set yet. Tap Sign up with this same email and password once to restore access.'
+          );
+        }
+
+        throw new AuthError('PASSWORD_NOT_SET', 'This account exists, but no email password is set yet. Tap Sign up with this same email and password once to restore access.');
+      }
+
       throw new AuthError('USER_NOT_FOUND', 'No account found with this email.');
     }
 
-    const { passwordHash, salt }: StoredCredentials = JSON.parse(credsRaw);
+    const { passwordHash, salt } = creds;
     const inputHash = await hashPassword(password, salt);
 
     if (inputHash !== passwordHash) {
       throw new AuthError('INVALID_CREDENTIALS', 'Incorrect password.');
     }
 
+    // Ensure both stores are kept in sync for compatibility across devices/versions.
+    const normalizedCreds: StoredCredentials = { passwordHash, salt };
+    await safeSecureStoreSetItemAsync(credentialsKey(normalizedEmail), JSON.stringify(normalizedCreds));
+    if (!firestoreCreds) {
+      await setFirestoreEmailCredentials(normalizedEmail, normalizedCreds, `email_${normalizedEmail}`);
+    }
+
     // Restore any cached profile for this email (preserves any name updates)
-    const stored = await SecureStore.getItemAsync(AUTH_USER_KEY);
+    const stored = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
     const cached: AuthUser | null = stored ? JSON.parse(stored) : null;
     const isSame = cached?.id === `email_${normalizedEmail}`;
 
+    let profileFirstName: string | undefined;
+    let profileLastName: string | undefined;
+    let profileDisplayName: string | undefined;
+    try {
+      const profileSnap = await getDoc(doc(db, 'users', `email_${normalizedEmail}`));
+      if (profileSnap.exists()) {
+        const data = profileSnap.data() as Record<string, unknown>;
+        const first = typeof data.first_name === 'string' ? data.first_name.trim() : '';
+        const last = typeof data.last_name === 'string' ? data.last_name.trim() : '';
+        const fullFromParts = `${first} ${last}`.trim();
+        const full = typeof data.name === 'string' ? data.name.trim() : '';
+        profileFirstName = first || undefined;
+        profileLastName = last || undefined;
+        profileDisplayName = full || fullFromParts || undefined;
+      }
+    } catch {
+      // Non-blocking; fall back to cached/local display data.
+    }
+
     const authUser: AuthUser = {
       id: `email_${normalizedEmail}`,
-      name: isSame ? cached!.name : normalizedEmail.split('@')[0],
+      name: profileDisplayName || (isSame ? cached!.name : normalizedEmail.split('@')[0]),
+      ...((profileFirstName || (isSame && cached?.firstName)) ? { firstName: profileFirstName || cached?.firstName } : {}),
+      ...((profileLastName || (isSame && cached?.lastName)) ? { lastName: profileLastName || cached?.lastName } : {}),
       email: normalizedEmail,
       ...(isSame && cached?.phone ? { phone: cached.phone } : {}),
       provider: 'email',
     };
+
+    try {
+      await mergeDuplicateAccountsForEmail(normalizedEmail, authUser.id);
+    } catch {
+      // Non-blocking: account merge failures should not block sign-in.
+    }
+
     await persistUser(authUser);
   }, []);
 
@@ -301,7 +563,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [pendingBiometricUser]);
 
   const setBiometricEnabled = useCallback(async (enabled: boolean) => {
-    await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, enabled ? 'true' : 'false');
+    await safeSecureStoreSetItemAsync(BIOMETRIC_ENABLED_KEY, enabled ? 'true' : 'false');
     setBiometricEnabledState(enabled);
   }, []);
 
@@ -322,7 +584,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Sign Out ──────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync(AUTH_USER_KEY);
+    await safeSecureStoreDeleteItemAsync(AUTH_USER_KEY);
     setPendingBiometricUser(null);
     setUser(null);
   }, []);
@@ -331,16 +593,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentUser = user;
 
     await Promise.all([
-      SecureStore.deleteItemAsync(AUTH_USER_KEY).catch(() => {}),
-      SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY).catch(() => {}),
-      SecureStore.deleteItemAsync(STRAVA_ACCESS_TOKEN_KEY).catch(() => {}),
-      SecureStore.deleteItemAsync(STRAVA_REFRESH_TOKEN_KEY).catch(() => {}),
-      SecureStore.deleteItemAsync(STRAVA_TOKEN_EXPIRY_KEY).catch(() => {}),
+      safeSecureStoreDeleteItemAsync(AUTH_USER_KEY),
+      safeSecureStoreDeleteItemAsync(BIOMETRIC_ENABLED_KEY),
+      safeSecureStoreDeleteItemAsync(STRAVA_ACCESS_TOKEN_KEY),
+      safeSecureStoreDeleteItemAsync(STRAVA_REFRESH_TOKEN_KEY),
+      safeSecureStoreDeleteItemAsync(STRAVA_TOKEN_EXPIRY_KEY),
       FileSystem.deleteAsync(STRAVA_CACHE_FILE, { idempotent: true }).catch(() => {}),
     ]);
 
     if (currentUser?.provider === 'email' && currentUser.email) {
-      await SecureStore.deleteItemAsync(credentialsKey(currentUser.email.trim().toLowerCase())).catch(() => {});
+      const normalizedEmail = currentUser.email.trim().toLowerCase();
+      await safeSecureStoreDeleteItemAsync(credentialsKey(normalizedEmail));
+      await deleteDoc(doc(db, 'email_auth', emailAuthDocId(normalizedEmail))).catch(() => {});
     }
 
     setBiometricEnabledState(false);
@@ -359,13 +623,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new AuthError('WEAK_PASSWORD', 'Password must be at least 8 characters.');
     }
 
-    const email = user.email.trim().toLowerCase();
-    const credsRaw = await SecureStore.getItemAsync(credentialsKey(email));
-    if (!credsRaw) {
+    const email = normalizeEmail(user.email);
+    const [firestoreLookup, localCreds] = await Promise.all([
+      getFirestoreEmailCredentials(email),
+      getLocalEmailCredentials(email),
+    ]);
+
+    const firestoreCreds = firestoreLookup.creds;
+
+    let creds: StoredCredentials | null = firestoreCreds;
+    if (!creds && localCreds) creds = localCreds;
+
+    if (!creds) {
       throw new AuthError('USER_NOT_FOUND', 'No account found with this email.');
     }
 
-    const { passwordHash, salt }: StoredCredentials = JSON.parse(credsRaw);
+    const { passwordHash, salt } = creds;
     const inputHash = await hashPassword(currentPassword, salt);
     if (inputHash !== passwordHash) {
       throw new AuthError('INVALID_CREDENTIALS', 'Current password is incorrect.');
@@ -374,7 +647,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const nextSalt = generateSalt();
     const nextHash = await hashPassword(nextPassword, nextSalt);
     const updatedCredentials: StoredCredentials = { passwordHash: nextHash, salt: nextSalt };
-    await SecureStore.setItemAsync(credentialsKey(email), JSON.stringify(updatedCredentials));
+    await safeSecureStoreSetItemAsync(credentialsKey(email), JSON.stringify(updatedCredentials));
+    await setFirestoreEmailCredentials(email, updatedCredentials, user.id);
   }, [user]);
 
   return (
@@ -382,9 +656,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
-        biometricAvailable,
+        biometricAvailable: biometricAvailable && secureStoreAvailable,
         biometricEnabled,
-        pendingBiometricUser,
+        pendingBiometricUser: secureStoreAvailable ? pendingBiometricUser : null,
         signInWithApple,
         signUpWithEmail,
         signInWithEmail,

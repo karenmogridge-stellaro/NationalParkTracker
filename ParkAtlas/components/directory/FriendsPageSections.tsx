@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   },
   toastText: {
     fontSize: 13,
-    color: '#18421f',
+    color: '#1b4332',
     fontWeight: '600',
   },
 });

@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as StoreReview from 'expo-store-review';
+import { collection, deleteDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
+import { deleteParkVisitActivity, upsertParkVisitActivity } from '@/utils/userDirectoryApi';
+import { db } from '@/utils/firebase';
 
 const LEGACY_VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
 const REVIEW_PROMPTED_LEGACY_FILE = `${FileSystem.documentDirectory}review_prompted.json`;
@@ -16,6 +19,11 @@ function visitsFileForUser(userId: string): string {
 function reviewPromptedFileForUser(userId: string): string {
   const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${FileSystem.documentDirectory}review_prompted_${safeUserId}.json`;
+}
+
+function migrationMarkerFileForUser(userId: string): string {
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${FileSystem.documentDirectory}visits_firestore_migrated_${safeUserId}.json`;
 }
 
 export interface ParkVisit {
@@ -54,19 +62,73 @@ interface VisitedParksState {
   totalStats: { totalOutings: number; uniqueParks: number; totalMiles: number; totalElevationFt: number };
 }
 
+type FirestoreParkVisitDoc = {
+  visitId?: string;
+  parkId?: string;
+  parkName?: string;
+  trailName?: string;
+  photoUri?: string;
+  dateVisited?: string;
+  dateUnknown?: boolean;
+  distanceMiles?: number;
+  elevationGainFt?: number;
+  activityType?: string;
+  rating?: number;
+};
+
+function mapFirestoreVisit(docId: string, data: FirestoreParkVisitDoc): ParkVisit | null {
+  if (!data?.parkId || !data?.parkName) return null;
+  return {
+    visitId: typeof data.visitId === 'string' ? data.visitId : docId,
+    parkId: data.parkId,
+    parkName: data.parkName,
+    trailName: typeof data.trailName === 'string' ? data.trailName : '',
+    photoUri: typeof data.photoUri === 'string' ? data.photoUri : undefined,
+    dateVisited: typeof data.dateVisited === 'string' ? data.dateVisited : undefined,
+    dateUnknown: typeof data.dateUnknown === 'boolean' ? data.dateUnknown : undefined,
+    distanceMiles: typeof data.distanceMiles === 'number' ? data.distanceMiles : undefined,
+    elevationGainFt: typeof data.elevationGainFt === 'number' ? data.elevationGainFt : undefined,
+    activityType: typeof data.activityType === 'string' ? data.activityType : undefined,
+    rating: typeof data.rating === 'number' ? data.rating : undefined,
+  };
+}
+
 const VisitedParksContext = createContext<VisitedParksState | null>(null);
 
 /** Wrap your root layout with this so every useVisitedParks() call shares the same state. */
 export function VisitedParksProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [visits, setVisits] = useState<ParkVisit[]>([]);
+  const visitsRef = useRef(visits);
+  useEffect(() => {
+    visitsRef.current = visits;
+  }, [visits]);
   const [loading, setLoading] = useState(true);
   const [reviewPrompted, setReviewPrompted] = useState(false);
   const [reviewPromptLoaded, setReviewPromptLoaded] = useState(false);
 
-  // Load user-scoped visits from disk whenever the authenticated user changes.
-  // Falls back to GUEST_USER_ID if not logged in, enabling offline data persistence.
   useEffect(() => {
+    if (user?.id) {
+      setLoading(true);
+      const visitQuery = query(collection(db, 'park_visits'), where('userId', '==', user.id));
+      const unsubscribe = onSnapshot(visitQuery, (snapshot) => {
+        const nextVisits = snapshot.docs
+          .map((snap) => mapFirestoreVisit(snap.id, snap.data() as FirestoreParkVisitDoc))
+          .filter((visit): visit is ParkVisit => !!visit)
+          .sort((a, b) => {
+            const aTime = new Date(a.dateVisited || '1970-01-01').getTime();
+            const bTime = new Date(b.dateVisited || '1970-01-01').getTime();
+            return bTime - aTime;
+          });
+        setVisits(nextVisits);
+        setLoading(false);
+      });
+
+      void migrateLocalVisitsToFirestore(user.id, user.name);
+
+      return () => unsubscribe();
+    }
+
     (async () => {
       const userId = user?.id || GUEST_USER_ID;
       setLoading(true);
@@ -149,6 +211,11 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   }, [markReviewPrompted, reviewPromptLoaded, reviewPrompted, user?.id, visits]);
 
   const persist = useCallback(async (updated: ParkVisit[]) => {
+    if (user?.id) {
+      setVisits(updated);
+      return;
+    }
+
     const userId = user?.id || GUEST_USER_ID;
     await FileSystem.writeAsStringAsync(visitsFileForUser(userId), JSON.stringify(updated));
     setVisits(updated);
@@ -174,18 +241,65 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       activityType: activityType || undefined,
       rating: rating && rating >= 1 && rating <= 5 ? rating : undefined,
     };
-    const current = await loadFromDiskForUser(userId);
-    await persist([visit, ...current]);
-  }, [persist, user?.id]);
+    if (user?.id) {
+      setVisits((prev) => [visit, ...prev.filter((v) => v.visitId !== visit.visitId)]);
+    } else {
+      const current = await loadFromDiskForUser(userId);
+      await persist([visit, ...current]);
+    }
+
+    if (user?.id) {
+      try {
+        await upsertParkVisitActivity({
+          visitId: visit.visitId,
+          userId: user.id,
+          userName: user.name,
+          parkId: visit.parkId,
+          parkName: visit.parkName,
+          trailName: visit.trailName,
+          dateVisited: visit.dateVisited,
+          distanceMiles: visit.distanceMiles,
+          photoUri: visit.photoUri,
+        });
+      } catch {
+        // Non-blocking: keep local visit even if cloud sync fails.
+      }
+    }
+  }, [persist, user?.id, user?.name]);
 
   const removeVisit = useCallback(async (visitId: string) => {
     const userId = user?.id || GUEST_USER_ID;
-    const current = await loadFromDiskForUser(userId);
-    await persist(current.filter((v) => v.visitId !== visitId));
+    if (user?.id) {
+      setVisits((prev) => prev.filter((v) => v.visitId !== visitId));
+    } else {
+      const current = await loadFromDiskForUser(userId);
+      await persist(current.filter((v) => v.visitId !== visitId));
+    }
+
+    if (user?.id) {
+      try {
+        await deleteParkVisitActivity(user.id, visitId);
+      } catch {
+        // Non-blocking: keep local deletion even if cloud sync fails.
+      }
+    }
   }, [persist, user?.id]);
 
   const deleteAllDataForCurrentUser = useCallback(async () => {
     const userId = user?.id || GUEST_USER_ID;
+
+    if (user?.id) {
+      // Let failures propagate so the caller can tell the user the delete didn't complete,
+      // instead of clearing local state while the cloud data (and any account deletion) still succeeds/fails silently.
+      const snapshot = await getDocs(query(collection(db, 'park_visits'), where('userId', '==', user.id)));
+      await Promise.all(snapshot.docs.map((snap) => deleteDoc(snap.ref)));
+      await FileSystem.deleteAsync(reviewPromptedFileForUser(userId), { idempotent: true }).catch(() => {});
+
+      setVisits([]);
+      setReviewPrompted(false);
+      return;
+    }
+
     await Promise.all([
       FileSystem.deleteAsync(visitsFileForUser(userId), { idempotent: true }).catch(() => {}),
       FileSystem.deleteAsync(reviewPromptedFileForUser(userId), { idempotent: true }).catch(() => {}),
@@ -206,7 +320,9 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   ) => {
     const userId = user?.id || GUEST_USER_ID;
     const { photoUri, distanceMiles, dateVisited, dateUnknown, elevationGainFt, activityType, rating } = opts ?? {};
-    const current = await loadFromDiskForUser(userId);
+    // Read the latest visits via ref, not the closed-over `visits` state, so two quick
+    // edits in a row each build on the other's result instead of one clobbering the other.
+    const current = user?.id ? visitsRef.current : await loadFromDiskForUser(userId);
     const updated = current.map((v): ParkVisit => {
       if (v.visitId !== visitId) return v;
       const hasExplicitDate = dateUnknown !== undefined || dateVisited !== undefined;
@@ -227,7 +343,28 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       };
     });
     await persist(updated);
-  }, [persist, user?.id]);
+
+    if (user?.id) {
+      const updatedVisit = updated.find((v) => v.visitId === visitId);
+      if (updatedVisit) {
+        try {
+          await upsertParkVisitActivity({
+            visitId: updatedVisit.visitId,
+            userId: user.id,
+            userName: user.name,
+            parkId: updatedVisit.parkId,
+            parkName: updatedVisit.parkName,
+            trailName: updatedVisit.trailName,
+            dateVisited: updatedVisit.dateVisited,
+            distanceMiles: updatedVisit.distanceMiles,
+            photoUri: updatedVisit.photoUri,
+          });
+        } catch {
+          // Non-blocking: keep local update even if cloud sync fails.
+        }
+      }
+    }
+  }, [persist, user?.id, user?.name]);
 
   const hasVisited = useCallback((parkId: string) => {
     return visits.some((v) => v.parkId === parkId);
@@ -255,6 +392,71 @@ export function useVisitedParks(): VisitedParksState {
   const ctx = useContext(VisitedParksContext);
   if (!ctx) throw new Error('useVisitedParks must be used inside <VisitedParksProvider>');
   return ctx;
+}
+
+async function migrateLocalVisitsToFirestore(userId: string, userName: string): Promise<void> {
+  try {
+    const markerPath = migrationMarkerFileForUser(userId);
+    const markerInfo = await FileSystem.getInfoAsync(markerPath);
+    let markerVersion = 0;
+    if (markerInfo.exists) {
+      try {
+        const raw = await FileSystem.readAsStringAsync(markerPath);
+        const parsed = JSON.parse(raw) as { version?: number };
+        markerVersion = typeof parsed.version === 'number' ? parsed.version : 1;
+      } catch {
+        markerVersion = 1;
+      }
+    }
+    if (markerVersion >= 2) return;
+
+    const userScopedVisits = await loadFromDiskFile(visitsFileForUser(userId));
+    const localVisitById = new Map<string, ParkVisit>();
+    userScopedVisits.forEach((visit) => {
+      if (visit?.visitId) localVisitById.set(visit.visitId, visit);
+    });
+    const localVisits = Array.from(localVisitById.values());
+
+    const cloudSnapshot = await getDocs(query(collection(db, 'park_visits'), where('userId', '==', userId)));
+
+    // Cleanup path for earlier buggy migration versions that could import another account's legacy visits.
+    if (markerVersion > 0) {
+      const localVisitIds = new Set(localVisits.map((visit) => visit.visitId));
+      await Promise.all(
+        cloudSnapshot.docs
+          .filter((snap) => {
+            const cloudVisitId = snap.data()?.visitId;
+            return typeof cloudVisitId !== 'string' || !localVisitIds.has(cloudVisitId);
+          })
+          .map((snap) => deleteDoc(snap.ref))
+      );
+    }
+
+    if (localVisits.length > 0) {
+      await Promise.all(
+        localVisits.map((visit) =>
+          upsertParkVisitActivity({
+            visitId: visit.visitId,
+            userId,
+            userName,
+            parkId: visit.parkId,
+            parkName: visit.parkName,
+            trailName: visit.trailName,
+            dateVisited: visit.dateVisited,
+            distanceMiles: visit.distanceMiles,
+            photoUri: visit.photoUri,
+          })
+        )
+      );
+    }
+
+    await FileSystem.writeAsStringAsync(
+      markerPath,
+      JSON.stringify({ version: 2, migratedAt: new Date().toISOString(), migratedCount: localVisits.length })
+    );
+  } catch {
+    // Non-blocking: realtime Firestore usage should continue even if migration fails.
+  }
 }
 
 async function loadFromDiskForUser(userId: string): Promise<ParkVisit[]> {
