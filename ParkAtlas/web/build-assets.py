@@ -20,6 +20,7 @@ BRAND = (27, 67, 50)
 INK = (28, 28, 24)
 MUTED = (66, 73, 62)
 LIGHT = (245, 247, 246)
+LIGHT_RING = (221, 227, 223)
 MINT = (212, 245, 221)
 
 STATE_NAMES = {
@@ -53,43 +54,96 @@ def font(size: int, heavy: bool = False) -> ImageFont.FreeTypeFont:
 def load_parks() -> list[tuple[str, str]]:
     src = PARKS_TS.read_text()
     block = src.split("export const PARKS", 1)[1].split("];", 1)[0]
-    rows = re.findall(r"name:\s*'([^']+)'.*?state:\s*'([A-Z]{2})'", block)
-    return sorted(rows, key=lambda r: (STATE_NAMES.get(r[1], r[1]), r[0]))
+    return re.findall(r"name:\s*'([^']+)'.*?state:\s*'([A-Z]{2})'", block)
+
+
+def group_by_state(parks: list[tuple[str, str]]) -> list[tuple[str, list[str]]]:
+    groups: dict[str, list[str]] = {}
+    for name, code in parks:
+        groups.setdefault(STATE_NAMES.get(code, code), []).append(name)
+    return sorted((state, sorted(names)) for state, names in groups.items())
+
+
+def draw_ring(d: ImageDraw.ImageDraw, cx: int, cy: int, r: int, width: int, pct: float, track, fill) -> None:
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=track, width=width)
+    if pct > 0:
+        d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + 360 * pct, fill=fill, width=width)
+
+
+RANKS = [("Trailhead", 0), ("Day Hiker", 1), ("Ranger", 5), ("Pathfinder", 15), ("Trailblazer", 30), ("Summit", 63)]
 
 
 def build_checklist(parks: list[tuple[str, str]]) -> None:
     # US Letter at 200 dpi.
     W, H = 1700, 2200
+    M = 90  # page margin
     page = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(page)
 
-    # Header band
-    d.rectangle([0, 0, W, 260], fill=BRAND)
+    # ── Header (white so the green logo reads) ─────────────────────────────
     logo = Image.open(LOGO).convert("RGBA").resize((150, 150), Image.LANCZOS)
-    page.paste(logo, (90, 55), logo)
-    d.text((270, 70), "The 63 U.S. National Parks", font=font(74, True), fill="white")
-    d.text((270, 160), "Your checklist. Track them all in the ParkAtlas app.", font=font(34), fill=MINT)
+    page.paste(logo, (M, 60), logo)
+    d.text((M + 175, 62), "The 63 U.S. National Parks", font=font(72, True), fill=INK)
+    d.text((M + 178, 150), "Your checklist — grouped by state. Track them all in the ParkAtlas app.", font=font(30), fill=MUTED)
 
-    # Two columns of checkboxes
-    col_x = [90, 900]
-    y0 = 320
-    row_h = 56
-    per_col = (len(parks) + 1) // 2
-    name_f = font(30, True)
-    state_f = font(24)
-    for i, (name, code) in enumerate(parks):
-        col = 0 if i < per_col else 1
-        y = y0 + (i - col * per_col) * row_h
+    # Progress ring + score box, top right
+    cx, cy, r = W - M - 95, 135, 78
+    draw_ring(d, cx, cy, r, 14, 0.0, LIGHT_RING, BRAND)
+    d.text((cx, cy - 8), "___", font=font(44, True), fill=INK, anchor="mm")
+    d.text((cx, cy + 40), "of 63", font=font(22), fill=MUTED, anchor="mm")
+
+    d.line([(M, 240), (W - M, 240)], fill=BRAND, width=4)
+
+    # ── Body: states A→Z, parks A→Z within each, flowing down 3 columns ──
+    groups = group_by_state(parks)
+    col_w = (W - 2 * M - 2 * 40) // 3
+    col_x = [M + i * (col_w + 40) for i in range(3)]
+    y_top, y_bottom = 275, H - 340
+    header_h, row_h, gap_after_group = 42, 40, 14
+
+    state_f = font(24, True)
+    park_f = font(27, True)
+
+    # Pre-measure so groups never split across a column break.
+    def group_height(names: list[str]) -> int:
+        return header_h + row_h * len(names) + gap_after_group
+
+    col, y = 0, y_top
+    for state, names in groups:
+        gh = group_height(names)
+        if y + gh > y_bottom and col < 2:
+            col, y = col + 1, y_top
         x = col_x[col]
-        d.rounded_rectangle([x, y, x + 34, y + 34], radius=7, outline=BRAND, width=3)
-        d.text((x + 54, y - 2), name, font=name_f, fill=INK)
-        w = d.textlength(name, font=name_f)
-        d.text((x + 54 + w + 14, y + 4), STATE_NAMES.get(code, code), font=state_f, fill=MUTED)
 
-    # Footer
-    d.rectangle([0, H - 150, W, H], fill=LIGHT)
-    d.text((90, H - 110), "parkatlas.io  ·  @parkatlas.app  ·  Free on iOS", font=font(30, True), fill=BRAND)
-    d.text((90, H - 62), f"{len(parks)} parks. One ring. Where will you go next?", font=font(26), fill=MUTED)
+        # State header pill
+        d.rounded_rectangle([x, y, x + col_w, y + header_h - 8], radius=10, fill=BRAND)
+        d.text((x + 16, y + 5), state.upper(), font=state_f, fill="white")
+        d.text((x + col_w - 16, y + 7), f"{len(names)}", font=font(22, True), fill=MINT, anchor="ra")
+        y += header_h
+
+        for name in names:
+            d.rounded_rectangle([x + 8, y + 3, x + 8 + 28, y + 31], radius=6, outline=BRAND, width=3)
+            # SF Compact lacks the Hawaiian okina glyph; a straight apostrophe reads fine in print.
+            d.text((x + 54, y + 1), name.replace("\u02bb", "'"), font=park_f, fill=INK)
+            y += row_h
+        y += gap_after_group
+
+    # ── Footer: rank ladder + brand ────────────────────────────────────────
+    fy = H - 310
+    d.rounded_rectangle([M, fy, W - M, H - 95], radius=28, fill=LIGHT)
+    d.text((M + 36, fy + 26), "EARN YOUR RANK", font=font(22, True), fill=BRAND)
+    d.text((M + 36, fy + 58), "Every park you log moves you up the ladder in the app.", font=font(24), fill=MUTED)
+
+    # Ladder: six nodes across the card
+    lx0, lx1, ly = M + 70, W - M - 70, fy + 132
+    d.line([(lx0, ly), (lx1, ly)], fill=LIGHT_RING, width=8)
+    for i, (title, n) in enumerate(RANKS):
+        x = lx0 + (lx1 - lx0) * i // (len(RANKS) - 1)
+        d.ellipse([x - 18, ly - 18, x + 18, ly + 18], fill=BRAND if i == 0 else "white", outline=BRAND, width=5)
+        d.text((x, ly + 34), title, font=font(24, True), fill=INK, anchor="ma")
+        d.text((x, ly + 64), f"{n} park{'s' if n != 1 else ''}", font=font(20), fill=MUTED, anchor="ma")
+
+    d.text((W // 2, H - 52), "parkatlas.io  ·  @parkatlas.io  ·  Free on iOS", font=font(26, True), fill=BRAND, anchor="mm")
 
     out = WEB / "parkatlas-63-checklist.pdf"
     page.save(out, "PDF", resolution=200.0)

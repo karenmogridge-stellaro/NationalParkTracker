@@ -68,7 +68,7 @@ function CelebrationHost() {
     message: payload
       ? `${rankLabel} — ${payload.uniqueParks} of 63 U.S. National Parks. Tracking them all on ParkAtlas.`
       : '',
-    onShared: () => toast.success("Tag @parkatlas.app and we'll reshare it", { icon: 'logo-instagram', silent: true, durationMs: 3200 }),
+    onShared: () => toast.success("Tag @parkatlas.io and we'll reshare it", { icon: 'logo-instagram', silent: true, durationMs: 3200 }),
     onError: () => toast.error("Couldn't create the share card. Try again."),
   });
   const parkState = payload ? PARKS.find((p) => p.id === payload.parkId)?.state ?? '' : '';

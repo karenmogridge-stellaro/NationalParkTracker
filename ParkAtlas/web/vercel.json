@@ -3,7 +3,7 @@
   "trailingSlash": false,
   "redirects": [
     { "source": "/get", "destination": "https://apps.apple.com/app/id6760982981", "permanent": false },
-    { "source": "/ig", "destination": "https://www.instagram.com/parkatlas.app/", "permanent": false },
+    { "source": "/ig", "destination": "https://www.instagram.com/parkatlas.io/", "permanent": false },
     { "source": "/invite/:code", "destination": "https://apps.apple.com/app/id6760982981", "permanent": false }
   ],
   "headers": [

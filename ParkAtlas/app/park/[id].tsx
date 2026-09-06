@@ -81,7 +81,7 @@ export default function ParkDetailScreen() {
   const shareMessage = park
     ? `I've visited ${nationalParkCount} of 63 U.S. National Parks — latest: ${park.name}. Tracking them all on ParkAtlas.`
     : '';
-  const onShared = () => toast.success('Tag @parkatlas.app and we\'ll reshare it', { icon: 'logo-instagram', silent: true, durationMs: 3200 });
+  const onShared = () => toast.success('Tag @parkatlas.io and we\'ll reshare it', { icon: 'logo-instagram', silent: true, durationMs: 3200 });
   const onShareError = () => toast.error("Couldn't create the share card. Try again.");
 
   const storyShare = useShareCard({ message: shareMessage, format: 'story', onShared, onError: onShareError });
