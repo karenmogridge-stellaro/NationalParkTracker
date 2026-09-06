@@ -1,5 +1,22 @@
 {
-  "ios": {
-    "bundleIdentifier": "com.anonymous.react"
+  "expo": {
+    "name": "ParkAtlas",
+    "slug": "ParkAtlas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.parkatlas.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f1f521a3-ce2d-48c9-9e7f-95036a010415"
+      }
+    },
+    "owner": "karenmogridge"
   }
 }
