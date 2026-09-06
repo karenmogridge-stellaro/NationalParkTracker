@@ -6,7 +6,7 @@ This project now includes mobile-side invite handling and web association artifa
 
 1. Mobile route handling:
 - `parkatlas://invite?code=...`
-- `https://parkatlas.app/invite/{inviteCode}`
+- `https://parkatlas.io/invite/{inviteCode}`
 - Screens: `app/invite.tsx` and `app/invite/[inviteCode].tsx`
 
 2. Invite persistence and accept flow:
@@ -31,11 +31,11 @@ With your Play signing SHA-256 certificate fingerprint for package:
 
 ## Hosting requirements
 
-Deploy the `frontend` build so these URLs are publicly reachable from `https://parkatlas.app`:
+Deploy the `frontend` build so these URLs are publicly reachable from `https://parkatlas.io`:
 
-1. `https://parkatlas.app/.well-known/apple-app-site-association`
-2. `https://parkatlas.app/.well-known/assetlinks.json`
-3. `https://parkatlas.app/invite/index.html`
+1. `https://parkatlas.io/.well-known/apple-app-site-association`
+2. `https://parkatlas.io/.well-known/assetlinks.json`
+3. `https://parkatlas.io/invite/index.html`
 
 ## Rewrite rules (critical)
 
@@ -54,11 +54,11 @@ Configure hosting to rewrite invite paths to the invite landing page while prese
 - `assetlinks.json` should be JSON
 
 2. Check mobile config:
-- iOS associated domain in `app.json`: `applinks:parkatlas.app`
-- Android intent filter in `app.json` for `https://parkatlas.app/invite/`
+- iOS associated domain in `app.json`: `applinks:parkatlas.io`
+- Android intent filter in `app.json` for `https://parkatlas.io/invite/`
 
 3. End-to-end test:
 - Send invite from app
-- Open `https://parkatlas.app/invite/{code}` on a device with app installed
+- Open `https://parkatlas.io/invite/{code}` on a device with app installed
 - Confirm app opens to invite screen
 - Tap Accept and verify friend connection is created

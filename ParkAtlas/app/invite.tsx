@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 
-// The parkatlas.app/invite/{code} deep link requires hosting/domain setup that isn't
+// The parkatlas.io/invite/{code} deep link requires hosting/domain setup that isn't
 // live yet, so invites share the store listing directly — it always works.
 const APP_STORE_URL = 'https://apps.apple.com/app/id6760982981';
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.parkatlas.mobile';

@@ -375,7 +375,7 @@ const signInDev = useCallback(async () => {
   const devUser: AuthUser = {
     id: 'dev_user',
     name: 'Dev User',
-    email: 'dev@parkatlas.app',
+    email: 'dev@parkatlas.io',
     provider: 'email',
   };
   await persistUser(devUser);
@@ -385,7 +385,7 @@ const signInDev = useCallback(async () => {
 **Key Points:**
 - Only visible when `__DEV__ === true` (development builds)
 - **NOT visible in TestFlight or production builds**
-- Signs in as: `dev@parkatlas.app` with name `Dev User`
+- Signs in as: `dev@parkatlas.io` with name `Dev User`
 
 ### Mock Test Friend Data
 

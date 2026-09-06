@@ -37,7 +37,7 @@
           "data": [
             {
               "scheme": "https",
-              "host": "parkatlas.app",
+              "host": "parkatlas.io",
               "pathPrefix": "/invite/"
             }
           ],

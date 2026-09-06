@@ -671,7 +671,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const devUser: AuthUser = {
       id: 'dev_user',
       name: 'Dev User',
-      email: 'dev@parkatlas.app',
+      email: 'dev@parkatlas.io',
       provider: 'email',
     };
     await persistUser(devUser);

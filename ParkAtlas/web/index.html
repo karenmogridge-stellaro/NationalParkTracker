@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ParkAtlas — Track all 63 U.S. National Parks</title>
+  <meta name="description" content="ParkAtlas is the simplest way to track your journey through all 63 U.S. national parks. Log visits, earn ranks, find parks near you, and share your progress. Free on iOS." />
+  <link rel="canonical" href="https://parkatlas.io/" />
+  <link rel="icon" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+
+  <!-- Smart App Banner (Safari on iOS) -->
+  <meta name="apple-itunes-app" content="app-id=6760982981" />
+
+  <!-- Social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="ParkAtlas" />
+  <meta property="og:title" content="ParkAtlas — Track all 63 U.S. National Parks" />
+  <meta property="og:description" content="One ring. 63 parks. Log visits, earn ranks, and share your progress. Free on iOS." />
+  <meta property="og:url" content="https://parkatlas.io/" />
+  <meta property="og:image" content="https://parkatlas.io/og.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ParkAtlas — Track all 63 U.S. National Parks" />
+  <meta name="twitter:description" content="One ring. 63 parks. Log visits, earn ranks, and share your progress. Free on iOS." />
+  <meta name="twitter:image" content="https://parkatlas.io/og.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "MobileApplication",
+    "name": "ParkAtlas",
+    "operatingSystem": "iOS",
+    "applicationCategory": "TravelApplication",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "url": "https://parkatlas.io/",
+    "downloadUrl": "https://apps.apple.com/app/id6760982981",
+    "description": "Track your journey through all 63 U.S. national parks."
+  }
+  </script>
+</head>
+<body>
+  <header class="nav">
+    <a class="brand" href="/">
+      <img src="/logo.png" alt="" width="36" height="36" />
+      <span>ParkAtlas</span>
+    </a>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#checklist">Checklist</a>
+      <a class="nav-cta" href="/get">Get the app</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Free on iOS</p>
+        <h1>All 63 national parks.<br />One ring.</h1>
+        <p class="lede">
+          ParkAtlas is the simplest way to track your journey through America's national parks —
+          and to see how far you've come.
+        </p>
+        <div class="cta-row">
+          <a class="appstore" href="/get" aria-label="Download on the App Store">
+            <img src="/app-store-badge.svg" alt="Download on the App Store" width="180" height="60" />
+          </a>
+          <a class="ig" href="https://www.instagram.com/parkatlas.app/" target="_blank" rel="noopener">
+            @parkatlas.app
+          </a>
+        </div>
+        <ul class="proof">
+          <li>63 national parks + state parks</li>
+          <li>Works without an account</li>
+          <li>No ads</li>
+        </ul>
+      </div>
+      <div class="hero-phone">
+        <img src="/screens/01-home-progress.png" alt="ParkAtlas home screen showing 8 of 63 parks visited and Ranger rank" width="390" height="847" loading="eager" />
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <article>
+        <img src="/screens/05-rank-up.png" alt="Rank up celebration: Pathfinder" loading="lazy" />
+        <h3>Earn your rank</h3>
+        <p>Every park fills the ring and moves you up — Trailhead, Day Hiker, Ranger, Pathfinder, Trailblazer, Summit. First-time parks get confetti.</p>
+      </article>
+      <article>
+        <img src="/screens/02-park-detail.png" alt="Yosemite park page with popular trails" loading="lazy" />
+        <h3>Every park, every trail</h3>
+        <p>Curated trails with distances, camping and fee details, directions, and NPS links. Tap a trail to log it. Only remember the year? Log just that.</p>
+      </article>
+      <article>
+        <img src="/screens/04-nearby-parks.png" alt="Parks near you sheet listing nearby national and state parks" loading="lazy" />
+        <h3>Parks near you</h3>
+        <p>Open the app and see national and state parks within reach that you haven't visited. One tap adds them to your wishlist.</p>
+      </article>
+      <article>
+        <img src="/screens/03-explore-map.png" alt="Explore map with visited parks highlighted" loading="lazy" />
+        <h3>Your map, your friends</h3>
+        <p>Follow friends, send a High-Five when they log a park, and share your own park cards to Stories. Link Strava and hikes log themselves.</p>
+      </article>
+    </section>
+
+    <section id="checklist" class="checklist">
+      <div class="checklist-card">
+        <div>
+          <p class="eyebrow">Free download</p>
+          <h2>The 63-park checklist</h2>
+          <p>A clean, printable one-pager of every U.S. national park by state. Tick them off on the fridge; track them in the app.</p>
+        </div>
+        <!--
+          Replace the form action with your Buttondown (or Mailchimp) embed URL.
+          Buttondown: https://buttondown.com/api/emails/embed-subscribe/<your-newsletter>
+        -->
+        <form class="capture" action="https://buttondown.com/api/emails/embed-subscribe/parkatlas" method="post" target="_blank">
+          <label for="email" class="sr-only">Email address</label>
+          <input id="email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+          <input type="hidden" name="tag" value="checklist" />
+          <button type="submit">Send me the checklist</button>
+          <p class="fine">One email with the PDF. Occasional park news after that. Unsubscribe anytime.</p>
+        </form>
+        <a class="direct" href="/parkatlas-63-checklist.pdf" download>or download it directly →</a>
+      </div>
+    </section>
+
+    <section class="final-cta">
+      <h2>63 parks. One ring.<br />Where will you go next?</h2>
+      <a class="appstore" href="/get" aria-label="Download on the App Store">
+        <img src="/app-store-badge.svg" alt="Download on the App Store" width="180" height="60" />
+      </a>
+    </section>
+  </main>
+
+  <footer>
+    <div class="foot-brand">
+      <img src="/logo.png" alt="" width="28" height="28" />
+      <span>ParkAtlas</span>
+    </div>
+    <nav>
+      <a href="/privacy">Privacy</a>
+      <a href="mailto:info@stellaroos.com">Support</a>
+      <a href="https://www.instagram.com/parkatlas.app/" target="_blank" rel="noopener">Instagram</a>
+    </nav>
+    <p class="fine">© 2026 Stellaroos. Not affiliated with the National Park Service.</p>
+  </footer>
+</body>
+</html>

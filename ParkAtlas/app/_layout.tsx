@@ -4,7 +4,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
-import { LogBox } from 'react-native';
+import { LogBox, StyleSheet, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -12,8 +12,11 @@ import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { VisitedParksProvider, useVisitedParks } from '@/hooks/useVisitedParks';
 import { FriendsProvider } from '@/hooks/useFriends';
 import { WishlistProvider } from '@/hooks/useWishlist';
-import { ToastProvider } from '@/components/ui/Toast';
+import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CelebrationOverlay, type CelebrationPayload } from '@/components/CelebrationOverlay';
+import { ShareCard } from '@/components/ShareCard';
+import { useShareCard } from '@/hooks/useShareCard';
+import { PARKS } from '@/data/parksData';
 import { NameCaptureSheet } from '@/components/NameCaptureSheet';
 import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
 
@@ -57,13 +60,47 @@ function CelebrationHost() {
       .catch(() => {});
   }, []);
 
+  const payload = demo ?? lastNewParkEvent;
+  const toast = useToast();
+  const rankLabel = payload?.newRank ? `New rank: ${payload.newRank.title}` : payload ? `${payload.uniqueParks} parks` : '';
+  const { ref: shareRef, share, sharing } = useShareCard({
+    format: 'story',
+    message: payload
+      ? `${rankLabel} — ${payload.uniqueParks} of 63 U.S. National Parks. Tracking them all on ParkAtlas.`
+      : '',
+    onShared: () => toast.success("Tag @parkatlas.app and we'll reshare it", { icon: 'logo-instagram', silent: true, durationMs: 3200 }),
+    onError: () => toast.error("Couldn't create the share card. Try again."),
+  });
+  const parkState = payload ? PARKS.find((p) => p.id === payload.parkId)?.state ?? '' : '';
+
   return (
-    <CelebrationOverlay
-      payload={demo ?? lastNewParkEvent}
-      onDismiss={() => { setDemo(null); clearNewParkEvent(); }}
-    />
+    <>
+      <CelebrationOverlay
+        payload={payload}
+        onDismiss={() => { setDemo(null); clearNewParkEvent(); }}
+        onShare={() => { void share(); }}
+        sharing={sharing}
+      />
+      {payload ? (
+        <View style={hostStyles.offscreen} pointerEvents="none">
+          <ShareCard
+            ref={shareRef}
+            format="story"
+            eyebrow={payload.newRank ? 'NEW RANK UNLOCKED' : 'MILESTONE'}
+            parkName={payload.newRank ? payload.newRank.title : `${payload.uniqueParks} parks`}
+            state={parkState}
+            nationalVisited={payload.uniqueParks}
+            detail={payload.newRank ? `Unlocked at ${payload.parkName}` : payload.parkName}
+          />
+        </View>
+      ) : null}
+    </>
   );
 }
+
+const hostStyles = StyleSheet.create({
+  offscreen: { position: 'absolute', left: -10000, top: 0 },
+});
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

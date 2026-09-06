@@ -5,6 +5,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
 import { rankForCount, TOTAL_NATIONAL_PARKS } from '@/utils/ranks';
 
+export type ShareCardFormat = 'card' | 'story';
+
 export type ShareCardProps = {
   parkName: string;
   state: string;
@@ -13,23 +15,36 @@ export type ShareCardProps = {
   photoUri?: string;
   /** Optional line under the park name, e.g. "3 visits · 12.4 mi". */
   detail?: string;
+  /** Overrides the "I VISITED" eyebrow, e.g. "NEW RANK". */
+  eyebrow?: string;
+  /** 'card' = 3:4 for feeds/iMessage; 'story' = 9:16 for Instagram/TikTok Stories. */
+  format?: ShareCardFormat;
 };
 
 export const SHARE_CARD_WIDTH = 360;
 export const SHARE_CARD_HEIGHT = 480;
+export const SHARE_STORY_WIDTH = 360;
+export const SHARE_STORY_HEIGHT = 640;
+
+export function shareCardSize(format: ShareCardFormat = 'card'): { width: number; height: number } {
+  return format === 'story'
+    ? { width: SHARE_STORY_WIDTH, height: SHARE_STORY_HEIGHT }
+    : { width: SHARE_CARD_WIDTH, height: SHARE_CARD_HEIGHT };
+}
 
 /**
- * Fixed-size 3:4 card designed to be captured with react-native-view-shot.
+ * Fixed-size card designed to be captured with react-native-view-shot.
  * Rendered off-screen; never shown directly in the UI.
  */
 export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
-  { parkName, state, nationalVisited, photoUri, detail },
+  { parkName, state, nationalVisited, photoUri, detail, eyebrow = 'I VISITED', format = 'card' },
   ref,
 ) {
   const rank = rankForCount(nationalVisited);
+  const story = format === 'story';
 
   return (
-    <View ref={ref} style={styles.card} collapsable={false}>
+    <View ref={ref} style={[styles.card, story && styles.cardStory]} collapsable={false}>
       {photoUri ? (
         <Image source={{ uri: photoUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
@@ -61,8 +76,8 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
       </View>
 
       <View style={styles.bottom}>
-        <Text style={styles.eyebrow}>I VISITED</Text>
-        <Text style={styles.park} numberOfLines={3}>{parkName}</Text>
+        <Text style={styles.eyebrow}>{eyebrow}</Text>
+        <Text style={[styles.park, story && styles.parkStory]} numberOfLines={3}>{parkName}</Text>
         {detail ? <Text style={styles.detail}>{detail}</Text> : null}
 
         <View style={styles.footer}>
@@ -89,6 +104,14 @@ const styles = StyleSheet.create({
     backgroundColor: C.primary,
     justifyContent: 'space-between',
     padding: 24,
+  },
+  cardStory: {
+    width: SHARE_STORY_WIDTH,
+    height: SHARE_STORY_HEIGHT,
+    borderRadius: 0,
+    // Keep content clear of Instagram/TikTok top and bottom UI chrome.
+    paddingTop: 88,
+    paddingBottom: 110,
   },
   watermark: {
     position: 'absolute',
@@ -142,6 +165,10 @@ const styles = StyleSheet.create({
     lineHeight: 44,
     fontWeight: '800',
     letterSpacing: -1.2,
+  },
+  parkStory: {
+    fontSize: 46,
+    lineHeight: 50,
   },
   detail: {
     color: 'rgba(255,255,255,0.82)',

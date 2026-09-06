@@ -9,6 +9,8 @@ import {
   Platform,
   Image,
   ActivityIndicator,
+  ActionSheetIOS,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -76,12 +78,35 @@ export default function ParkDetailScreen() {
     ? `${parkVisits.length} ${parkVisits.length === 1 ? 'visit' : 'visits'}${totalMiles > 0 ? ` · ${totalMiles.toFixed(1)} mi` : ''}`
     : undefined;
 
-  const { ref: shareRef, share, sharing } = useShareCard({
-    message: park
-      ? `I've visited ${nationalParkCount} of 63 U.S. National Parks — latest: ${park.name}. Tracking them all on ParkAtlas.`
-      : '',
-    onError: () => toast.error("Couldn't create the share card. Try again."),
-  });
+  const shareMessage = park
+    ? `I've visited ${nationalParkCount} of 63 U.S. National Parks — latest: ${park.name}. Tracking them all on ParkAtlas.`
+    : '';
+  const onShared = () => toast.success('Tag @parkatlas.app and we\'ll reshare it', { icon: 'logo-instagram', silent: true, durationMs: 3200 });
+  const onShareError = () => toast.error("Couldn't create the share card. Try again.");
+
+  const storyShare = useShareCard({ message: shareMessage, format: 'story', onShared, onError: onShareError });
+  const cardShare = useShareCard({ message: shareMessage, format: 'card', onShared, onError: onShareError });
+  const sharing = storyShare.sharing || cardShare.sharing;
+
+  function chooseShareFormat() {
+    haptic.tap();
+    const options = ['Share to Stories (9:16)', 'Share as card (3:4)', 'Cancel'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 2, title: 'Share this park' },
+        (i) => {
+          if (i === 0) void storyShare.share();
+          if (i === 1) void cardShare.share();
+        },
+      );
+      return;
+    }
+    Alert.alert('Share this park', undefined, [
+      { text: options[0], onPress: () => { void storyShare.share(); } },
+      { text: options[1], onPress: () => { void cardShare.share(); } },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
 
   useEffect(() => {
     if (!park) return;
@@ -192,7 +217,7 @@ export default function ParkDetailScreen() {
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
             <View style={styles.heroTopRight}>
-              <TouchableOpacity style={styles.glassBtn} onPress={() => { void share(); }} activeOpacity={0.7} disabled={sharing} accessibilityRole="button" accessibilityLabel="Share this park">
+              <TouchableOpacity style={styles.glassBtn} onPress={chooseShareFormat} activeOpacity={0.7} disabled={sharing} accessibilityRole="button" accessibilityLabel="Share this park">
                 {sharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-outline" size={20} color="#fff" />}
               </TouchableOpacity>
               <TouchableOpacity style={styles.glassPill} onPress={openNPS} activeOpacity={0.7} accessibilityRole="link">
@@ -438,7 +463,7 @@ export default function ParkDetailScreen() {
         </View>
 
         {visited ? (
-          <TouchableOpacity style={styles.shareCta} onPress={() => { void share(); }} activeOpacity={0.85} disabled={sharing}>
+          <TouchableOpacity style={styles.shareCta} onPress={chooseShareFormat} activeOpacity={0.85} disabled={sharing}>
             <Ionicons name="share-social-outline" size={18} color={C.primary} />
             <Text style={styles.shareCtaText}>{sharing ? 'Preparing card…' : 'Share this park'}</Text>
           </TouchableOpacity>
@@ -446,10 +471,20 @@ export default function ParkDetailScreen() {
 
       </ScrollView>
 
-      {/* Off-screen render target for the share image. */}
+      {/* Off-screen render targets for the share images. */}
       <View style={styles.offscreen} pointerEvents="none">
         <ShareCard
-          ref={shareRef}
+          ref={storyShare.ref}
+          format="story"
+          parkName={park.name}
+          state={park.state}
+          nationalVisited={nationalParkCount}
+          photoUri={heroPhoto}
+          detail={shareDetail}
+        />
+        <ShareCard
+          ref={cardShare.ref}
+          format="card"
           parkName={park.name}
           state={park.state}
           nationalVisited={nationalParkCount}

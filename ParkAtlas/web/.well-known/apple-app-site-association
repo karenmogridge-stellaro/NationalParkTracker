@@ -1,0 +1,16 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["8J93L5235U.com.parkatlas.mobile"],
+        "components": [
+          { "/": "/invite/*", "comment": "Friend invite links open in the app" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["8J93L5235U.com.parkatlas.mobile"]
+  }
+}

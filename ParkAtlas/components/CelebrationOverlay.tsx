@@ -18,6 +18,7 @@ import type { Rank } from '@/utils/ranks';
 export type CelebrationPayload = {
   /** Changes per event so a repeat celebration remounts the confetti. */
   id?: number;
+  parkId?: string;
   parkName: string;
   uniqueParks: number;
   totalParks: number;
@@ -32,6 +33,9 @@ export type CelebrationPayload = {
 type Props = {
   payload: CelebrationPayload | null;
   onDismiss: () => void;
+  /** When provided, big celebrations show a "Share your rank" button. */
+  onShare?: () => void;
+  sharing?: boolean;
 };
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -104,19 +108,20 @@ function ConfettiBurst({ count }: { count: number }) {
   );
 }
 
-export function CelebrationOverlay({ payload, onDismiss }: Props) {
+export function CelebrationOverlay({ payload, onDismiss, onShare, sharing }: Props) {
   const big = !!(payload?.milestone || payload?.newRank);
 
   useEffect(() => {
     if (!payload) return;
     haptic.success();
     const second = big ? setTimeout(() => haptic.heavy(), 260) : undefined;
-    const auto = payload.holdOpen ? undefined : setTimeout(onDismiss, big ? 5200 : 3600);
+    // Big moments with a share option stay up until the user chooses.
+    const auto = payload.holdOpen || (big && onShare) ? undefined : setTimeout(onDismiss, big ? 5200 : 3600);
     return () => {
       if (second) clearTimeout(second);
       if (auto) clearTimeout(auto);
     };
-  }, [payload, big, onDismiss]);
+  }, [payload, big, onDismiss, onShare]);
 
   if (!payload) return null;
 
@@ -159,8 +164,14 @@ export function CelebrationOverlay({ payload, onDismiss }: Props) {
         {payload.newRank ? (
           <Text style={styles.parkLine}>{payload.parkName} · {payload.uniqueParks} of {payload.totalParks}</Text>
         ) : null}
-        <Pressable style={styles.btn} onPress={onDismiss} accessibilityRole="button">
-          <Text style={styles.btnText}>Keep exploring</Text>
+        {big && onShare ? (
+          <Pressable style={styles.btn} onPress={onShare} disabled={sharing} accessibilityRole="button">
+            <MaterialCommunityIcons name="share-variant" size={16} color={C.onPrimary} />
+            <Text style={styles.btnText}>{sharing ? 'Preparing…' : 'Share your rank'}</Text>
+          </Pressable>
+        ) : null}
+        <Pressable style={[styles.btn, big && onShare ? styles.btnSecondary : null]} onPress={onDismiss} accessibilityRole="button">
+          <Text style={[styles.btnText, big && onShare ? styles.btnSecondaryText : null]}>Keep exploring</Text>
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -243,14 +254,24 @@ const styles = StyleSheet.create({
   btn: {
     marginTop: 14,
     alignSelf: 'stretch',
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     borderRadius: Radii.pill,
     paddingVertical: 13,
     backgroundColor: C.primary,
+  },
+  btnSecondary: {
+    marginTop: 8,
+    backgroundColor: C.surfaceContainerHigh,
   },
   btnText: {
     color: C.onPrimary,
     fontSize: 15,
     fontWeight: '800',
+  },
+  btnSecondaryText: {
+    color: C.onSurface,
   },
 });
