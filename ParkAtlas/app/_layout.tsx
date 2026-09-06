@@ -3,7 +3,9 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { LogBox } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
@@ -11,9 +13,12 @@ import { VisitedParksProvider, useVisitedParks } from '@/hooks/useVisitedParks';
 import { FriendsProvider } from '@/hooks/useFriends';
 import { WishlistProvider } from '@/hooks/useWishlist';
 import { ToastProvider } from '@/components/ui/Toast';
-import { CelebrationOverlay } from '@/components/CelebrationOverlay';
+import { CelebrationOverlay, type CelebrationPayload } from '@/components/CelebrationOverlay';
 import { NameCaptureSheet } from '@/components/NameCaptureSheet';
 import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
+
+// Unsigned simulator builds lack the keychain entitlement; the warning is expected there and just covers the UI.
+if (__DEV__) LogBox.ignoreLogs([/SecureStore (read|write|delete) unavailable/]);
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -38,10 +43,24 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 /** Shows the confetti card whenever a first-time national park visit is logged anywhere in the app. */
 function CelebrationHost() {
   const { lastNewParkEvent, clearNewParkEvent } = useVisitedParks();
+  const [demo, setDemo] = useState<CelebrationPayload | null>(null);
+
+  // Dev-only: screenshot tooling drops screenshot_celebrate.json to preview the overlay.
+  useEffect(() => {
+    if (!__DEV__) return;
+    const file = `${FileSystem.documentDirectory}screenshot_celebrate.json`;
+    FileSystem.readAsStringAsync(file)
+      .then((raw) => {
+        setDemo(JSON.parse(raw));
+        return FileSystem.deleteAsync(file, { idempotent: true });
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <CelebrationOverlay
-      payload={lastNewParkEvent}
-      onDismiss={clearNewParkEvent}
+      payload={demo ?? lastNewParkEvent}
+      onDismiss={() => { setDemo(null); clearNewParkEvent(); }}
     />
   );
 }

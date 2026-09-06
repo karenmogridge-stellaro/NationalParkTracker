@@ -24,6 +24,7 @@ import { fetchFriendActivities } from '@/utils/userDirectoryApi';
 import { PARKS } from '../../data/parksData';
 import { getParkDetail } from '../../data/parkDetails';
 import { PARK_TRAILS, type Trail } from '@/data/trailsData';
+import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
 import { useStravaData } from '../../hooks/useStravaData';
 import { useVisitedParks } from '../../hooks/useVisitedParks';
 import { LogVisitSheet } from '../../components/LogVisitSheet';
@@ -44,6 +45,7 @@ export default function ParkDetailScreen() {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetTrail, setSheetTrail] = useState<Trail | null>(null);
   const [showAllTrails, setShowAllTrails] = useState(false);
+  const [heroImageFailed, setHeroImageFailed] = useState(false);
   const [friendVisitors, setFriendVisitors] = useState<FriendVisitor[]>([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
   const toast = useToast();
@@ -161,19 +163,24 @@ export default function ParkDetailScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <View style={styles.hero}>
-          {heroPhoto ? (
-            <Image source={{ uri: heroPhoto }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          ) : (
-            <LinearGradient
-              colors={['#2d6a4f', C.primary, '#0b2417']}
-              start={{ x: 0.1, y: 0 }}
-              end={{ x: 0.9, y: 1 }}
+          {!heroImageFailed ? (
+            <Image
+              source={{ uri: heroPhoto ?? fallbackImageForPark(park.id) }}
               style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              onError={() => setHeroImageFailed(true)}
             />
+          ) : (
+            <>
+              <LinearGradient
+                colors={gradientForPark(park.id)}
+                start={{ x: 0.1, y: 0 }}
+                end={{ x: 0.9, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <MaterialCommunityIcons name="pine-tree" size={220} color="rgba(255,255,255,0.07)" style={styles.heroWatermark} />
+            </>
           )}
-          {!heroPhoto ? (
-            <MaterialCommunityIcons name="pine-tree" size={220} color="rgba(255,255,255,0.07)" style={styles.heroWatermark} />
-          ) : null}
           <LinearGradient
             colors={['rgba(8,18,12,0.45)', 'rgba(8,18,12,0.0)', 'rgba(8,18,12,0.85)']}
             locations={[0, 0.35, 1]}

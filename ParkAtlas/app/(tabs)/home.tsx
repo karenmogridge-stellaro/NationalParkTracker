@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/Toast';
 import { FeedCardSkeleton } from '@/components/ui/Skeleton';
 import { ProgressHero } from '@/components/ProgressHero';
 import { formatVisitDate } from '@/components/VisitDatePicker';
+import { fallbackImageForPark } from '@/utils/parkImagery';
 import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { useFriends } from '@/hooks/useFriends';
@@ -42,8 +43,6 @@ const SEASON_MONTHS = [
   { label: 'AUG', month: 7 },
   { label: 'SEP', month: 8 },
 ] as const;
-
-const FALLBACK_CAMPING_IMAGE = 'https://images.unsplash.com/photo-1601758261160-ecf8f9f4a4ea?auto=format&fit=crop&w=1400&q=80';
 
 function firstName(name?: string): string {
   if (!name || !name.trim()) return 'Explorer';
@@ -148,6 +147,7 @@ type AdventureCardItem = {
   subtitle: string;
   distance: string;
   imageUri: string;
+  parkId?: string;
   tag: string;
   // ActivityFeedCard fields
   parkName: string;
@@ -653,7 +653,8 @@ export default function HomeScreen() {
         ? `${baseParkName} National Park`
         : baseParkName;
       const actorId = isFriend ? (item.data as FriendActivity).userId : (user?.id || 'me');
-      const userLabel = actorId === user?.id ? 'You' : titleCaseFirstWord((item.data as any).userName);
+      // Own visits (signed-in or guest) are always "You".
+      const userLabel = !isFriend ? 'You' : titleCaseFirstWord((item.data as any).userName);
       const miles = isStrava
         ? ((item.data as StravaActivity).distance / 1609.34)
         : ((item.data as any).distanceMiles ?? 0);
@@ -683,10 +684,11 @@ export default function HomeScreen() {
         subtitle,
         distance: '',
         imageUri: isStrava
-          ? FALLBACK_CAMPING_IMAGE
+          ? fallbackImageForPark(parkId)
           : isFriend
-            ? (item.data as FriendActivity).photoUri || FALLBACK_CAMPING_IMAGE
-            : (item.data as ParkVisit).photoUri || FALLBACK_CAMPING_IMAGE,
+            ? (item.data as FriendActivity).photoUri || fallbackImageForPark(parkId)
+            : (item.data as ParkVisit).photoUri || fallbackImageForPark(parkId),
+        parkId,
         tag: contextLabel,
         // ActivityFeedCard props
         parkName,
@@ -738,7 +740,9 @@ export default function HomeScreen() {
               resizeMode="contain"
             />
             <View style={{ flex: 1 }}>
-              <Text style={styles.greetingTitle}>Hello, {titleCaseFirstWord(greetingName(user ?? undefined))}.</Text>
+              <Text style={styles.greetingTitle}>
+                {user ? `Hello, ${titleCaseFirstWord(greetingName(user))}.` : 'Welcome back.'}
+              </Text>
               <Text style={styles.greetingSub}>Ready for your next expedition?</Text>
             </View>
           </View>
@@ -889,6 +893,7 @@ export default function HomeScreen() {
                     key={card.key}
                     cardKey={card.key}
                     imageUri={card.imageUri}
+                    parkId={card.parkId}
                     parkName={card.parkName}
                     trailName={card.trailName}
                     dateLabel={card.timeLabel}

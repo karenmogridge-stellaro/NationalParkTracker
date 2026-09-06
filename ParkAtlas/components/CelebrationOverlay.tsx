@@ -25,6 +25,8 @@ export type CelebrationPayload = {
   newRank?: Rank;
   /** Set when the new count is on the milestone list (bigger burst). */
   milestone?: boolean;
+  /** Skip auto-dismiss; user must tap. */
+  holdOpen?: boolean;
 };
 
 type Props = {
@@ -107,15 +109,13 @@ export function CelebrationOverlay({ payload, onDismiss }: Props) {
 
   useEffect(() => {
     if (!payload) return;
-    if (big) {
-      haptic.success();
-      const second = setTimeout(() => haptic.heavy(), 260);
-      const auto = setTimeout(onDismiss, 5200);
-      return () => { clearTimeout(second); clearTimeout(auto); };
-    }
     haptic.success();
-    const auto = setTimeout(onDismiss, 3600);
-    return () => clearTimeout(auto);
+    const second = big ? setTimeout(() => haptic.heavy(), 260) : undefined;
+    const auto = payload.holdOpen ? undefined : setTimeout(onDismiss, big ? 5200 : 3600);
+    return () => {
+      if (second) clearTimeout(second);
+      if (auto) clearTimeout(auto);
+    };
   }, [payload, big, onDismiss]);
 
   if (!payload) return null;

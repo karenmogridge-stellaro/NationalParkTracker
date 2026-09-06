@@ -7,15 +7,23 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { Onboarding } from '@/components/Onboarding';
 
 const ONBOARDING_SEEN_FILE = `${FileSystem.documentDirectory}onboarding_seen.json`;
+// Dev-only: screenshot tooling drops {"route":"/(tabs)/home"} here to land on a screen without tapping.
+const SCREENSHOT_ROUTE_FILE = `${FileSystem.documentDirectory}screenshot_route.json`;
 
 export default function Index() {
   const { loading, user, signOut } = useAuth();
   const [onboardingSeen, setOnboardingSeen] = useState<boolean | null>(null);
+  const [devRoute, setDevRoute] = useState<string | null>(null);
 
   useEffect(() => {
     FileSystem.getInfoAsync(ONBOARDING_SEEN_FILE)
       .then((info) => setOnboardingSeen(info.exists))
       .catch(() => setOnboardingSeen(true));
+    if (__DEV__) {
+      FileSystem.readAsStringAsync(SCREENSHOT_ROUTE_FILE)
+        .then((raw) => setDevRoute(JSON.parse(raw)?.route || null))
+        .catch(() => {});
+    }
   }, []);
 
   async function markOnboardingSeen() {
@@ -49,6 +57,10 @@ export default function Index() {
   // Returning signed-in users skip the launch screen entirely.
   if (user) {
     return <Redirect href="/(tabs)/home" />;
+  }
+
+  if (__DEV__ && devRoute) {
+    return <Redirect href={devRoute as any} />;
   }
 
   if (!onboardingSeen) {

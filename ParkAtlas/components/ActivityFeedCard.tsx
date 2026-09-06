@@ -9,12 +9,9 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ParkAtlas as C } from '@/constants/theme';
-
-// Reliable camping/tent photo used whenever the primary imageUri is absent or fails.
-// Using the same Unsplash pool already in ADVENTURE_IMAGES so it's network-consistent.
-const FALLBACK_IMAGE_URI =
-  'https://images.unsplash.com/photo-1601758261160-ecf8f9f4a4ea?auto=format&fit=crop&w=1400&q=80';
+import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -29,9 +26,12 @@ export type ActivityFeedCardProps = {
 
   /**
    * Full-width background image URI.
-   * When absent or on load failure the component shows a camping photo fallback.
+   * When absent or on load failure the component shows a terrain-matched fallback.
    */
   imageUri: string;
+
+  /** Used to pick a terrain-appropriate fallback photo/gradient. */
+  parkId?: string;
 
   /** Bold primary text – park name only.  e.g. "Acadia" */
   parkName: string;
@@ -76,6 +76,7 @@ export type ActivityFeedCardProps = {
 
 export function ActivityFeedCard({
   imageUri,
+  parkId,
   parkName,
   trailName,
   dateLabel,
@@ -116,6 +117,8 @@ export function ActivityFeedCard({
   }
 
   const secondaryLine = [trailName, dateLabel].filter(Boolean).join(' • ');
+  const fallbackUri = fallbackImageForPark(parkId);
+  const gradient = gradientForPark(parkId);
 
   return (
     <TouchableOpacity
@@ -128,11 +131,11 @@ export function ActivityFeedCard({
       accessibilityLabel={`${actorLabel ?? ''} ${parkName}${trailName ? `, ${trailName}` : ''}${dateLabel ? `, ${dateLabel}` : ''}`}
     >
       {/* Background image — 3-level fallback chain:
-           1. imageUri (user's photo or park-keyed Unsplash)
-           2. FALLBACK_IMAGE_URI (tent camping photo)
-           3. local logo watermark (last resort, offline)
+           1. imageUri (user's photo)
+           2. terrain-matched stock photo
+           3. terrain gradient + logo watermark (fully offline)
       */}
-      {!imgError && imageUri?.trim() ? (
+      {!imgError && imageUri?.trim() && imageUri !== fallbackUri ? (
         <Image
           source={{ uri: imageUri }}
           style={StyleSheet.absoluteFill}
@@ -142,24 +145,31 @@ export function ActivityFeedCard({
         />
       ) : !fallbackImgError ? (
         <Image
-          source={{ uri: FALLBACK_IMAGE_URI }}
+          source={{ uri: fallbackUri }}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
           accessibilityIgnoresInvertColors
           onError={() => setFallbackImgError(true)}
         />
       ) : (
-        // Last resort when fully offline: logo watermark
-        <Image
-          source={require('../assets/images/parkatlas-logo.png')}
-          style={styles.fallbackLogo}
-          resizeMode="contain"
-          accessibilityIgnoresInvertColors
-        />
+        <>
+          <LinearGradient colors={gradient} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={StyleSheet.absoluteFill} />
+          <Image
+            source={require('../assets/images/parkatlas-logo.png')}
+            style={styles.fallbackLogo}
+            resizeMode="contain"
+            accessibilityIgnoresInvertColors
+          />
+        </>
       )}
 
       {/* Bottom gradient overlay – ensures text stays readable over any photo */}
-      <View style={styles.gradientOverlay} pointerEvents="none" />
+      <LinearGradient
+        colors={['rgba(8,18,12,0)', 'rgba(8,18,12,0.35)', 'rgba(8,18,12,0.85)']}
+        locations={[0.3, 0.6, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
 
       {/* Actor pill – top left, subtle */}
       {actorLabel ? (
@@ -215,16 +225,6 @@ const styles = StyleSheet.create({
   },
   cardHero: {
     height: 268,
-  },
-
-  // Bottom gradient so text is always readable regardless of photo brightness
-  gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    // Simulated gradient: transparent top, dark bottom
-    // React Native doesn't have LinearGradient without expo-linear-gradient,
-    // so we use a semi-opaque overlay anchored to the bottom half.
-    top: '40%',
-    backgroundColor: 'rgba(8, 18, 12, 0.72)',
   },
 
   // Last-resort logo (fully offline – both image URLs failed)
