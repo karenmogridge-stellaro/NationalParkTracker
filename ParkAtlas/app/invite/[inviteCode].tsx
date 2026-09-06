@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { ActivityFeedCard } from '@/components/ActivityFeedCard';
 import { LoginGateSheet } from '@/components/LoginGateSheet';
+import { FeedCardSkeleton } from '@/components/ui/Skeleton';
+import { useToast } from '@/components/ui/Toast';
+import { haptic } from '@/utils/haptics';
 import { setPendingAction, type PendingAction } from '@/utils/pendingAction';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -31,6 +34,7 @@ export default function InviteByCodeScreen() {
   const params = useLocalSearchParams<{ inviteCode?: string }>();
   const { user } = useAuth();
   const { myFriends } = useFriends();
+  const toast = useToast();
   const inviteCode = String(params.inviteCode || '').trim();
 
   const [loading, setLoading] = useState(true);
@@ -184,7 +188,7 @@ export default function InviteByCodeScreen() {
     }
 
     if (!invite.inviterUserId || invite.inviterUserId === user.id) {
-      Alert.alert('Invite unavailable', 'This invite cannot be accepted on this account.');
+      toast.error("This invite can't be accepted on this account");
       return;
     }
 
@@ -196,13 +200,14 @@ export default function InviteByCodeScreen() {
       await createFriendConnection(invite.inviterUserId, user.id);
       setInvite((prev) => (prev ? { ...prev, status: 'accepted', acceptedByUserId: user.id, acceptedAt: Date.now() } : prev));
       setSuccessMessage('Invite accepted ✅');
+      haptic.success();
     } catch (e) {
       if (e instanceof InviteAlreadyAcceptedError) {
-        Alert.alert('Invite already used', 'This invite was already accepted.');
+        toast.info('This invite was already accepted');
         router.replace('/(tabs)/directory');
         return;
       }
-      Alert.alert('Unable to accept invite', 'Please try again.');
+      toast.error("Couldn't accept the invite. Try again.");
     } finally {
       setAccepting(false);
     }
@@ -236,9 +241,8 @@ export default function InviteByCodeScreen() {
             <Text style={styles.subtitle}>Start with {invite.inviterName}&apos;s recent park</Text>
 
             {activitiesLoading ? (
-              <View style={styles.stateCard}>
-                <ActivityIndicator size="small" color={C.primary} />
-                <Text style={styles.stateText}>Loading recent activity...</Text>
+              <View style={styles.feedSection}>
+                <FeedCardSkeleton />
               </View>
             ) : previewActivities.length > 0 ? (
               <View style={styles.feedSection}>

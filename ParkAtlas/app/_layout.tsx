@@ -7,8 +7,13 @@ import { useEffect } from 'react';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { VisitedParksProvider } from '@/hooks/useVisitedParks';
+import { VisitedParksProvider, useVisitedParks } from '@/hooks/useVisitedParks';
 import { FriendsProvider } from '@/hooks/useFriends';
+import { WishlistProvider } from '@/hooks/useWishlist';
+import { ToastProvider } from '@/components/ui/Toast';
+import { CelebrationOverlay } from '@/components/CelebrationOverlay';
+import { NameCaptureSheet } from '@/components/NameCaptureSheet';
+import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -30,28 +35,46 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Shows the confetti card whenever a first-time national park visit is logged anywhere in the app. */
+function CelebrationHost() {
+  const { lastNewParkEvent, clearNewParkEvent } = useVisitedParks();
+  return (
+    <CelebrationOverlay
+      payload={lastNewParkEvent}
+      onDismiss={clearNewParkEvent}
+    />
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <AuthProvider>
       <VisitedParksProvider>
+      <WishlistProvider>
       <FriendsProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGate>
-          <Stack>
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="invite" options={{ headerShown: false }} />
-            <Stack.Screen name="invite/[inviteCode]" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-            <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="park/[id]" options={{ headerShown: false }} />
-          </Stack>
-        </AuthGate>
-        <StatusBar style="auto" />
+        <ToastProvider>
+          <AuthGate>
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="invite" options={{ headerShown: false }} />
+              <Stack.Screen name="invite/[inviteCode]" options={{ headerShown: false }} />
+              <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="park/[id]" options={{ headerShown: false }} />
+            </Stack>
+          </AuthGate>
+          <CelebrationHost />
+          <NameCaptureSheet />
+          <NearbyParksPrompt />
+          <StatusBar style="auto" />
+        </ToastProvider>
       </ThemeProvider>
       </FriendsProvider>
+      </WishlistProvider>
       </VisitedParksProvider>
     </AuthProvider>
   );

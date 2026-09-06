@@ -5,6 +5,10 @@ import { collection, deleteDoc, getDocs, onSnapshot, query, where } from 'fireba
 import { useAuth } from '@/hooks/useAuth';
 import { deleteParkVisitActivity, upsertParkVisitActivity } from '@/utils/userDirectoryApi';
 import { db } from '@/utils/firebase';
+import { PARKS } from '@/data/parksData';
+import { rankForCount, isMilestone, TOTAL_NATIONAL_PARKS, type Rank } from '@/utils/ranks';
+
+const NATIONAL_PARK_IDS = new Set(PARKS.map((p) => p.id));
 
 const LEGACY_VISITS_FILE = `${FileSystem.documentDirectory}visited_parks.json`;
 const REVIEW_PROMPTED_LEGACY_FILE = `${FileSystem.documentDirectory}review_prompted.json`;
@@ -26,6 +30,8 @@ function migrationMarkerFileForUser(userId: string): string {
   return `${FileSystem.documentDirectory}visits_firestore_migrated_${safeUserId}.json`;
 }
 
+export type VisitDatePrecision = 'day' | 'month' | 'year';
+
 export interface ParkVisit {
   visitId: string;          // unique: parkId + timestamp
   parkId: string;
@@ -34,6 +40,8 @@ export interface ParkVisit {
   photoUri?: string;        // optional user-uploaded outing photo (data URI or local URI)
   dateVisited?: string;     // ISO date string (missing when user chose unknown date)
   dateUnknown?: boolean;
+  /** How much of dateVisited the user actually knew; defaults to 'day'. */
+  datePrecision?: VisitDatePrecision;
   distanceMiles?: number;   // optional manual distance in miles
   elevationGainFt?: number; // optional elevation gain in feet
   activityType?: string;    // e.g. 'Hike', 'Backpack', 'Camp', 'Scenic Drive', 'Wildlife'
@@ -45,9 +53,20 @@ export interface LogVisitOptions {
   distanceMiles?: number;
   dateVisited?: string;
   dateUnknown?: boolean;
+  datePrecision?: VisitDatePrecision;
   elevationGainFt?: number;
   activityType?: string;
   rating?: number;
+}
+
+export interface NewParkEvent {
+  id: number;
+  parkId: string;
+  parkName: string;
+  uniqueParks: number;
+  totalParks: number;
+  newRank?: Rank;
+  milestone: boolean;
 }
 
 interface VisitedParksState {
@@ -60,6 +79,11 @@ interface VisitedParksState {
   hasVisited: (parkId: string) => boolean;
   visitsForPark: (parkId: string) => ParkVisit[];
   totalStats: { totalOutings: number; uniqueParks: number; totalMiles: number; totalElevationFt: number };
+  /** Unique national parks (out of 63) with at least one visit. */
+  nationalParkCount: number;
+  /** Most recent first-time national park visit this session; consumed by the celebration host. */
+  lastNewParkEvent: NewParkEvent | null;
+  clearNewParkEvent: () => void;
 }
 
 type FirestoreParkVisitDoc = {
@@ -70,6 +94,7 @@ type FirestoreParkVisitDoc = {
   photoUri?: string;
   dateVisited?: string;
   dateUnknown?: boolean;
+  datePrecision?: string;
   distanceMiles?: number;
   elevationGainFt?: number;
   activityType?: string;
@@ -86,6 +111,7 @@ function mapFirestoreVisit(docId: string, data: FirestoreParkVisitDoc): ParkVisi
     photoUri: typeof data.photoUri === 'string' ? data.photoUri : undefined,
     dateVisited: typeof data.dateVisited === 'string' ? data.dateVisited : undefined,
     dateUnknown: typeof data.dateUnknown === 'boolean' ? data.dateUnknown : undefined,
+    datePrecision: data.datePrecision === 'month' || data.datePrecision === 'year' ? data.datePrecision : undefined,
     distanceMiles: typeof data.distanceMiles === 'number' ? data.distanceMiles : undefined,
     elevationGainFt: typeof data.elevationGainFt === 'number' ? data.elevationGainFt : undefined,
     activityType: typeof data.activityType === 'string' ? data.activityType : undefined,
@@ -106,6 +132,8 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true);
   const [reviewPrompted, setReviewPrompted] = useState(false);
   const [reviewPromptLoaded, setReviewPromptLoaded] = useState(false);
+  const [lastNewParkEvent, setLastNewParkEvent] = useState<NewParkEvent | null>(null);
+  const eventIdRef = useRef(0);
 
   useEffect(() => {
     if (user?.id) {
@@ -223,7 +251,13 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
 
   const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => {
     const userId = user?.id || GUEST_USER_ID;
-    const { photoUri, distanceMiles, dateVisited, dateUnknown, elevationGainFt, activityType, rating } = opts ?? {};
+    const { photoUri, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
+
+    // Snapshot before the write so we can tell whether this unlocks a new national park.
+    const before = visitsRef.current;
+    const isNewNationalPark = NATIONAL_PARK_IDS.has(parkId) && !before.some((v) => v.parkId === parkId);
+    const prevCount = new Set(before.map((v) => v.parkId).filter((id) => NATIONAL_PARK_IDS.has(id))).size;
+
     const hasExplicitDate = dateUnknown !== undefined || dateVisited !== undefined;
     const visitDate = hasExplicitDate
       ? (dateUnknown ? undefined : dateVisited)
@@ -236,6 +270,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       photoUri: photoUri || undefined,
       dateVisited: visitDate,
       dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : false,
+      datePrecision: visitDate && datePrecision && datePrecision !== 'day' ? datePrecision : undefined,
       distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
       elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
       activityType: activityType || undefined,
@@ -248,6 +283,22 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       await persist([visit, ...current]);
     }
 
+    if (isNewNationalPark) {
+      const uniqueParks = prevCount + 1;
+      const prevRank = rankForCount(prevCount);
+      const nextRank = rankForCount(uniqueParks);
+      eventIdRef.current += 1;
+      setLastNewParkEvent({
+        id: eventIdRef.current,
+        parkId,
+        parkName,
+        uniqueParks,
+        totalParks: TOTAL_NATIONAL_PARKS,
+        newRank: nextRank.id !== prevRank.id ? nextRank : undefined,
+        milestone: isMilestone(uniqueParks),
+      });
+    }
+
     if (user?.id) {
       try {
         await upsertParkVisitActivity({
@@ -258,6 +309,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
           parkName: visit.parkName,
           trailName: visit.trailName,
           dateVisited: visit.dateVisited,
+          datePrecision: visit.datePrecision,
           distanceMiles: visit.distanceMiles,
           photoUri: visit.photoUri,
         });
@@ -319,7 +371,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     opts?: LogVisitOptions,
   ) => {
     const userId = user?.id || GUEST_USER_ID;
-    const { photoUri, distanceMiles, dateVisited, dateUnknown, elevationGainFt, activityType, rating } = opts ?? {};
+    const { photoUri, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
     // Read the latest visits via ref, not the closed-over `visits` state, so two quick
     // edits in a row each build on the other's result instead of one clobbering the other.
     const current = user?.id ? visitsRef.current : await loadFromDiskForUser(userId);
@@ -336,6 +388,11 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
         photoUri: nextPhotoUri,
         dateVisited: visitDate,
         dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : v.dateUnknown,
+        datePrecision: !visitDate
+          ? undefined
+          : hasExplicitDate
+            ? (datePrecision && datePrecision !== 'day' ? datePrecision : undefined)
+            : v.datePrecision,
         distanceMiles: distanceMiles && distanceMiles > 0 ? distanceMiles : undefined,
         elevationGainFt: elevationGainFt && elevationGainFt > 0 ? elevationGainFt : undefined,
         activityType: activityType || undefined,
@@ -356,6 +413,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
             parkName: updatedVisit.parkName,
             trailName: updatedVisit.trailName,
             dateVisited: updatedVisit.dateVisited,
+            datePrecision: updatedVisit.datePrecision,
             distanceMiles: updatedVisit.distanceMiles,
             photoUri: updatedVisit.photoUri,
           });
@@ -381,8 +439,26 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     totalElevationFt: visits.reduce((s, v) => s + (v.elevationGainFt ?? 0), 0),
   };
 
+  const nationalParkCount = new Set(visits.map((v) => v.parkId).filter((id) => NATIONAL_PARK_IDS.has(id))).size;
+  const clearNewParkEvent = useCallback(() => setLastNewParkEvent(null), []);
+
   return (
-    <VisitedParksContext.Provider value={{ visits, loading, logVisit, updateVisit, removeVisit, deleteAllDataForCurrentUser, hasVisited, visitsForPark, totalStats }}>
+    <VisitedParksContext.Provider
+      value={{
+        visits,
+        loading,
+        logVisit,
+        updateVisit,
+        removeVisit,
+        deleteAllDataForCurrentUser,
+        hasVisited,
+        visitsForPark,
+        totalStats,
+        nationalParkCount,
+        lastNewParkEvent,
+        clearNewParkEvent,
+      }}
+    >
       {children}
     </VisitedParksContext.Provider>
   );

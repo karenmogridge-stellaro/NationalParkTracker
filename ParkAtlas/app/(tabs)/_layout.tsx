@@ -62,16 +62,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="activity"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
           tabBarBadge: pendingRequestCount > 0 ? (pendingRequestCount > 99 ? '99+' : pendingRequestCount) : undefined,
           tabBarBadgeStyle: {
-            backgroundColor: '#c62828',
+            backgroundColor: ParkAtlas.error,
             color: '#ffffff',
             fontSize: 10,
             fontWeight: '700',

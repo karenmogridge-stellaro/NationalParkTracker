@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, doc, documentId, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { useAuth, AuthError } from '@/hooks/useAuth';
 import { ParkAtlas as C } from '@/constants/theme';
+import { GOOGLE_SIGN_IN_ENABLED, GoogleSignInCancelled, promptGoogleSignIn } from '@/utils/googleSignIn';
 import { consumePendingInviteCode, peekPendingInviteCode } from '@/utils/pendingInvite';
 import { findPendingInviteCodeForContact } from '@/utils/inviteApi';
 import { peekPendingAction, consumePendingAction } from '@/utils/pendingAction';
@@ -29,6 +30,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const {
     signInWithApple,
+    signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
     unlockWithBiometrics,
@@ -46,6 +48,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
@@ -239,16 +242,35 @@ export default function LoginScreen() {
   // ── Apple ──────────────────────────────────────────────────────────────────
   async function handleAppleSignIn() {
     setAppleLoading(true);
+    setFieldErrors({});
     try {
-      await signInWithApple();
-      await routeAfterAuthSuccess();
-    } catch {
-      // Cancellations are silent; errors already logged in useAuth
+      const signedIn = await signInWithApple();
+      if (signedIn) await routeAfterAuthSuccess();
+    } catch (e) {
+      // Cancellations never reach here; anything else is a real failure worth telling the user about.
+      setFieldErrors({
+        general: e instanceof AuthError ? e.message : "Couldn't sign in with Apple. Please try again.",
+      });
     } finally {
       setAppleLoading(false);
     }
   }
-
+  // ── Google ─────────────────────────────────────────────────────────────────
+  async function handleGoogleSignIn() {
+    setGoogleLoading(true);
+    setFieldErrors({});
+    try {
+      const profile = await promptGoogleSignIn();
+      await signInWithGoogle(profile);
+      await routeAfterAuthSuccess(profile.email, `google_${profile.id}`);
+    } catch (e) {
+      if (e instanceof GoogleSignInCancelled) return;
+      console.error('[login] Google sign-in error:', e);
+      setFieldErrors({ general: "Couldn't sign in with Google. Please try again." });
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
   // ── Email / Password ───────────────────────────────────────────────────────
   async function handleEmailSubmit() {
     setFieldErrors({});
@@ -298,6 +320,11 @@ export default function LoginScreen() {
           case 'APPLE_SIGN_IN_REQUIRED':
             setFieldErrors({
               general: 'This email is tied to an Apple account. Tap Continue with Apple to sign in.',
+            });
+            break;
+          case 'GOOGLE_SIGN_IN_REQUIRED':
+            setFieldErrors({
+              general: 'This email is tied to a Google account. Tap Continue with Google to sign in.',
             });
             break;
           case 'PASSWORD_NOT_SET':
@@ -602,6 +629,27 @@ export default function LoginScreen() {
             </>
           )}
         </TouchableOpacity>
+
+        {/* ── Google ──────────────────────────────────────────────────────────────── */}
+        {GOOGLE_SIGN_IN_ENABLED ? (
+          <TouchableOpacity
+            style={styles.googleBtn}
+            onPress={handleGoogleSignIn}
+            activeOpacity={0.8}
+            disabled={googleLoading}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={C.onSurface} />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={19} color="#4285F4" />
+                <Text style={styles.googleBtnText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
 
         {/* ── Face ID button (if enrolled but not showing the lock banner) ─ */}
         {biometricAvailable && biometricEnabled && !showBiometricPrompt && (
@@ -913,6 +961,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+
+  /* Google */
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 10,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.outlineVariant,
+    borderRadius: 14,
+    paddingVertical: 14,
+  },
+  googleBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: C.onSurface,
   },
 
   /* Face ID */

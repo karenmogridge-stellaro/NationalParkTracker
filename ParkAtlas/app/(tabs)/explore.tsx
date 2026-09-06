@@ -11,22 +11,22 @@ import {
   Pressable,
   FlatList,
   Image,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, Region } from 'react-native-maps';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as Location from 'expo-location';
 import { ParkAtlas as C } from '@/constants/theme';
+import { haptic } from '@/utils/haptics';
+import { useToast } from '@/components/ui/Toast';
+import { ProgressHero } from '@/components/ProgressHero';
 import { router } from 'expo-router';
 import { PARKS, NationalPark } from '../../data/parksData';
 import { STATE_PARKS } from '../../data/stateParksData';
 import { useVisitedParks } from '../../hooks/useVisitedParks';
-import { matchesWildcardQuery, stateNameFromCode } from '@/utils/search';
-import { useAuth } from '@/hooks/useAuth';
+import { useWishlist } from '@/hooks/useWishlist';
+import { matchesWildcardQuery, stateDisplayName, stateNameFromCode } from '@/utils/search';
 
-const CHECKLIST_LEGACY_FILE = `${FileSystem.documentDirectory}park_checklist.json`;
 const NEAR_ME_RADIUS_MILES = 150;
 const NEAR_ME_RADIUS_KM = NEAR_ME_RADIUS_MILES * 1.60934;
 
@@ -44,7 +44,7 @@ export default function ExploreScreen() {
   const [mapFilter, setMapFilter] = useState<'all' | 'visited' | 'unvisited'>('all');
   const [parkTypeFilter, setParkTypeFilter] = useState<'all' | 'national' | 'state'>('all');
   const [selectedMapPark, setSelectedMapPark] = useState<NationalPark | null>(null);
-  const [checklistIds, setChecklistIds] = useState<string[]>([]);
+  const { wishlistIds: checklistIds, setAll: persistChecklist, toggle: toggleWishlist } = useWishlist();
   const [checklistModalVisible, setChecklistModalVisible] = useState(false);
   const [checklistSearchText, setChecklistSearchText] = useState('');
   const [optimisticVisitedIds, setOptimisticVisitedIds] = useState<string[]>([]);
@@ -62,7 +62,7 @@ export default function ExploreScreen() {
   });
   const mapRef = React.useRef<MapView | null>(null);
   const { hasVisited, logVisit } = useVisitedParks();
-  const { user } = useAuth();
+  const toast = useToast();
 
   const allParks = useMemo<NationalPark[]>(() => {
     return [...PARKS.map((p) => ({ ...p, type: 'national' as const })), ...STATE_PARKS];
@@ -153,73 +153,15 @@ export default function ExploreScreen() {
     await ensureNearMeLocation(true);
   }, [ensureNearMeLocation]);
 
-  function checklistFileForUser(userId: string): string {
-    const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `${FileSystem.documentDirectory}park_checklist_${safeUserId}.json`;
-  }
-
-  useMemo(() => {
-    // no-op placeholder to keep hook order stable if we add effects below
-    return undefined;
-  }, []);
-
   React.useEffect(() => {
     if (activeFilter === 'near' && nearMeStatus === 'idle') {
       ensureNearMeLocation();
     }
   }, [activeFilter, nearMeStatus, ensureNearMeLocation]);
 
-  React.useEffect(() => {
-    (async () => {
-      if (!user?.id) {
-        setChecklistIds([]);
-        return;
-      }
-
-      try {
-        const filePath = checklistFileForUser(user.id);
-        const userFileInfo = await FileSystem.getInfoAsync(filePath);
-        if (userFileInfo.exists) {
-          const raw = await FileSystem.readAsStringAsync(filePath);
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            setChecklistIds(parsed.filter((id): id is string => typeof id === 'string'));
-            return;
-          }
-        }
-
-        const legacyInfo = await FileSystem.getInfoAsync(CHECKLIST_LEGACY_FILE);
-        if (legacyInfo.exists) {
-          const legacyRaw = await FileSystem.readAsStringAsync(CHECKLIST_LEGACY_FILE);
-          const legacyParsed = JSON.parse(legacyRaw);
-          if (Array.isArray(legacyParsed)) {
-            const ids = legacyParsed.filter((id): id is string => typeof id === 'string');
-            setChecklistIds(ids);
-            await FileSystem.writeAsStringAsync(filePath, JSON.stringify(ids));
-            return;
-          }
-        }
-      } catch {
-        // Ignore parse/read errors and start from empty list.
-      }
-
-      setChecklistIds([]);
-    })();
-  }, [user?.id]);
-
-  async function persistChecklist(nextIds: string[]) {
-    if (!user?.id) {
-      setChecklistIds(nextIds);
-      return;
-    }
-    await FileSystem.writeAsStringAsync(checklistFileForUser(user.id), JSON.stringify(nextIds));
-    setChecklistIds(nextIds);
-  }
-
   async function toggleChecklistPark(parkId: string) {
-    const exists = checklistIds.includes(parkId);
-    const next = exists ? checklistIds.filter((id) => id !== parkId) : [...checklistIds, parkId];
-    await persistChecklist(next);
+    haptic.select();
+    await toggleWishlist(parkId);
   }
 
   async function markParkVisited(park: NationalPark) {
@@ -230,6 +172,10 @@ export default function ExploreScreen() {
     setOptimisticVisitedIds((prev) => (prev.includes(park.id) ? prev : [...prev, park.id]));
     try {
       await logVisit(park.id, park.name, '', { dateUnknown: true });
+      // National parks trigger the celebration overlay; state parks just get a toast.
+      if (park.type === 'state') toast.success(`${park.name} marked visited`, { icon: 'checkmark-done' });
+    } catch {
+      toast.error("Couldn't save that visit. Try again.");
     } finally {
       setOptimisticVisitedIds((prev) => prev.filter((id) => id !== park.id));
     }
@@ -376,7 +322,7 @@ export default function ExploreScreen() {
 
   function openParkDetails(park: NationalPark) {
     if (park.type === 'state') {
-      Alert.alert('State Park', 'State park details view is coming soon.');
+      toast.info('State park pages are coming soon', { icon: 'leaf' });
       return;
     }
     router.push(`/park/${park.id}`);
@@ -419,13 +365,77 @@ export default function ExploreScreen() {
               blurOnSubmit={false}
             />
             {searchText.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
+              <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={18} color={C.outline} />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
+        {isSearching ? (
+          <View style={styles.searchResults}>
+            {filteredParks.length > 0 ? (
+              <>
+                <Text style={styles.resultsCount}>
+                  {filteredParks.length} PARK{filteredParks.length !== 1 ? 'S' : ''} FOUND
+                </Text>
+                {filteredParks.map((park) => {
+                  const isNational = park.type !== 'state';
+                  return (
+                    <TouchableOpacity
+                      key={park.id}
+                      style={styles.parkResultCard}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        haptic.select();
+                        if (isNational) {
+                          router.push(`/park/${park.id}`);
+                          return;
+                        }
+                        // State parks have no detail page yet: drop the user on the map with it selected.
+                        const nextRegion: Region = {
+                          latitude: park.lat,
+                          longitude: park.lng,
+                          latitudeDelta: 4,
+                          longitudeDelta: 4,
+                        };
+                        setSearchText('');
+                        setSelectedMapPark(park);
+                        setMapRegion(nextRegion);
+                        setTimeout(() => mapRef.current?.animateToRegion(nextRegion, 250), 50);
+                      }}
+                    >
+                      <View style={[styles.parkResultIcon, !isNational && styles.parkResultIconState]}>
+                        <MaterialCommunityIcons name={isNational ? 'pine-tree' : 'tree-outline'} size={20} color={isNational ? C.primary : C.tertiary} />
+                      </View>
+                      <View style={styles.parkResultBody}>
+                        <Text style={styles.parkResultName}>{park.name}</Text>
+                        <Text style={styles.parkResultState}>{isNational ? 'National Park' : 'State Park'} · {stateDisplayName(park.state)}</Text>
+                      </View>
+                      {hasVisitedUI(park.id) ? (
+                        <View style={styles.parkResultVisited}>
+                          <Ionicons name="checkmark-circle" size={14} color={C.primary} />
+                          <Text style={styles.parkResultVisitedText}>Visited</Text>
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color={C.outlineVariant} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="pine-tree" size={36} color={C.outlineVariant} />
+                <Text style={styles.emptyText}>No parks found for {'"'}{searchText}{'"'}</Text>
+                <Text style={styles.emptyHint}>Try a park name, state, or NPS code like “yose”.</Text>
+              </View>
+            )}
+          </View>
+        ) : null}
+
+        {!isSearching ? (
+        <>
         {/* Filter Chips */}
         <ScrollView
           horizontal
@@ -476,6 +486,10 @@ export default function ExploreScreen() {
           </View>
         ) : null}
 
+          <View style={styles.progressHeroWrap}>
+            <ProgressHero nationalVisited={nationalVisitedCount} variant="flat" />
+          </View>
+
           <View style={styles.nextAdventureCard}>
             <View style={styles.nextAdventureTitleRow}>
               <Text style={styles.nextAdventureTitle}>Next up for you</Text>
@@ -493,7 +507,7 @@ export default function ExploreScreen() {
                   </View>
                   <View style={styles.nextAdventureTextWrap}>
                     <Text style={styles.nextAdventureParkName}>{nextAdventurePark.name}</Text>
-                    <Text style={styles.nextAdventureParkMeta}>{nextAdventurePark.state} · {stateNameFromCode(nextAdventurePark.state)}</Text>
+                    <Text style={styles.nextAdventureParkMeta}>{stateDisplayName(nextAdventurePark.state)}</Text>
                   </View>
                 </View>
                 <View style={styles.nextAdventureActions}>
@@ -687,55 +701,6 @@ export default function ExploreScreen() {
           </View>
         </View>
 
-        {isSearching ? (
-          <View style={styles.searchResults}>
-            {filteredParks.length > 0 ? (
-              <>
-                <Text style={styles.resultsCount}>
-                  {filteredParks.length} PARK{filteredParks.length !== 1 ? 'S' : ''} FOUND
-                </Text>
-                {filteredParks.map((park) => (
-                  <TouchableOpacity
-                    key={park.id}
-                    style={styles.parkResultCard}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      const nextRegion: Region = {
-                        latitude: park.lat,
-                        longitude: park.lng,
-                        latitudeDelta: 4,
-                        longitudeDelta: 4,
-                      };
-                      setSelectedMapPark(park);
-                      setMapRegion(nextRegion);
-                      mapRef.current?.animateToRegion(nextRegion, 250);
-                    }}
-                  >
-                    <View style={styles.parkResultIcon}>
-                      <MaterialCommunityIcons name="pine-tree" size={20} color={C.primary} />
-                    </View>
-                    <View style={styles.parkResultBody}>
-                      <Text style={styles.parkResultName}>{park.name}</Text>
-                      <Text style={styles.parkResultState}>{park.state}</Text>
-                    </View>
-                    <View style={styles.parkResultBadge}>
-                      <Text style={styles.parkResultCode}>{park.npsCode ? park.npsCode.toUpperCase() : (park.type === 'state' ? 'STATE' : 'PARK')}</Text>
-                    </View>
-                    {hasVisitedUI(park.id) && (
-                      <Ionicons name="checkmark-circle" size={18} color={C.primary} style={{ marginLeft: 6 }} />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </>
-            ) : (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="pine-tree" size={36} color={C.outlineVariant} />
-                <Text style={styles.emptyText}>No parks found for {'"'}{searchText}{'"'}</Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <>
             <View style={styles.checklistCard}>
               <View style={styles.checklistHeader}>
                 <View style={styles.checklistTitleWrap}>
@@ -795,29 +760,8 @@ export default function ExploreScreen() {
                 )}
               </View>
             </View>
-
-            {/* Challenge Card */}
-            <View style={styles.challengeCard}>
-              <View style={styles.challengeIconWrap}>
-                <MaterialCommunityIcons name="trophy" size={22} color={C.onPrimary} />
-              </View>
-              <View style={styles.challengeBody}>
-                <Text style={styles.challengeTitle}>Fall Hiker Challenge</Text>
-                <Text style={styles.challengeSubtitle}>4 of 10 parks visited this season</Text>
-                <View style={styles.challengeTrack}>
-                  <View style={[styles.challengeFill, { width: '40%' }]} />
-                </View>
-                <View style={styles.challengeFooter}>
-                  <Text style={styles.challengeLevel}>BEGINNER</Text>
-                    <Text style={styles.challengeGoal}>6 PARKS TO GO</Text>
-                </View>
-                  <TouchableOpacity style={styles.challengeBtn} activeOpacity={0.8}>
-                    <Text style={styles.challengeBtnText}>View challenge</Text>
-                  </TouchableOpacity>
-              </View>
-            </View>
-          </>
-        )}
+        </>
+        ) : null}
 
       </ScrollView>
 
@@ -1420,83 +1364,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.onSurfaceVariant,
   },
-  challengeCard: {
+  progressHeroWrap: {
     marginHorizontal: 20,
-    marginTop: 12,
-    backgroundColor: C.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 14,
-    padding: 18,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 16,
-  },
-  challengeIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: C.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  challengeBody: {
-    flex: 1,
-    gap: 6,
-  },
-  challengeTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  challengeSubtitle: {
-    fontSize: 13,
-    color: C.onSurfaceVariant,
-  },
-  challengeTrack: {
-    height: 6,
-    backgroundColor: C.surfaceContainerHighest,
-    borderRadius: 99,
-    overflow: 'hidden',
-    marginTop: 2,
-  },
-  challengeFill: {
-    height: '100%',
-    backgroundColor: C.primary,
-    borderRadius: 99,
-  },
-  challengeFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  challengeLevel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.onSurfaceVariant,
-    letterSpacing: 1,
-  },
-  challengeGoal: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.primary,
-    letterSpacing: 0.5,
-  },
-  challengeBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.primary,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: `${C.primary}12`,
-  },
-  challengeBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: C.primary,
+    marginTop: 14,
   },
   // ── Park search results ──────────────────────────────
   searchResults: {
@@ -1542,17 +1412,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: C.onSurfaceVariant,
   },
-  parkResultBadge: {
-    backgroundColor: C.primary,
-    borderRadius: 6,
-    paddingHorizontal: 8,
+  parkResultIconState: {
+    backgroundColor: C.warningContainer,
+  },
+  parkResultVisited: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: C.primaryContainer,
+    borderRadius: 999,
+    paddingHorizontal: 9,
     paddingVertical: 4,
   },
-  parkResultCode: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: C.onPrimary,
-    letterSpacing: 1,
+  parkResultVisitedText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -1563,6 +1438,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: C.onSurfaceVariant,
     textAlign: 'center',
+  },
+  emptyHint: {
+    fontSize: 12,
+    color: C.outline,
+    textAlign: 'center',
+    marginTop: -4,
   },
   modalOverlay: {
     flex: 1,

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Share, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Share, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { haptic } from '@/utils/haptics';
+import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 
@@ -17,6 +19,7 @@ export default function InviteRouteScreen() {
   const params = useLocalSearchParams<{ code?: string }>();
   const { user } = useAuth();
   const { recordInviteSent } = useFriends();
+  const toast = useToast();
   const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
@@ -36,19 +39,23 @@ export default function InviteRouteScreen() {
     }
 
     setSharing(true);
+    haptic.tap();
     try {
       const inviterName = user.firstName || user.name || 'A friend';
       const storeUrl = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
 
-      await Share.share({
+      const result = await Share.share({
         title: 'Join me on ParkAtlas',
         message: `${inviterName} invited you to join ParkAtlas — track visits, hikes, camps, and road-trip stops across the National Parks.\n\n${storeUrl}`,
         url: storeUrl,
       });
 
-      await recordInviteSent(storeUrl);
+      if (result.action === Share.sharedAction) {
+        await recordInviteSent(storeUrl);
+        toast.success('Invite sent', { icon: 'paper-plane' });
+      }
     } catch {
-      Alert.alert('Unable to share invite', 'Please try again.');
+      toast.error("Couldn't open the share sheet. Try again.");
     } finally {
       setSharing(false);
     }

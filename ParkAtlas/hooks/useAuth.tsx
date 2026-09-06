@@ -7,11 +7,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AUTH_USER_KEY, BIOMETRIC_ENABLED_KEY, credentialsKey } from '@/constants/authConfig';
 import { mergeDuplicateAccountsForEmail } from '@/utils/accountMerge';
-import { hasProfileWithoutPassword, requiresAppleSignIn, resolveAccountIdentity } from '@/utils/accountLinking';
-import { upsertProductionUserProfile } from '@/utils/userDirectoryApi';
+import { hasProfileWithoutPassword, resolveAccountIdentity, socialProviderFor } from '@/utils/accountLinking';
+import { fetchUserProfile, isPlaceholderName, isPrivateRelayEmail, upsertProductionUserProfile } from '@/utils/userDirectoryApi';
+import { signOutOfGoogle } from '@/utils/googleSignIn';
 import { db } from '@/utils/firebase';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────────────
+
+export type AuthProvider = 'apple' | 'email' | 'google';
 
 export interface AuthUser {
   id: string;
@@ -21,7 +24,18 @@ export interface AuthUser {
   email: string;
   avatarUrl?: string;
   phone?: string;
-  provider: 'apple' | 'email';
+  provider: AuthProvider;
+}
+
+/** Normalized identity handed to signInWithGoogle after the OAuth dance completes. */
+export interface GoogleProfile {
+  /** Google's stable `sub` claim. */
+  id: string;
+  email?: string;
+  name?: string;
+  givenName?: string;
+  familyName?: string;
+  picture?: string;
 }
 
 interface StoredCredentials {
@@ -31,6 +45,8 @@ interface StoredCredentials {
 
 type FirestoreCredentialsLookup = {
   creds: StoredCredentials | null;
+  /** Canonical account id the credentials resolve to (may be a social id after a merge). */
+  userId: string | null;
   unavailable: boolean;
 };
 
@@ -117,13 +133,14 @@ async function getFirestoreEmailCredentials(email: string): Promise<FirestoreCre
 
       return {
         creds: { passwordHash, salt },
+        userId: typeof data.userId === 'string' && data.userId.trim() ? data.userId.trim() : null,
         unavailable: false,
       };
     }
 
-    return { creds: null, unavailable: false };
+    return { creds: null, userId: null, unavailable: false };
   } catch {
-    return { creds: null, unavailable: true };
+    return { creds: null, userId: null, unavailable: true };
   }
 }
 
@@ -177,6 +194,7 @@ export class AuthError extends Error {
       | 'INVALID_EMAIL'
       | 'SERVICE_UNAVAILABLE'
       | 'APPLE_SIGN_IN_REQUIRED'
+      | 'GOOGLE_SIGN_IN_REQUIRED'
       | 'PASSWORD_NOT_SET',
     message: string,
   ) {
@@ -197,7 +215,11 @@ interface AuthContextValue {
   biometricEnabled: boolean;
   /** Session exists but is locked behind biometrics */
   pendingBiometricUser: AuthUser | null;
-  signInWithApple: () => Promise<void>;
+  /** Signed in but we never learned a real name (e.g. Apple on a new device) — prompt for one. */
+  needsProfileName: boolean;
+  /** Resolves false when the user cancels the Apple sheet. */
+  signInWithApple: () => Promise<boolean>;
+  signInWithGoogle: (profile: GoogleProfile) => Promise<void>;
   signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Prompts Face ID / Touch ID and unlocks the pending session on success */
@@ -220,7 +242,9 @@ const AuthContext = createContext<AuthContextValue>({
   biometricAvailable: false,
   biometricEnabled: false,
   pendingBiometricUser: null,
-  signInWithApple: async () => {},
+  needsProfileName: false,
+  signInWithApple: async () => false,
+  signInWithGoogle: async () => {},
   signUpWithEmail: async () => {},
   signInWithEmail: async () => {},
   unlockWithBiometrics: async () => false,
@@ -329,8 +353,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await persistUser(updated);
   }, [user]);
 
+  // ── Social identity resolution ────────────────────────────────────────────────
+  /**
+   * Builds the AuthUser for a social sign-in. Precedence for each field:
+   *   fresh provider data → Firestore profile → local caches → fallback.
+   * Firestore is the cross-device source of truth because Apple only returns
+   * name/email on the very first authorization.
+   */
+  async function resolveSocialUser(input: {
+    provider: 'apple' | 'google';
+    providerUserId: string;
+    firstName?: string;
+    lastName?: string;
+    fullName?: string;
+    email?: string;
+    avatarUrl?: string;
+  }): Promise<AuthUser> {
+    const id = `${input.provider}_${input.providerUserId}`;
+
+    const [remote, storedRaw, providerCachedRaw] = await Promise.all([
+      fetchUserProfile(id),
+      safeSecureStoreGetItemAsync(AUTH_USER_KEY),
+      input.provider === 'apple' ? safeSecureStoreGetItemAsync(appleProfileKey(input.providerUserId)) : Promise.resolve(null),
+    ]);
+    const cached: AuthUser | null = storedRaw ? JSON.parse(storedRaw) : null;
+    const sameUserCached = cached?.id === id ? cached : null;
+    const providerCached: AuthUser | null = providerCachedRaw ? JSON.parse(providerCachedRaw) : null;
+
+    const freshFirst = (input.firstName || '').trim();
+    const freshLast = (input.lastName || '').trim();
+    const freshFull = (input.fullName || [freshFirst, freshLast].filter(Boolean).join(' ')).trim();
+
+    const firstName = freshFirst || remote?.firstName || providerCached?.firstName || sameUserCached?.firstName || undefined;
+    const lastName = freshLast || remote?.lastName || providerCached?.lastName || sameUserCached?.lastName || undefined;
+    const email = normalizeEmail(input.email || remote?.email || providerCached?.email || sameUserCached?.email || '');
+
+    const name =
+      freshFull ||
+      remote?.name ||
+      [firstName, lastName].filter(Boolean).join(' ') ||
+      (providerCached && !isPlaceholderName(providerCached.name) ? providerCached.name : '') ||
+      (sameUserCached && !isPlaceholderName(sameUserCached.name) ? sameUserCached.name : '') ||
+      (email && !isPrivateRelayEmail(email) ? email.split('@')[0] : '') ||
+      'Explorer';
+
+    const avatarUrl = input.avatarUrl || remote?.avatarUrl || providerCached?.avatarUrl || sameUserCached?.avatarUrl;
+    const phone = remote?.phone || providerCached?.phone || sameUserCached?.phone;
+
+    return {
+      id,
+      name,
+      ...(firstName ? { firstName } : {}),
+      ...(lastName ? { lastName } : {}),
+      email,
+      ...(avatarUrl ? { avatarUrl } : {}),
+      ...(phone ? { phone } : {}),
+      provider: input.provider,
+    };
+  }
+
+  async function mergeEmailAliasesInto(authUser: AuthUser): Promise<void> {
+    if (!authUser.email || isPrivateRelayEmail(authUser.email)) return;
+    try {
+      await mergeDuplicateAccountsForEmail(authUser.email, authUser.id);
+    } catch {
+      // Non-blocking: account merge failures should not block sign-in.
+    }
+  }
+
   // ── Apple Sign In ─────────────────────────────────────────────────────────────
-  const signInWithApple = useCallback(async () => {
+  const signInWithApple = useCallback(async (): Promise<boolean> => {
     try {
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -339,39 +431,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ],
       });
 
-      const stored = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
-      const cached: AuthUser | null = stored ? JSON.parse(stored) : null;
-      const isSameAppleUser =
-        cached?.provider === 'apple' && cached.id === `apple_${credential.user}`;
-      const appleCachedRaw = await safeSecureStoreGetItemAsync(appleProfileKey(credential.user));
-      const appleCached: AuthUser | null = appleCachedRaw ? JSON.parse(appleCachedRaw) : null;
-
-      const firstName = credential.fullName?.givenName ?? '';
-      const lastName = credential.fullName?.familyName ?? '';
-      const fullName = [firstName, lastName].filter(Boolean).join(' ');
-      const email = credential.email ?? (appleCached?.email || (isSameAppleUser ? cached!.email : ''));
-
-      const authUser: AuthUser = {
-        id: `apple_${credential.user}`,
-        name:
-          fullName ||
-          appleCached?.name ||
-          (isSameAppleUser ? cached!.name : '') ||
-          (email ? email.split('@')[0] : 'Explorer'),
-        firstName: firstName || appleCached?.firstName || (isSameAppleUser ? cached?.firstName : undefined),
-        lastName: lastName || appleCached?.lastName || (isSameAppleUser ? cached?.lastName : undefined),
-        email,
-        ...((isSameAppleUser && cached?.phone) || appleCached?.phone
-          ? { phone: appleCached?.phone || cached?.phone }
-          : {}),
+      const authUser = await resolveSocialUser({
         provider: 'apple',
-      };
+        providerUserId: credential.user,
+        firstName: credential.fullName?.givenName ?? undefined,
+        lastName: credential.fullName?.familyName ?? undefined,
+        email: credential.email ?? undefined,
+      });
+
+      await mergeEmailAliasesInto(authUser);
       await persistUser(authUser);
+      return true;
     } catch (e: any) {
-      if (e?.code !== 'ERR_REQUEST_CANCELED') {
-        console.error('[useAuth] Apple sign-in error:', e);
-      }
+      if (e?.code === 'ERR_REQUEST_CANCELED') return false;
+      if (e instanceof AuthError) throw e;
+      // Unsigned/dev builds lack the Sign in with Apple entitlement; sim also needs an iCloud login.
+      throw new AuthError(
+        'SERVICE_UNAVAILABLE',
+        "Apple Sign-In isn't available on this device right now. Make sure you're signed into iCloud, or use email instead."
+      );
     }
+  }, []);
+
+  // ── Google Sign In ────────────────────────────────────────────────────────────
+  const signInWithGoogle = useCallback(async (profile: GoogleProfile) => {
+    if (!profile?.id) throw new AuthError('SERVICE_UNAVAILABLE', 'Google did not return an account id.');
+
+    const authUser = await resolveSocialUser({
+      provider: 'google',
+      providerUserId: profile.id,
+      firstName: profile.givenName,
+      lastName: profile.familyName,
+      fullName: profile.name,
+      email: profile.email,
+      avatarUrl: profile.picture,
+    });
+
+    await mergeEmailAliasesInto(authUser);
+    await persistUser(authUser);
   }, []);
 
   // ── Email Sign Up ─────────────────────────────────────────────────────────────
@@ -398,10 +495,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const identity = await resolveAccountIdentity(normalizedEmail);
     const isRestoringProfileOnlyAccount = hasProfileWithoutPassword(identity);
     if (identity.kind !== 'none' && !isRestoringProfileOnlyAccount) {
-      if (requiresAppleSignIn(identity)) {
+      const social = socialProviderFor(identity);
+      if (social === 'apple') {
         throw new AuthError(
           'APPLE_SIGN_IN_REQUIRED',
           'This email already belongs to an Apple Sign-In account. Tap Continue with Apple instead of creating a new password account.'
+        );
+      }
+      if (social === 'google') {
+        throw new AuthError(
+          'GOOGLE_SIGN_IN_REQUIRED',
+          'This email already belongs to a Google account. Tap Continue with Google instead of creating a new password account.'
         );
       }
 
@@ -466,17 +570,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const identity = await resolveAccountIdentity(normalizedEmail);
       if (identity.kind !== 'none') {
-        if (requiresAppleSignIn(identity)) {
+        const social = socialProviderFor(identity);
+        if (social === 'apple') {
           throw new AuthError(
             'APPLE_SIGN_IN_REQUIRED',
             'This account uses Apple Sign-In. Tap Continue with Apple to access it.'
           );
         }
-
-        if (hasProfileWithoutPassword(identity)) {
+        if (social === 'google') {
           throw new AuthError(
-            'PASSWORD_NOT_SET',
-            'This account exists, but no email password is set yet. Tap Sign up with this same email and password once to restore access.'
+            'GOOGLE_SIGN_IN_REQUIRED',
+            'This account uses Google Sign-In. Tap Continue with Google to access it.'
           );
         }
 
@@ -500,38 +604,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await setFirestoreEmailCredentials(normalizedEmail, normalizedCreds, `email_${normalizedEmail}`);
     }
 
+    // After an Apple/Google merge the credentials point at the social id; honor that
+    // so password sign-in lands on the same account instead of an empty email_ one.
+    const canonicalId = firestoreLookup.userId || `email_${normalizedEmail}`;
+
     // Restore any cached profile for this email (preserves any name updates)
     const stored = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
     const cached: AuthUser | null = stored ? JSON.parse(stored) : null;
-    const isSame = cached?.id === `email_${normalizedEmail}`;
+    const isSame = cached?.id === canonicalId;
 
-    let profileFirstName: string | undefined;
-    let profileLastName: string | undefined;
-    let profileDisplayName: string | undefined;
-    try {
-      const profileSnap = await getDoc(doc(db, 'users', `email_${normalizedEmail}`));
-      if (profileSnap.exists()) {
-        const data = profileSnap.data() as Record<string, unknown>;
-        const first = typeof data.first_name === 'string' ? data.first_name.trim() : '';
-        const last = typeof data.last_name === 'string' ? data.last_name.trim() : '';
-        const fullFromParts = `${first} ${last}`.trim();
-        const full = typeof data.name === 'string' ? data.name.trim() : '';
-        profileFirstName = first || undefined;
-        profileLastName = last || undefined;
-        profileDisplayName = full || fullFromParts || undefined;
-      }
-    } catch {
-      // Non-blocking; fall back to cached/local display data.
-    }
+    const remote = await fetchUserProfile(canonicalId);
+    const profileFirstName = remote?.firstName;
+    const profileLastName = remote?.lastName;
+    const profileDisplayName = remote?.name;
 
     const authUser: AuthUser = {
-      id: `email_${normalizedEmail}`,
+      id: canonicalId,
       name: profileDisplayName || (isSame ? cached!.name : normalizedEmail.split('@')[0]),
       ...((profileFirstName || (isSame && cached?.firstName)) ? { firstName: profileFirstName || cached?.firstName } : {}),
       ...((profileLastName || (isSame && cached?.lastName)) ? { lastName: profileLastName || cached?.lastName } : {}),
       email: normalizedEmail,
-      ...(isSame && cached?.phone ? { phone: cached.phone } : {}),
-      provider: 'email',
+      ...(remote?.avatarUrl || (isSame && cached?.avatarUrl) ? { avatarUrl: remote?.avatarUrl || cached?.avatarUrl } : {}),
+      ...(remote?.phone || (isSame && cached?.phone) ? { phone: remote?.phone || cached?.phone } : {}),
+      provider: canonicalId.startsWith('apple_') ? 'apple' : canonicalId.startsWith('google_') ? 'google' : 'email',
     };
 
     try {
@@ -585,12 +680,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Sign Out ──────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
     await safeSecureStoreDeleteItemAsync(AUTH_USER_KEY);
+    if (user?.provider === 'google') await signOutOfGoogle();
     setPendingBiometricUser(null);
     setUser(null);
-  }, []);
+  }, [user?.provider]);
 
   const deleteAccount = useCallback(async () => {
     const currentUser = user;
+    if (currentUser?.provider === 'google') await signOutOfGoogle();
 
     await Promise.all([
       safeSecureStoreDeleteItemAsync(AUTH_USER_KEY),
@@ -659,7 +756,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         biometricAvailable: biometricAvailable && secureStoreAvailable,
         biometricEnabled,
         pendingBiometricUser: secureStoreAvailable ? pendingBiometricUser : null,
+        needsProfileName: !!user && user.provider !== 'email' && isPlaceholderName(user.name) && !user.firstName,
         signInWithApple,
+        signInWithGoogle,
         signUpWithEmail,
         signInWithEmail,
         unlockWithBiometrics,

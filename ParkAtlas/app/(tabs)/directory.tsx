@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Image,
+  Linking,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { ParkAtlas as C } from '@/constants/theme';
+import { haptic } from '@/utils/haptics';
+import { useToast } from '@/components/ui/Toast';
+import { PersonRowSkeleton } from '@/components/ui/Skeleton';
 import { AppDrawer } from '@/components/AppDrawer';
 import { FriendProfile, useFriends } from '@/hooks/useFriends';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,7 +58,7 @@ export default function FriendsPage() {
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState<FriendProfile[]>([]);
   const [searching, setSearching] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const toast = useToast();
   const [requestedExpanded, setRequestedExpanded] = useState(false);
   const [syncingContacts, setSyncingContacts] = useState(false);
   const [directoryWarning, setDirectoryWarning] = useState<string | null>(null);
@@ -158,22 +162,10 @@ export default function FriendsPage() {
   }, [isLoggedIn, searchText, user?.id]);
 
   useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), 2000);
-    return () => clearTimeout(id);
-  }, [toast]);
-
-  useEffect(() => {
     if (params.pendingIncoming !== '1' || pendingIncomingHandledRef.current) return;
     pendingIncomingHandledRef.current = true;
-    const count = incomingRequests.length;
-    const message = count > 0
-      ? `You have ${count} pending friend request${count === 1 ? '' : 's'}.`
-      : 'You have a pending friend request.';
-    setToast(message);
-    Alert.alert('Pending Friend Request', message);
     router.replace('/(tabs)/directory');
-  }, [incomingRequests.length, params.pendingIncoming, router]);
+  }, [params.pendingIncoming, router]);
 
   const syncContacts = useCallback(async () => {
     if (!user?.id) return;
@@ -200,19 +192,29 @@ export default function FriendsPage() {
       await setDirectoryUsers(profiles);
       await setMatchedContactIds(profiles.map((p) => p.id));
       await markContactsSynced(true);
+      toast.success(
+        profiles.length === 0
+          ? 'Contacts synced — no matches yet'
+          : `Found ${profiles.length} ${profiles.length === 1 ? 'friend' : 'friends'} from your contacts`,
+        { icon: 'people' },
+      );
     } catch (e) {
       if (e instanceof ContactsPermissionDeniedError) {
         Alert.alert(
           'Contacts access needed',
-          'Allow contacts access in Settings to find friends who are already using ParkAtlas.'
+          'Allow contacts access in Settings to find friends who are already using ParkAtlas.',
+          [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => { void Linking.openSettings(); } },
+          ],
         );
       } else {
-        Alert.alert('Unable to sync contacts', 'Please try again.');
+        toast.error("Couldn't sync contacts. Pull down to try again.");
       }
     } finally {
       setSyncingContacts(false);
     }
-  }, [user?.id, setDirectoryUsers, setMatchedContactIds, markContactsSynced]);
+  }, [user?.id, setDirectoryUsers, setMatchedContactIds, markContactsSynced, toast]);
 
   // Post-login resume: execute a pending 'follow' or 'viewProfile' action when user logs in
   useEffect(() => {
@@ -232,12 +234,12 @@ export default function FriendsPage() {
     const target = profileById.get(action.userId);
     if (target) {
       void follow(target).then(() => {
-        setToast(`Following ${action.displayName} ✅`);
+        toast.success(`Following ${action.displayName}`, { icon: 'person-add' });
       });
     } else {
       // User not in current list; attempt follow by id anyway
       void sendFriendRequest(action.userId);
-      setToast(`Following ${action.displayName} ✅`);
+      toast.success(`Following ${action.displayName}`, { icon: 'person-add' });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isFocused]);
@@ -263,12 +265,19 @@ export default function FriendsPage() {
     if (state === 'friends' || state === 'requested') return;
     if (state === 'incoming') {
       await acceptRequest(profile);
-      setToast(`You're now following ${profile.name}`);
+      toast.success(`You're now following ${profile.name}`, { icon: 'person-add' });
       return;
     }
 
+    haptic.tap();
     await sendFriendRequest(profile.id);
-    setToast(`Requested ${profile.name}`);
+    toast.info(`Requested ${profile.name}`, { icon: 'paper-plane', silent: true });
+  }
+
+  function ignore(profile: FriendProfile) {
+    haptic.select();
+    void ignoreRequest(profile.id);
+    toast.info(`Ignored ${profile.name}`, { silent: true });
   }
 
 
@@ -302,15 +311,15 @@ export default function FriendsPage() {
           <Text style={styles.statusText}>Following</Text>
         ) : state === 'incoming' ? (
           <View style={styles.inlineActions}>
-            <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => { void ignoreRequest(profile.id); }}>
+            <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => ignore(profile)} accessibilityRole="button" accessibilityLabel={`Ignore request from ${profile.name}`}>
               <Text style={styles.ghostBtnText}>Ignore</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }}>
+            <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }} accessibilityRole="button" accessibilityLabel={`Accept request from ${profile.name}`}>
               <Text style={styles.followBtnText}>Accept</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }}>
+          <TouchableOpacity style={styles.followBtn} activeOpacity={0.8} onPress={() => { void follow(profile); }} accessibilityRole="button" accessibilityLabel={`Follow ${profile.name}`}>
             <Text style={styles.followBtnText}>Follow</Text>
           </TouchableOpacity>
         )}
@@ -442,15 +451,33 @@ export default function FriendsPage() {
           {isLoggedIn && searchText.trim().length > 0 ? (
             <View style={styles.sectionBlock}>
               {searching
-                ? <Text style={styles.emptyText}>Searching…</Text>
+                ? (
+                  <>
+                    <PersonRowSkeleton />
+                    <PersonRowSkeleton />
+                    <PersonRowSkeleton />
+                  </>
+                )
                 : searchResults.length === 0
-                  ? <Text style={styles.emptyText}>No results</Text>
+                  ? (
+                    <View style={styles.searchEmpty}>
+                      <Ionicons name="search-outline" size={22} color={C.outlineVariant} />
+                      <Text style={styles.emptyText}>No one named “{searchText.trim()}” yet</Text>
+                    </View>
+                  )
                   : searchResults.map(renderPersonRow)}
             </View>
           ) : null}
 
           {isLoggedIn ? (
             <>
+              {incomingRequests.length > 0 ? (
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionTitle}>Requests ({incomingRequests.length})</Text>
+                  {incomingRequests.map(renderPersonRow)}
+                </View>
+              ) : null}
+
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionTitle}>Following</Text>
                 {followingUsers.length === 0
@@ -512,12 +539,6 @@ export default function FriendsPage() {
             <Text style={styles.inviteBtnText}>{isLoggedIn ? 'Invite friends' : 'Sign in to invite friends'}</Text>
           </TouchableOpacity>
         </View>
-
-        {toast ? (
-          <View style={styles.toast}>
-            <Text style={styles.toastText}>{toast}</Text>
-          </View>
-        ) : null}
       </ScrollView>
 
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
@@ -573,7 +594,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderRadius: 14,
-    backgroundColor: '#f5f8f6',
+    backgroundColor: C.surfaceContainerLow,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -595,7 +616,7 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
     borderRadius: 14,
-    backgroundColor: '#f5f8f6',
+    backgroundColor: C.surfaceContainerLow,
     padding: 14,
   },
   contactsPromptText: {
@@ -620,7 +641,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#eef2ef',
+    backgroundColor: C.surfaceContainerHigh,
   },
   personName: {
     flex: 1,
@@ -656,7 +677,7 @@ const styles = StyleSheet.create({
   },
   ghostBtn: {
     borderRadius: 999,
-    backgroundColor: '#edf2ee',
+    backgroundColor: C.surfaceContainerHigh,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
@@ -689,20 +710,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.onSurfaceVariant,
   },
+  searchEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
   warningText: {
     fontSize: 12,
-    color: '#8a4b00',
-  },
-  toast: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#e7f1e8',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  toastText: {
-    color: '#1b4332',
-    fontSize: 13,
-    fontWeight: '600',
+    color: C.warning,
   },
 });

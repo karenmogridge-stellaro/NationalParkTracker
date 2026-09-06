@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import { STRAVA_CACHE_FILE, StravaAthlete, StravaActivity, StravaSummary } from './useStrava';
@@ -90,6 +90,13 @@ export function useStravaData() {
     }
   }
 
+  /** Force a network refresh, bypassing the cache TTL. No-op when Strava isn't linked. */
+  const refresh = useCallback(async () => {
+    const token = await SecureStore.getItemAsync(KEY_TOKEN);
+    if (!token) return;
+    await fetchFresh(token);
+  }, []);
+
   const totalMiles = activities.reduce((s, a) => s + (a.distance ?? 0), 0) / 1609.34;
   const totalElevationFt = activities.reduce((s, a) => s + (a.total_elevation_gain ?? 0), 0) * 3.28084;
   const trailCount = activities.length;
@@ -103,5 +110,5 @@ export function useStravaData() {
     return matchPark(activity.start_latlng[0], activity.start_latlng[1]);
   }
 
-  return { athlete, activities, totalMiles, totalElevationFt, trailCount, visitedParks, parksCount, parkForActivity, loading };
+  return { athlete, activities, totalMiles, totalElevationFt, trailCount, visitedParks, parksCount, parkForActivity, loading, refresh };
 }

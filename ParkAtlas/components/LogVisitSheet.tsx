@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,27 +9,84 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { ParkAtlas as C } from '@/constants/theme';
+import { ParkAtlas as C, Radii } from '@/constants/theme';
+import { PARK_TRAILS, type Trail } from '@/data/trailsData';
+import { haptic } from '@/utils/haptics';
+import { VisitDatePicker, type VisitDateValue } from '@/components/VisitDatePicker';
+import type { LogVisitOptions } from '@/hooks/useVisitedParks';
+
+export type LogVisitResult = {
+  trailName: string;
+  trailMiles?: number;
+  /** Date fields ready to spread into LogVisitOptions. */
+  date: Pick<LogVisitOptions, 'dateVisited' | 'dateUnknown' | 'datePrecision'>;
+};
 
 interface Props {
   visible: boolean;
   parkName: string;
+  /** Enables the curated trail picker for this park. */
+  npsCode?: string;
+  /** Pre-fills the trail (e.g. tapped from the park's Trails card). */
+  initialTrail?: Trail | null;
   onClose: () => void;
-  onSave: (trailName: string) => void;
+  onSave: (result: LogVisitResult) => void;
 }
 
-export function LogVisitSheet({ visible, parkName, onClose, onSave }: Props) {
+export function LogVisitSheet({ visible, parkName, npsCode, initialTrail, onClose, onSave }: Props) {
   const [trailName, setTrailName] = useState('');
+  const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
+  const [dateValue, setDateValue] = useState<VisitDateValue>({ kind: 'unknown' });
+
+  const trails = useMemo<Trail[]>(() => (npsCode ? PARK_TRAILS[npsCode] || [] : []), [npsCode]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setSelectedTrail(initialTrail ?? null);
+    setTrailName(initialTrail?.name ?? '');
+    setDateValue({ kind: 'unknown' });
+  }, [visible, initialTrail]);
+
+  const filteredTrails = useMemo(() => {
+    const q = trailName.trim().toLowerCase();
+    if (!q || (selectedTrail && selectedTrail.name === trailName)) return trails;
+    return trails.filter((t) => t.name.toLowerCase().includes(q));
+  }, [trails, trailName, selectedTrail]);
+
+  function pickTrail(trail: Trail) {
+    haptic.select();
+    if (selectedTrail?.name === trail.name) {
+      setSelectedTrail(null);
+      setTrailName('');
+      return;
+    }
+    setSelectedTrail(trail);
+    setTrailName(trail.name);
+  }
+
+  function onChangeText(text: string) {
+    setTrailName(text);
+    if (selectedTrail && text !== selectedTrail.name) setSelectedTrail(null);
+  }
 
   function handleSave() {
-    onSave(trailName);
+    onSave({
+      trailName: trailName.trim(),
+      trailMiles: selectedTrail?.miles,
+      date: dateValue.kind === 'date'
+        ? { dateVisited: dateValue.date.toISOString(), dateUnknown: false, datePrecision: dateValue.precision }
+        : { dateUnknown: true },
+    });
     setTrailName('');
+    setSelectedTrail(null);
   }
 
   function handleClose() {
     setTrailName('');
+    setSelectedTrail(null);
     onClose();
   }
 
@@ -51,6 +108,12 @@ export function LogVisitSheet({ visible, parkName, onClose, onSave }: Props) {
           {/* Handle */}
           <View style={styles.handle} />
 
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Header */}
           <View style={styles.sheetHeader}>
             <View style={styles.sheetIconWrap}>
@@ -68,31 +131,70 @@ export function LogVisitSheet({ visible, parkName, onClose, onSave }: Props) {
           {/* Trail input */}
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>Trail hiked (optional)</Text>
-            <View style={styles.inputRow}>
-              <MaterialCommunityIcons name="hiking" size={18} color={C.outlineVariant} />
+            <View style={[styles.inputRow, selectedTrail && styles.inputRowSelected]}>
+              <MaterialCommunityIcons name="hiking" size={18} color={selectedTrail ? C.primary : C.outlineVariant} />
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Angel's Landing, Mist Trail..."
+                placeholder={trails.length > 0 ? `Search ${trails.length} trails or type your own` : "e.g. Angel's Landing, Mist Trail..."}
                 placeholderTextColor={C.outlineVariant}
                 value={trailName}
-                onChangeText={setTrailName}
+                onChangeText={onChangeText}
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
                 maxLength={80}
               />
               {trailName.length > 0 && (
-                <TouchableOpacity onPress={() => setTrailName('')} activeOpacity={0.7}>
+                <TouchableOpacity onPress={() => { setTrailName(''); setSelectedTrail(null); }} activeOpacity={0.7}>
                   <Ionicons name="close-circle" size={18} color={C.outlineVariant} />
                 </TouchableOpacity>
               )}
             </View>
+
+            {trails.length > 0 ? (
+              <ScrollView
+                style={styles.trailList}
+                contentContainerStyle={styles.trailListContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                nestedScrollEnabled
+              >
+                {filteredTrails.length === 0 ? (
+                  <Text style={styles.trailEmpty}>No matching trail — we&apos;ll save “{trailName.trim()}” as a custom trail.</Text>
+                ) : filteredTrails.map((trail) => {
+                  const active = selectedTrail?.name === trail.name;
+                  return (
+                    <TouchableOpacity
+                      key={trail.name}
+                      style={[styles.trailRow, active && styles.trailRowActive]}
+                      onPress={() => pickTrail(trail)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                    >
+                      <Ionicons
+                        name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={18}
+                        color={active ? C.primary : C.outlineVariant}
+                      />
+                      <Text style={[styles.trailName, active && styles.trailNameActive]} numberOfLines={1}>{trail.name}</Text>
+                      <Text style={styles.trailMiles}>{trail.miles.toFixed(1)} mi</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
           </View>
+
+          <VisitDatePicker value={dateValue} onChange={setDateValue} />
+          </ScrollView>
 
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
               <Ionicons name="checkmark" size={18} color={C.onPrimary} />
-              <Text style={styles.saveBtnText}>Mark as Visited</Text>
+              <Text style={styles.saveBtnText}>
+                {selectedTrail ? `Log ${selectedTrail.miles.toFixed(1)} mi hike` : 'Mark as Visited'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleClose} activeOpacity={0.7}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -134,6 +236,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.outlineVariant,
     alignSelf: 'center',
     marginBottom: 4,
+  },
+  body: {
+    flexGrow: 0,
+    maxHeight: 520,
+  },
+  bodyContent: {
+    gap: 20,
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -189,6 +298,51 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: C.onSurface,
+  },
+  inputRowSelected: {
+    borderColor: C.primary,
+    backgroundColor: C.primaryContainer,
+  },
+  trailList: {
+    maxHeight: 190,
+    marginTop: 4,
+  },
+  trailListContent: {
+    gap: 6,
+  },
+  trailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: Radii.sm,
+    backgroundColor: C.surfaceContainerLow,
+  },
+  trailRowActive: {
+    backgroundColor: C.primaryContainer,
+  },
+  trailName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.onSurface,
+  },
+  trailNameActive: {
+    color: C.primary,
+    fontWeight: '700',
+  },
+  trailMiles: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    fontVariant: ['tabular-nums'],
+  },
+  trailEmpty: {
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   actions: {
     gap: 10,

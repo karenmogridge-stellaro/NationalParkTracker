@@ -3,7 +3,7 @@
     "name": "ParkAtlas",
     "slug": "ParkAtlas",
     "description": "Track visits, hikes, camps, and memorable stops across all 63 U.S. National Parks.",
-    "version": "1.3",
+    "version": "2.0",
     "sdkVersion": "55.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon-square.png",
@@ -89,6 +89,13 @@
         "expo-contacts",
         {
           "contactsPermission": "Allow ParkAtlas to access your contacts to find friends already using the app."
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "ParkAtlas uses your location to suggest national and state parks near you."
         }
       ]
     ],

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ParkAtlas as C } from '@/constants/theme';
+import { ListItemSkeleton } from '@/components/ui/Skeleton';
 import { FriendActivity, fetchFriendActivities } from '@/utils/userDirectoryApi';
 
 function formatVisitedDate(value?: string): string | null {
@@ -91,16 +91,20 @@ export default function FriendProfileScreen() {
         </View>
 
         {loading ? (
-          <View style={styles.stateCard}>
-            <ActivityIndicator color={C.primary} />
-            <Text style={styles.stateText}>Loading activity...</Text>
+          <View style={styles.skeletonList}>
+            <ListItemSkeleton />
+            <ListItemSkeleton />
+            <ListItemSkeleton />
           </View>
         ) : null}
 
         {!loading && sortedActivities.length === 0 ? (
           <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>No activity yet</Text>
-            <Text style={styles.stateText}>This friend has not logged any park visits yet.</Text>
+            <View style={styles.stateIconWrap}>
+              <MaterialCommunityIcons name="compass-outline" size={28} color={C.primary} />
+            </View>
+            <Text style={styles.stateTitle}>No adventures yet</Text>
+            <Text style={styles.stateText}>{displayName} hasn&apos;t logged a park visit. Send a High-Five when they do.</Text>
           </View>
         ) : null}
 
@@ -150,7 +154,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#eef2ec',
+    backgroundColor: C.surfaceContainerHigh,
   },
   headerTitle: {
     fontSize: 18,
@@ -171,9 +175,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingHorizontal: 20,
     paddingVertical: 24,
-    backgroundColor: '#f5f7f2',
+    backgroundColor: C.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: '#dde5d9',
+    borderColor: C.surfaceContainerHighest,
   },
   avatar: {
     width: 96,
@@ -186,7 +190,7 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 48,
     marginBottom: 14,
-    backgroundColor: '#dfe6db',
+    backgroundColor: C.surfaceContainerHighest,
   },
   name: {
     fontSize: 28,
@@ -223,15 +227,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: C.onSurfaceVariant,
   },
+  skeletonList: {
+    gap: 8,
+    paddingHorizontal: 4,
+  },
   stateCard: {
     alignItems: 'center',
     gap: 10,
     borderRadius: 22,
     paddingHorizontal: 18,
     paddingVertical: 24,
-    backgroundColor: '#f7f8f5',
+    backgroundColor: C.surfaceContainerLow,
     borderWidth: 1,
-    borderColor: '#e1e6dc',
+    borderColor: C.surfaceContainerHighest,
+  },
+  stateIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primaryContainer,
+    marginBottom: 4,
   },
   stateTitle: {
     fontSize: 18,
@@ -250,9 +267,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: '#e3e8df',
+    borderColor: C.surfaceContainerHighest,
   },
   activityIconWrap: {
     width: 40,
@@ -260,7 +277,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#edf4ea',
+    backgroundColor: C.primaryContainer,
   },
   activityBody: {
     flex: 1,

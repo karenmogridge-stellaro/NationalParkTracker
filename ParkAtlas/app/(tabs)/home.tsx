@@ -8,11 +8,16 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { ParkAtlas as C } from '@/constants/theme';
+import { haptic } from '@/utils/haptics';
+import { useToast } from '@/components/ui/Toast';
+import { FeedCardSkeleton } from '@/components/ui/Skeleton';
+import { ProgressHero } from '@/components/ProgressHero';
+import { formatVisitDate } from '@/components/VisitDatePicker';
 import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { useFriends } from '@/hooks/useFriends';
@@ -38,19 +43,7 @@ const SEASON_MONTHS = [
   { label: 'SEP', month: 8 },
 ] as const;
 
-const ADVENTURE_IMAGES = [
-  'https://images.unsplash.com/photo-1601758261160-ecf8f9f4a4ea?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1508261305438-4f788f2f9d29?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1400&q=80',
-  'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1400&q=80',
-];
-
 const FALLBACK_CAMPING_IMAGE = 'https://images.unsplash.com/photo-1601758261160-ecf8f9f4a4ea?auto=format&fit=crop&w=1400&q=80';
-
-const STAT_RING_TRACK = '#D8D8D8';
-const STAT_RING_PROGRESS = '#1b4332';
 
 function firstName(name?: string): string {
   if (!name || !name.trim()) return 'Explorer';
@@ -136,14 +129,6 @@ function sortIsoFromVisitId(visitId?: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-function imageForKey(key: string): string {
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) {
-    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
-  }
-  return ADVENTURE_IMAGES[hash % ADVENTURE_IMAGES.length];
-}
-
 type FeedItem =
   | { type: 'strava'; data: StravaActivity }
   | { type: 'manual'; data: ParkVisit }
@@ -172,40 +157,20 @@ type AdventureCardItem = {
   onPress?: () => void;
 };
 
-function StatProgress({ progress, value }: { progress: number; value: string }) {
-  const pct = Math.max(0, Math.min(1, progress));
-  const rotation = `${pct * 360}deg`;
-  return (
-    <View style={styles.statProgressWrap}>
-      <View style={styles.statProgressTrack} />
-      {pct > 0 ? (
-        <View
-          style={[
-            styles.statProgressFill,
-            {
-              transform: [{ rotate: rotation }],
-            },
-          ]}
-        />
-      ) : null}
-      <View style={styles.statProgressCenter}>
-        <Text style={styles.statProgressText}>{value}</Text>
-      </View>
-    </View>
-  );
-}
-
 export default function HomeScreen() {
-  const { activities, visitedParks, parkForActivity } = useStravaData();
-  const { visits, removeVisit } = useVisitedParks();
+  const { activities, visitedParks, parkForActivity, loading: stravaLoading, refresh: refreshStrava } = useStravaData();
+  const { visits, removeVisit, loading: visitsLoading } = useVisitedParks();
   const { user } = useAuth();
   const { myFriends, incomingRequests } = useFriends();
+  const toast = useToast();
 
   const [sheetVisible, setSheetVisible] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
   const [communityMode, setCommunityMode] = useState<CommunityMode>('all');
   const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
+  const [friendActivitiesLoaded, setFriendActivitiesLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [kudosEventIds, setKudosEventIds] = useState<Set<string>>(new Set());
   const [optimisticKudos, setOptimisticKudos] = useState<Record<string, boolean>>({});
   const [kudosPendingEventIds, setKudosPendingEventIds] = useState<Set<string>>(new Set());
@@ -213,28 +178,46 @@ export default function HomeScreen() {
   // Login gate
   const [gateVisible, setGateVisible] = useState(false);
   const [gateAction, setGateAction] = useState<PendingAction | null>(null);
-  const [resumeToast, setResumeToast] = useState<string | null>(null);
   // Track whether the scroll gate has already fired this session
   const scrollGateFiredRef = React.useRef(false);
   // Track previous user ID to detect fresh logins
   const prevUserIdRef = React.useRef<string | null>(null);
   const pendingRequestPromptedUserRef = React.useRef<string | null>(null);
 
-
-  React.useEffect(() => {
+  const loadFriendActivities = useCallback(async () => {
     if (myFriends.length === 0) {
       setFriendActivities([]);
+      setFriendActivitiesLoaded(true);
       return;
     }
 
-    fetchFriendActivities(myFriends.filter((f) => f.id !== user?.id).map((f) => f.id)).then((activities) => {
+    try {
+      const activities = await fetchFriendActivities(
+        myFriends.filter((f) => f.id !== user?.id).map((f) => f.id),
+      );
       const enriched = activities.map((a) => ({
         ...a,
         userName: myFriends.find((f) => f.id === a.userId)?.name || a.userName,
       }));
       setFriendActivities(enriched);
-    });
-  }, [myFriends]);
+    } finally {
+      setFriendActivitiesLoaded(true);
+    }
+  }, [myFriends, user?.id]);
+
+  React.useEffect(() => {
+    void loadFriendActivities();
+  }, [loadFriendActivities]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    haptic.tap();
+    try {
+      await Promise.all([refreshStrava(), loadFriendActivities()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshStrava, loadFriendActivities]);
 
   React.useEffect(() => {
     if (!user?.id) {
@@ -523,7 +506,7 @@ export default function HomeScreen() {
     const currentlyKudosd = isEventKudosd(eventId);
     const nextKudosd = !currentlyKudosd;
 
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptic.tap();
 
     setOptimisticKudos((prev) => ({ ...prev, [eventId]: nextKudosd }));
     setKudosPendingEventIds((prev) => new Set(prev).add(eventId));
@@ -571,6 +554,7 @@ export default function HomeScreen() {
       }
     } catch {
       setOptimisticKudos((prev) => ({ ...prev, [eventId]: currentlyKudosd }));
+      toast.error("Couldn't send that High-Five. Try again.");
     } finally {
       setKudosPendingEventIds((prev) => {
         const next = new Set(prev);
@@ -578,14 +562,7 @@ export default function HomeScreen() {
         return next;
       });
     }
-  }, [isEventKudosd, user?.id]);
-
-  // ── Toast auto-clear ───────────────────────────────────────────────────────
-  React.useEffect(() => {
-    if (!resumeToast) return;
-    const id = setTimeout(() => setResumeToast(null), 2500);
-    return () => clearTimeout(id);
-  }, [resumeToast]);
+  }, [isEventKudosd, user?.id, toast]);
 
   // ── Post-login resume: execute pending action after user logs in ───────────
   React.useEffect(() => {
@@ -598,8 +575,8 @@ export default function HomeScreen() {
     if (!action || action.type !== 'highFive') return;
 
     void onToggleKudos(action.eventId, action.eventOwnerUid);
-    setResumeToast(`High-Fived ${action.displayName} 👋`);
-  }, [user?.id, onToggleKudos]);
+    toast.success(`High-Fived ${action.displayName} 👋`, { icon: 'hand-left' });
+  }, [user?.id, onToggleKudos, toast]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -608,24 +585,13 @@ export default function HomeScreen() {
 
     pendingRequestPromptedUserRef.current = user.id;
     const count = incomingRequests.length;
-    setResumeToast(`You have ${count} pending friend request${count === 1 ? '' : 's'}`);
-
-    Alert.alert(
-      'Pending Friend Request',
+    toast.info(
       count === 1
-        ? 'You have 1 pending friend request. Review it now?'
-        : `You have ${count} pending friend requests. Review them now?`,
-      [
-        { text: 'Not now', style: 'cancel' },
-        {
-          text: 'Review',
-          onPress: () => {
-            router.push('/(tabs)/directory?pendingIncoming=1');
-          },
-        },
-      ]
+        ? '1 friend request waiting in Friends'
+        : `${count} friend requests waiting in Friends`,
+      { icon: 'people', durationMs: 3500 },
     );
-  }, [incomingRequests.length, user?.id]);
+  }, [incomingRequests.length, user?.id, toast]);
 
   // ── Login gate helpers ─────────────────────────────────────────────────────
   function showLoginGate(action: PendingAction): void {
@@ -692,7 +658,9 @@ export default function HomeScreen() {
         ? ((item.data as StravaActivity).distance / 1609.34)
         : ((item.data as any).distanceMiles ?? 0);
       const distanceLabel = `${miles.toFixed(1)} miles`;
-      const timeLabel = getTimeLabel(date);
+      // Approximate dates ("2019", "Jun 2019") shouldn't be rendered as "Today"/"3 days".
+      const precision = !isStrava && !isFriend ? (item.data as ParkVisit).datePrecision : undefined;
+      const timeLabel = precision ? (formatVisitDate(date, precision) ?? 'Recently') : getTimeLabel(date);
       const visitCount = visitCountByUserPark.get(`${actorId}::${parkName}`) || 1;
       const contextLabel = ordinalVisitLabel(visitCount);
       const subtitle = `${timeLabel} • ${distanceLabel}`;
@@ -740,7 +708,8 @@ export default function HomeScreen() {
     });
   }, [displayedFeed, parkForActivity, parkById, nationalParkIds, user?.id, visits, onCardPress, visitCountByUserPark, isEventKudosd, kudosPendingEventIds, kudosCountsByEvent, displayedKudosCount]);
 
-  const isFirstTimeEmpty = myEvents.length === 0 && friendsEvents.length === 0;
+  const isFeedLoading = visitsLoading || stravaLoading || (myFriends.length > 0 && !friendActivitiesLoaded);
+  const isFirstTimeEmpty = !isFeedLoading && myEvents.length === 0 && friendsEvents.length === 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -748,6 +717,9 @@ export default function HomeScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.scrollContent, isFirstTimeEmpty && styles.scrollContentEmpty]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { void onRefresh(); }} tintColor={C.primary} />
+        }
         onScroll={!user?.id ? (e) => {
           if (scrollGateFiredRef.current) return;
           // Trigger once after the user scrolls past ~one card height (≈260px)
@@ -805,42 +777,14 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.statsRow}>
-              <View style={styles.statTile}>
-                <View style={styles.statTileContentRow}>
-                  <StatProgress
-                    progress={nationalVisited / 63}
-                    value={`${Math.round((nationalVisited / 63) * 100)}%`}
-                  />
-                  <View style={styles.statTileTextCol}>
-                    <Text style={styles.statTileValue} numberOfLines={1}>{nationalVisited}/63</Text>
-                    <Text style={styles.statTileLabel} numberOfLines={1}>National</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.statTile}>
-                <View style={styles.statTileContentRow}>
-                  <StatProgress
-                    progress={stateVisited / 120}
-                    value={`${Math.round((stateVisited / 120) * 100)}%`}
-                  />
-                  <View style={styles.statTileTextCol}>
-                    <Text style={styles.statTileValue} numberOfLines={1}>{stateVisited}/120</Text>
-                    <Text style={styles.statTileLabel} numberOfLines={1}>State</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.statTile}>
-                <View style={styles.statTileContentRow}>
-                  <View style={styles.statTileSpacer} />
-                  <View style={styles.statTileTextCol}>
-                    <Text style={styles.statTileValue} numberOfLines={1}>{Math.round(seasonalTotal)} mi</Text>
-                    <Text style={styles.statTileLabel} numberOfLines={1}>Miles</Text>
-                  </View>
-                </View>
-              </View>
+            <View style={styles.heroWrap}>
+              <ProgressHero
+                nationalVisited={nationalVisited}
+                stats={[
+                  { label: 'State parks', value: `${stateVisited}` },
+                  { label: 'Season mi', value: `${Math.round(seasonalTotal)}` },
+                ]}
+              />
             </View>
 
             <View style={styles.section}>
@@ -849,21 +793,21 @@ export default function HomeScreen() {
                 <View style={styles.toggleWrap}>
                   <TouchableOpacity
                     style={[styles.toggleButton, communityMode === 'all' && styles.toggleButtonActive]}
-                    onPress={() => setCommunityMode('all')}
+                    onPress={() => { haptic.select(); setCommunityMode('all'); }}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.toggleText, communityMode === 'all' && styles.toggleTextActive]}>All</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.toggleButton, communityMode === 'mine' && styles.toggleButtonActive]}
-                    onPress={() => setCommunityMode('mine')}
+                    onPress={() => { haptic.select(); setCommunityMode('mine'); }}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.toggleText, communityMode === 'mine' && styles.toggleTextActive]}>You</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.toggleButton, communityMode === 'friends' && styles.toggleButtonActive]}
-                    onPress={() => setCommunityMode('friends')}
+                    onPress={() => { haptic.select(); setCommunityMode('friends'); }}
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.toggleText, communityMode === 'friends' && styles.toggleTextActive]}>Friends</Text>
@@ -872,7 +816,14 @@ export default function HomeScreen() {
               </View>
 
               <View style={styles.cardsList}>
-                {adventureCards.length === 0 && communityMode === 'mine' ? (
+                {isFeedLoading && adventureCards.length === 0 ? (
+                  <>
+                    <FeedCardSkeleton />
+                    <FeedCardSkeleton />
+                  </>
+                ) : null}
+
+                {!isFeedLoading && adventureCards.length === 0 && communityMode === 'mine' ? (
                   <View style={styles.emptyFriendsFeed}>
                     <Text style={styles.emptyFriendsFeedTitle}>Start your adventure</Text>
                     <Text style={styles.emptyFriendsFeedText}>Track the parks you visit and build your journey over time.</Text>
@@ -895,7 +846,7 @@ export default function HomeScreen() {
                   </View>
                 ) : null}
 
-                {adventureCards.length === 0 && communityMode === 'friends' ? (
+                {!isFeedLoading && adventureCards.length === 0 && communityMode === 'friends' ? (
                   <View style={styles.emptyFriendsFeed}>
                     {/* Ghost preview cards */}
                     <View style={styles.ghostCardsWrap} pointerEvents="none">
@@ -969,7 +920,13 @@ export default function HomeScreen() {
       </ScrollView>
 
       {!isFirstTimeEmpty ? (
-        <TouchableOpacity style={styles.fab} activeOpacity={0.85} onPress={() => setSheetVisible(true)}>
+        <TouchableOpacity
+          style={styles.fab}
+          activeOpacity={0.85}
+          onPress={() => { haptic.medium(); setSheetVisible(true); }}
+          accessibilityRole="button"
+          accessibilityLabel="Log a park visit"
+        >
           <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
         </TouchableOpacity>
       ) : null}
@@ -980,9 +937,11 @@ export default function HomeScreen() {
           setSheetVisible(false);
           setEditingVisit(null);
         }}
-        onSaved={() => {
+        onSaved={({ edited, newPark }) => {
           setSheetVisible(false);
           setEditingVisit(null);
+          // First-time parks get the full-screen celebration instead.
+          if (!newPark) toast.success(edited ? 'Visit updated' : 'Visit logged', { icon: 'leaf' });
         }}
         editVisit={editingVisit ?? undefined}
       />
@@ -995,13 +954,6 @@ export default function HomeScreen() {
         onLogin={handleGateLogin}
         onDismiss={handleGateDismiss}
       />
-
-      {/* Post-login resume toast */}
-      {resumeToast ? (
-        <View style={styles.resumeToast} pointerEvents="none">
-          <Text style={styles.resumeToastText}>{resumeToast}</Text>
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -1123,84 +1075,9 @@ const styles = StyleSheet.create({
     color: C.onSurfaceVariant,
     opacity: 0.8,
   },
-  statsRow: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: 8,
+  heroWrap: {
     paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  statTile: {
-    flex: 1,
-    minHeight: 92,
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    padding: 6,
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  statTileContentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statTileTextCol: {
-    flex: 1,
-    justifyContent: 'center',
-    minWidth: 0,
-  },
-  statTileSpacer: {
-    width: 36,
-    height: 36,
-  },
-  statTileValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: C.onSurface,
-    letterSpacing: -0.2,
-  },
-  statTileLabel: {
-    marginTop: 1,
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#6f7772',
-  },
-  statProgressWrap: {
-    width: 36,
-    height: 36,
-  },
-  statProgressTrack: {
-    position: 'absolute',
-    inset: 0,
-    borderRadius: 18,
-    borderWidth: 2.5,
-    borderColor: STAT_RING_TRACK,
-  },
-  statProgressFill: {
-    position: 'absolute',
-    inset: 0,
-    borderRadius: 18,
-    borderWidth: 2.5,
-    borderColor: STAT_RING_PROGRESS,
-    borderRightColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderLeftColor: 'transparent',
-    transform: [{ rotate: '-90deg' }],
-  },
-  statProgressCenter: {
-    position: 'absolute',
-    inset: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statProgressText: {
-    fontSize: 8,
-    fontWeight: '700',
-    color: C.onSurface,
+    marginBottom: 18,
   },
   recentHeader: {
     flexDirection: 'row',
@@ -1434,24 +1311,6 @@ const styles = StyleSheet.create({
     color: C.onSurfaceVariant,
     fontWeight: '600',
     paddingBottom: 6,
-  },
-  resumeToast: {
-    position: 'absolute',
-    bottom: 110,
-    left: 20,
-    right: 20,
-    alignItems: 'center',
-  },
-  resumeToastText: {
-    backgroundColor: 'rgba(27, 67, 50, 0.94)',
-    color: '#d4f5dd',
-    fontSize: 14,
-    fontWeight: '700',
-    borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    overflow: 'hidden',
-    textAlign: 'center',
   },
   fab: {
     position: 'absolute',

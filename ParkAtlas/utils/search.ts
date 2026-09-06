@@ -92,6 +92,13 @@ export function stateNameFromCode(code: string | null | undefined): string | und
   return STATE_NAME_BY_CODE[code.toUpperCase()];
 }
 
+/** Title-cased state name for display ("California"); falls back to the code. */
+export function stateDisplayName(code: string | null | undefined): string {
+  const raw = stateNameFromCode(code);
+  if (!raw) return code || '';
+  return raw.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export function matchesWildcardQuery(query: string, fields: (string | null | undefined)[]): boolean {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return true;

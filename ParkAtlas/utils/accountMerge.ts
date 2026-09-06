@@ -188,6 +188,17 @@ async function migrateUserDoc(oldUserId: string, newUserId: string, normalizedEm
   }
 }
 
+async function migrateEmailAuth(normalizedEmail: string, newUserId: string): Promise<void> {
+  // Credentials stay valid; they just resolve to the canonical id so a later
+  // password sign-in lands on the same account as the social sign-in.
+  for (const docId of [encodeURIComponent(normalizedEmail), normalizedEmail]) {
+    const snap = await getDoc(doc(db, 'email_auth', docId));
+    if (!snap.exists()) continue;
+    if ((snap.data() as { userId?: string }).userId === newUserId) continue;
+    await setDoc(snap.ref, { userId: newUserId, updatedAt: serverTimestamp() }, { merge: true });
+  }
+}
+
 export async function mergeDuplicateAccountsForEmail(email: string, canonicalUserId: string): Promise<{ mergedAliasIds: string[] }> {
   const normalizedEmail = normalizeEmail(email);
   const userSnapshot = await getDocs(
@@ -202,9 +213,11 @@ export async function mergeDuplicateAccountsForEmail(email: string, canonicalUse
   for (const aliasDoc of aliasDocs) {
     const aliasId = aliasDoc.id;
     const aliasData = aliasDoc.data() as Record<string, unknown>;
-    const isAppleLinkedAlias = aliasData.provider === 'apple' || aliasId.startsWith('apple_');
-    if (isAppleLinkedAlias) {
-      // Apple-linked identities are their own canonical account and must never
+    const isSocialAlias =
+      aliasData.provider === 'apple' || aliasId.startsWith('apple_') ||
+      aliasData.provider === 'google' || aliasId.startsWith('google_');
+    if (isSocialAlias) {
+      // Social identities are their own canonical account and must never
       // be merged away, even if they happen to share an email with another record.
       continue;
     }
@@ -217,6 +230,10 @@ export async function mergeDuplicateAccountsForEmail(email: string, canonicalUse
     await migrateActivity(aliasId, canonicalUserId);
     await migrateInvites(aliasId, canonicalUserId);
     await migrateUserDoc(aliasId, canonicalUserId, normalizedEmail);
+  }
+
+  if (mergedAliasIds.length > 0) {
+    await migrateEmailAuth(normalizedEmail, canonicalUserId);
   }
 
   return { mergedAliasIds };

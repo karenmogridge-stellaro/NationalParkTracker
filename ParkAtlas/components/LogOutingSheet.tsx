@@ -12,7 +12,7 @@ import {
   ActionSheetIOS,
   Alert,
 } from 'react-native';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { VisitDatePicker, toVisitDateValue, type VisitDateValue } from '@/components/VisitDatePicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -35,7 +35,7 @@ try {
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onSaved?: () => void;
+  onSaved?: (result: { edited: boolean; newPark: boolean }) => void;
   editVisit?: ParkVisit;
 }
 
@@ -64,12 +64,6 @@ interface GpsLoggingToggleRowProps {
 interface PrimarySaveButtonProps {
   disabled: boolean;
   onPress: () => void;
-}
-
-function formatDate(d: Date): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${mm}/${dd}/${d.getFullYear()}`;
 }
 
 function normalizeSearchText(value: string): string {
@@ -202,8 +196,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
   const [comments, setComments] = useState('');
   const [gpsEnabled, setGpsEnabled] = useState(true);
 
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateValue, setDateValue] = useState<VisitDateValue>({ kind: 'unknown' });
   const [photoUris, setPhotoUris] = useState<string[]>([]);
 
   const allParkOptions = useMemo(() => {
@@ -306,7 +299,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       setParkSearch(park?.name ?? editVisit.parkName ?? '');
       setCustomTrail(editVisit.trailName ?? '');
       setDistanceMiles(editVisit.distanceMiles ? String(editVisit.distanceMiles) : '');
-      setSelectedDate(editVisit.dateVisited ? new Date(editVisit.dateVisited) : null);
+      setDateValue(toVisitDateValue(editVisit.dateVisited, editVisit.datePrecision, editVisit.dateUnknown));
       setPhotoUris(editVisit.photoUri ? [editVisit.photoUri] : []);
       setComments('');
       setGpsEnabled(true);
@@ -324,7 +317,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     setTrailSearch('');
     setSelectedTrail(null);
     setDistanceMiles('');
-    setSelectedDate(null);
+    setDateValue({ kind: 'unknown' });
     setPhotoUris([]);
     setComments('');
     setGpsEnabled(true);
@@ -410,12 +403,6 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     ]);
   }
 
-  function handleDateChange(event: DateTimePickerEvent, picked?: Date) {
-    if (Platform.OS === 'android') setShowDatePicker(false);
-    if (event.type === 'dismissed' || !picked) return;
-    setSelectedDate(picked);
-  }
-
   async function handleSave() {
     if (!selectedPark) {
       setParkError('Please select a park before saving.');
@@ -434,13 +421,16 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
     const opts: LogVisitOptions = {
       photoUri: photoUris[0] ?? defaultPhotoUri,
-      dateVisited: selectedDate ? selectedDate.toISOString() : undefined,
-      dateUnknown: !selectedDate,
+      ...(dateValue.kind === 'date'
+        ? { dateVisited: dateValue.date.toISOString(), dateUnknown: false, datePrecision: dateValue.precision }
+        : { dateUnknown: true }),
       distanceMiles: finalDistance,
       elevationGainFt: editVisit?.elevationGainFt,
       activityType: editVisit?.activityType,
       rating: editVisit?.rating,
     };
+
+    const newPark = !editVisit && !visits.some((v) => v.parkId === selectedPark.id);
 
     if (editVisit) {
       await updateVisit(editVisit.visitId, selectedPark.id, selectedPark.name, finalTrailName, opts);
@@ -448,7 +438,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       await logVisit(selectedPark.id, selectedPark.name, finalTrailName, opts);
     }
 
-    onSaved?.();
+    onSaved?.({ edited: !!editVisit, newPark });
     onClose();
   }
 
@@ -605,47 +595,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
               </View>
             </View>
 
-            <View>
-              <Text style={styles.fieldLabel}>Date of Visit (Optional)</Text>
-              <TouchableOpacity style={styles.inputRow} activeOpacity={0.8} onPress={() => setShowDatePicker((prev) => !prev)}>
-                <Text style={[styles.input, !selectedDate && styles.placeholderText]}>
-                  {selectedDate ? formatDate(selectedDate) : 'mm/dd/yyyy'}
-                </Text>
-                <Ionicons name={showDatePicker ? 'chevron-up' : 'calendar-outline'} size={18} color={C.onSurfaceVariant} />
-              </TouchableOpacity>
-              {showDatePicker ? (
-                <View>
-                  <DateTimePicker
-                    value={selectedDate ?? new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    maximumDate={new Date()}
-                    onChange={handleDateChange}
-                  />
-                  {Platform.OS === 'ios' ? (
-                    <View style={styles.datePickerActionsRow}>
-                      <TouchableOpacity
-                        style={styles.datePickerActionBtn}
-                        activeOpacity={0.8}
-                        onPress={() => {
-                          setSelectedDate(null);
-                          setShowDatePicker(false);
-                        }}
-                      >
-                        <Text style={styles.datePickerActionText}>Clear</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.datePickerActionBtn, styles.datePickerDoneBtn]}
-                        activeOpacity={0.8}
-                        onPress={() => setShowDatePicker(false)}
-                      >
-                        <Text style={[styles.datePickerActionText, styles.datePickerDoneText]}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
+            <VisitDatePicker value={dateValue} onChange={setDateValue} label="Date of Visit (Optional)" />
 
             <PhotoDropzoneOrPicker photoUris={photoUris} onPress={handlePhotoPress} />
 

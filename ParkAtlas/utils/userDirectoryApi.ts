@@ -43,6 +43,7 @@ export type ParkVisitActivityInput = {
   parkName: string;
   trailName?: string;
   dateVisited?: string;
+  datePrecision?: 'day' | 'month' | 'year';
   distanceMiles?: number;
   photoUri?: string;
 };
@@ -208,23 +209,100 @@ export async function searchDirectoryUsersByUsername(input: {
   }
 }
 
+export type StoredUserProfile = {
+  id: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string;
+  phone?: string;
+  avatarUrl?: string;
+  provider?: string;
+};
+
+const PLACEHOLDER_NAMES = new Set(['explorer', 'parkatlas user', 'friend', 'user']);
+
+/** True when a name is empty or one of the generic fallbacks the app synthesizes. */
+export function isPlaceholderName(name?: string | null): boolean {
+  const trimmed = (name || '').trim().toLowerCase();
+  return !trimmed || PLACEHOLDER_NAMES.has(trimmed);
+}
+
+/** Apple "Hide My Email" relays aren't useful for usernames or contact matching. */
+export function isPrivateRelayEmail(email?: string | null): boolean {
+  return /@privaterelay\.appleid\.com$/i.test((email || '').trim());
+}
+
+/** Reads the canonical profile record for a user id; null when missing or unreachable. */
+export async function fetchUserProfile(userId: string): Promise<StoredUserProfile | null> {
+  if (!userId) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', userId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as FirestoreUserDoc & { provider?: string };
+    const first = data.first_name?.trim() || undefined;
+    const last = data.last_name?.trim() || undefined;
+    const name = data.name?.trim() || [first, last].filter(Boolean).join(' ') || undefined;
+    return {
+      id: data.id || snap.id,
+      name: isPlaceholderName(name) ? undefined : name,
+      firstName: isPlaceholderName(first) ? undefined : first,
+      lastName: last,
+      username: data.username?.trim() || undefined,
+      email: normalizeEmail(data.email) || undefined,
+      phone: normalizePhone(data.phone) || undefined,
+      avatarUrl: data.avatarUrl || data.avatar || undefined,
+      provider: data.provider,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function usernameFor(user: AuthUser, existing?: string): string {
+  if (existing) return existing;
+  const email = normalizeEmail(user.email);
+  if (email && !isPrivateRelayEmail(email)) return email.split('@')[0];
+  const fromName = isPlaceholderName(user.name) ? '' : user.name.replace(/\s+/g, '').toLowerCase();
+  if (fromName) return fromName;
+  // Unique-ish fallback so anonymous Apple users don't all collide on "explorer".
+  return `explorer-${user.id.replace(/^(apple|google|email)_/, '').slice(0, 6).toLowerCase()}`;
+}
+
+/**
+ * Syncs the local AuthUser to the `users` collection. Never downgrades a real
+ * profile: placeholder names, missing emails, and derived usernames are only
+ * written when the stored record has nothing better.
+ */
 export async function upsertProductionUserProfile(user: AuthUser): Promise<void> {
   if (!user?.id) return;
 
-  const fallbackNameParts = user.name.trim().split(/\s+/).filter(Boolean);
-  const firstName = (user.firstName || fallbackNameParts[0] || '').trim();
-  const lastName = (user.lastName || fallbackNameParts.slice(1).join(' ') || '').trim();
+  const existing = await fetchUserProfile(user.id);
 
-  const username = normalizeEmail(user.email).split('@')[0] || user.name.replace(/\s+/g, '').toLowerCase();
+  const fallbackNameParts = user.name.trim().split(/\s+/).filter(Boolean);
+  const incomingFirst = (user.firstName || fallbackNameParts[0] || '').trim();
+  const incomingLast = (user.lastName || fallbackNameParts.slice(1).join(' ') || '').trim();
+  const incomingName = user.name.trim();
+  const incomingEmail = normalizeEmail(user.email);
+
+  const hasRealIncomingName = !isPlaceholderName(incomingName);
+  const name = hasRealIncomingName ? incomingName : existing?.name || incomingName;
+  const firstName = hasRealIncomingName ? incomingFirst : existing?.firstName || incomingFirst;
+  const lastName = hasRealIncomingName ? incomingLast : existing?.lastName || incomingLast;
+  const email = incomingEmail || existing?.email || null;
+  const username = usernameFor({ ...user, name, email: email || '' }, existing?.username);
+
   const payload = {
     id: user.id,
-    name: user.name,
+    name,
     first_name: firstName,
     last_name: lastName,
     username,
-    email: normalizeEmail(user.email) || null,
-    phone: normalizePhone(user.phone) || null,
-    avatarUrl: user.avatarUrl || null,
+    email,
+    phone: normalizePhone(user.phone) || existing?.phone || null,
+    avatarUrl: user.avatarUrl || existing?.avatarUrl || null,
+    provider: user.provider,
   };
 
   try {
@@ -333,6 +411,7 @@ export async function upsertParkVisitActivity(input: ParkVisitActivityInput): Pr
       parkName: input.parkName,
       trailName: input.trailName || null,
       dateVisited: input.dateVisited || null,
+      datePrecision: input.datePrecision && input.datePrecision !== 'day' ? input.datePrecision : null,
       distanceMiles: typeof input.distanceMiles === 'number' ? input.distanceMiles : null,
       photoUri: resolvedPhotoUri || null,
       updatedAt: serverTimestamp(),

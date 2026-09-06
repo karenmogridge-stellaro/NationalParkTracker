@@ -12,12 +12,15 @@ import {
   TextInput,
   Alert,
   Linking,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as MailComposer from 'expo-mail-composer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
+import { haptic } from '@/utils/haptics';
+import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useVisitedParks } from '@/hooks/useVisitedParks';
 import { useFriends } from '@/hooks/useFriends';
@@ -38,13 +41,6 @@ type ActivityInboxDoc = {
   createdAtIso?: string;
 };
 
-type OutgoingKudosDoc = {
-  id: string;
-  toUid: string;
-  eventId?: string;
-  createdAtIso?: string;
-};
-
 type IncomingKudosDoc = {
   id: string;
   fromUid: string;
@@ -54,12 +50,15 @@ type IncomingKudosDoc = {
 
 type ActivityRow = {
   id: string;
+  kind: 'kudos' | 'accepted' | 'logged' | 'other';
+  fromUid?: string;
   message: string;
   createdAtIso?: string;
 };
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const toast = useToast();
   const { signOut, deleteAccount, user, biometricAvailable, biometricEnabled, setBiometricEnabled, changePassword } = useAuth();
   const { deleteAllDataForCurrentUser } = useVisitedParks();
   const { incomingRequests, sentInvites, requestedIds, directoryUsers, myFriends, acceptRequest, ignoreRequest } = useFriends();
@@ -78,19 +77,11 @@ export default function SettingsScreen() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [activityInbox, setActivityInbox] = useState<ActivityInboxDoc[]>([]);
-  const [outgoingKudos, setOutgoingKudos] = useState<OutgoingKudosDoc[]>([]);
   const [incomingKudos, setIncomingKudos] = useState<IncomingKudosDoc[]>([]);
   const [userNamesById, setUserNamesById] = useState<Record<string, string>>({});
   const canChangePassword = user?.provider === 'email';
   const isSignedIn = !!user;
   const outgoingRequestCount = useMemo(() => requestedIds.size, [requestedIds]);
-  const outgoingRequestProfiles = useMemo(() => {
-    const profileById = new Map(directoryUsers.map((profile) => [profile.id, profile]));
-    return Array.from(requestedIds)
-      .map((id) => profileById.get(id))
-      .filter((profile): profile is NonNullable<typeof profileById extends Map<string, infer T> ? T : never> => !!profile)
-      .slice(0, 20);
-  }, [requestedIds, directoryUsers]);
   // A kudos can show up in both activityInbox (as a 'kudos_received' activity doc)
   // and incomingKudos (the kudos doc itself) — dedup by fromUid+eventId so it isn't
   // counted twice in the badge, matching the dedup already applied to activityRows below.
@@ -106,7 +97,8 @@ export default function SettingsScreen() {
     () => incomingKudos.filter((item) => !existingKudosKeys.has(`${item.fromUid}::${item.eventId || ''}`)).length,
     [incomingKudos, existingKudosKeys]
   );
-  const totalNotificationCount = incomingRequests.length + sentInvites.length + outgoingRequestCount + activityInbox.length + dedupedIncomingKudosCount + outgoingKudos.length;
+  // Only things that need the user's attention or happened *to* them count toward the badge.
+  const totalNotificationCount = incomingRequests.length + activityInbox.length + dedupedIncomingKudosCount;
 
   useEffect(() => {
     if (!user?.id) {
@@ -139,39 +131,6 @@ export default function SettingsScreen() {
 
       rows.sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime());
       setActivityInbox(rows);
-    });
-
-    return () => unsubscribe();
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setOutgoingKudos([]);
-      return;
-    }
-
-    const outgoingQuery = query(
-      collection(db, 'kudos'),
-      where('fromUid', '==', user.id),
-      limit(80)
-    );
-
-    const unsubscribe = onSnapshot(outgoingQuery, (snapshot) => {
-      const rows: OutgoingKudosDoc[] = snapshot.docs.map((snap) => {
-        const data = snap.data() as Record<string, any>;
-        const createdAtIso = typeof data?.createdAt?.toDate === 'function'
-          ? data.createdAt.toDate()?.toISOString()
-          : undefined;
-        return {
-          id: snap.id,
-          toUid: typeof data.toUid === 'string' ? data.toUid : '',
-          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
-          createdAtIso,
-        };
-      });
-
-      rows.sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime());
-      setOutgoingKudos(rows);
     });
 
     return () => unsubscribe();
@@ -223,9 +182,6 @@ export default function SettingsScreen() {
       if (row.fromUid && !localNameMap.has(row.fromUid)) idsToFetch.add(row.fromUid);
       if (row.toUid && !localNameMap.has(row.toUid)) idsToFetch.add(row.toUid);
     });
-    outgoingKudos.forEach((row) => {
-      if (row.toUid && !localNameMap.has(row.toUid)) idsToFetch.add(row.toUid);
-    });
     incomingKudos.forEach((row) => {
       if (row.fromUid && !localNameMap.has(row.fromUid)) idsToFetch.add(row.fromUid);
     });
@@ -265,15 +221,19 @@ export default function SettingsScreen() {
       fetched.forEach((name, id) => merged.set(id, name));
       setUserNamesById(Object.fromEntries(merged.entries()));
     })();
-  }, [activityInbox, outgoingKudos, incomingKudos, directoryUsers, myFriends, user?.id, user?.name]);
+  }, [activityInbox, incomingKudos, directoryUsers, myFriends, user?.id, user?.name]);
   // const [emailNewsletter, setEmailNewsletter] = useState(false);
   // const [units, setUnits] = useState<'metric' | 'imperial'>('metric');
   // const { status: stravaStatus, summary: stravaSummary, authorize: authorizeStrava, disconnect: disconnectStrava } = useStrava();
 
   async function handleBiometricToggle(enabled: boolean) {
+    haptic.select();
     try {
       setBiometricSaving(true);
       await setBiometricEnabled(enabled);
+      toast.success(enabled ? 'Biometric unlock on' : 'Biometric unlock off', { icon: 'finger-print', silent: true });
+    } catch {
+      toast.error("Couldn't update biometric setting");
     } finally {
       setBiometricSaving(false);
     }
@@ -282,7 +242,7 @@ export default function SettingsScreen() {
   async function handleSendFeedback() {
     const message = feedbackText.trim();
     if (!message) {
-      Alert.alert('Feedback required', 'Please enter your feedback before sending.');
+      toast.error('Add a note before sending');
       return;
     }
 
@@ -301,6 +261,7 @@ export default function SettingsScreen() {
         if (result.status === 'sent' || result.status === 'saved') {
           setFeedbackVisible(false);
           setFeedbackText('');
+          toast.success('Thanks for the feedback!', { icon: 'heart' });
         }
         return;
       }
@@ -312,7 +273,7 @@ export default function SettingsScreen() {
       setFeedbackVisible(false);
       setFeedbackText('');
     } catch {
-      Alert.alert('Unable to send feedback', 'Please email info@stellaroos.com directly.');
+      toast.error('Unable to open mail. Email info@stellaroos.com directly.', { durationMs: 4500 });
     } finally {
       setSendingFeedback(false);
     }
@@ -332,40 +293,41 @@ export default function SettingsScreen() {
 
   async function handleChangePassword() {
     if (!canChangePassword) {
-      Alert.alert('Unavailable', 'Password changes are only available for email sign-in accounts.');
+      toast.info('Password changes are only available for email accounts');
       return;
     }
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Missing details', 'Please fill out all password fields.');
+      toast.error('Fill out all three password fields');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Weak password', 'New password must be at least 8 characters.');
+      toast.error('New password must be at least 8 characters');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Passwords do not match', 'Please confirm the same new password.');
+      toast.error("New passwords don't match");
       return;
     }
     if (newPassword === currentPassword) {
-      Alert.alert('Choose a new password', 'Your new password must be different from your current password.');
+      toast.error('New password must differ from your current one');
       return;
     }
 
     setPasswordSaving(true);
     try {
       await changePassword(currentPassword, newPassword);
-      Alert.alert('Password updated', 'Your password has been changed successfully.');
       closePasswordModal();
+      toast.success('Password updated', { icon: 'lock-closed' });
     } catch (error: any) {
-      Alert.alert('Unable to change password', error?.message ?? 'Please try again.');
+      toast.error(error?.message ?? "Couldn't change password. Try again.");
     } finally {
       setPasswordSaving(false);
     }
   }
 
   function confirmDeleteAccount() {
+    haptic.warning();
     Alert.alert(
       'Delete account?',
       'This permanently deletes your ParkAtlas account and all app data stored on this device. This action cannot be undone.',
@@ -388,18 +350,12 @@ export default function SettingsScreen() {
     try {
       await deleteAllDataForCurrentUser();
       await deleteAccount();
-      Alert.alert('Account deleted', 'Your account and local app data were deleted from this device.');
+      toast.info('Your account and data were deleted', { icon: 'trash', durationMs: 4000 });
     } catch {
-      Alert.alert('Unable to delete account', 'Please try again.');
+      toast.error("Couldn't delete your account. Try again.");
     } finally {
       setDeletingAccount(false);
     }
-  }
-
-  function formatWhen(iso: string): string {
-    const date = new Date(iso);
-    if (Number.isNaN(date.getTime())) return 'Unknown time';
-    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   function openFriendsFromNotifications() {
@@ -432,55 +388,48 @@ export default function SettingsScreen() {
   const activityRows = useMemo<ActivityRow[]>(() => {
     const inboxRows: ActivityRow[] = activityInbox.map((item) => {
       const fromName = friendlyName(item.fromUid);
+      const base = { id: `inbox_${item.id}`, fromUid: item.fromUid, createdAtIso: item.createdAtIso };
       if (item.type === 'kudos_received') {
-        return {
-          id: `inbox_${item.id}`,
-          message: `${fromName} gave you kudos`,
-          createdAtIso: item.createdAtIso,
-        };
+        return { ...base, kind: 'kudos', message: `${fromName} High-Fived your visit` };
       }
       if (item.type === 'request_accepted') {
-        return {
-          id: `inbox_${item.id}`,
-          message: `${fromName} accepted your friend request`,
-          createdAtIso: item.createdAtIso,
-        };
+        return { ...base, kind: 'accepted', message: `${fromName} accepted your friend request` };
       }
       if (item.type === 'friend_logged') {
-        const place = item.parkName || 'a park';
-        return {
-          id: `inbox_${item.id}`,
-          message: `${fromName} logged ${place}`,
-          createdAtIso: item.createdAtIso,
-        };
+        return { ...base, kind: 'logged', message: `${fromName} logged ${item.parkName || 'a park'}` };
       }
-      return {
-        id: `inbox_${item.id}`,
-        message: `${fromName} sent an update`,
-        createdAtIso: item.createdAtIso,
-      };
+      return { ...base, kind: 'other', message: `${fromName} sent an update` };
     });
 
     const incomingKudosRows: ActivityRow[] = incomingKudos
       .filter((item) => !existingKudosKeys.has(`${item.fromUid}::${item.eventId || ''}`))
       .map((item) => ({
         id: `kudos_in_${item.id}`,
-        message: `${friendlyName(item.fromUid)} gave you kudos`,
+        kind: 'kudos',
+        fromUid: item.fromUid,
+        message: `${friendlyName(item.fromUid)} High-Fived your visit`,
         createdAtIso: item.createdAtIso,
       }));
 
-    const outgoingRows: ActivityRow[] = outgoingKudos.map((item) => ({
-      id: `outgoing_${item.id}`,
-      message: `You gave ${friendlyName(item.toUid, 'a friend')} kudos`,
-      createdAtIso: item.createdAtIso,
-    }));
-
-    return [...inboxRows, ...incomingKudosRows, ...outgoingRows]
+    return [...inboxRows, ...incomingKudosRows]
       .sort((a, b) => new Date(b.createdAtIso || 0).getTime() - new Date(a.createdAtIso || 0).getTime())
       .slice(0, 30);
-  }, [activityInbox, outgoingKudos, incomingKudos, existingKudosKeys, friendlyName]);
+  }, [activityInbox, incomingKudos, existingKudosKeys, friendlyName]);
 
   const latestActivity = activityRows[0];
+
+  function openFriendProfile(uid?: string) {
+    if (!uid || uid === user?.id) return;
+    setNotificationsVisible(false);
+    router.push(`/friend/${encodeURIComponent(uid)}`);
+  }
+
+  function iconForActivity(kind: ActivityRow['kind']): React.ComponentProps<typeof MaterialCommunityIcons>['name'] {
+    if (kind === 'kudos') return 'hand-wave';
+    if (kind === 'accepted') return 'account-check';
+    if (kind === 'logged') return 'pine-tree';
+    return 'bell-ring-outline';
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -595,15 +544,15 @@ export default function SettingsScreen() {
                 onPress={confirmDeleteAccount}
                 disabled={deletingAccount}
               >
-                <MaterialCommunityIcons name="delete-forever" size={22} color="#c62828" style={styles.supportIcon} />
+                <MaterialCommunityIcons name="delete-forever" size={22} color={C.error} style={styles.supportIcon} />
                 <View style={styles.rowTextWrap}>
                   <Text style={styles.deleteTitle}>Delete Account</Text>
                   <Text style={styles.rowSubtitle}>Permanently delete your account and all data on this device</Text>
                 </View>
                 {deletingAccount ? (
-                  <ActivityIndicator size="small" color="#c62828" />
+                  <ActivityIndicator size="small" color={C.error} />
                 ) : (
-                  <Ionicons name="chevron-forward" size={18} color="#c62828" />
+                  <Ionicons name="chevron-forward" size={18} color={C.error} />
                 )}
               </TouchableOpacity>
             </>
@@ -618,13 +567,13 @@ export default function SettingsScreen() {
           <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => setNotificationsVisible(true)}>
             <MaterialCommunityIcons name="bell-badge-outline" size={22} color={C.primary} style={styles.supportIcon} />
             <View style={styles.rowTextWrap}>
-              <Text style={styles.rowTitle}>Friend Requests & Invites</Text>
-              <Text style={styles.rowSubtitle}>
-                {latestActivity
-                  ? `${latestActivity.message} · ${formatRelativeTime(latestActivity.createdAtIso)}`
-                  : totalNotificationCount > 0
-                    ? `${incomingRequests.length} pending requests · ${sentInvites.length} invites sent`
-                    : 'No new notifications'}
+              <Text style={styles.rowTitle}>Activity</Text>
+              <Text style={styles.rowSubtitle} numberOfLines={1}>
+                {incomingRequests.length > 0
+                  ? `${incomingRequests.length} friend request${incomingRequests.length === 1 ? '' : 's'} waiting`
+                  : latestActivity
+                    ? `${latestActivity.message} · ${formatRelativeTime(latestActivity.createdAtIso)}`
+                    : 'High-Fives, requests, and friend activity'}
               </Text>
             </View>
             {totalNotificationCount > 0 ? (
@@ -677,7 +626,7 @@ export default function SettingsScreen() {
               Last 30 days: {stravaSummary.hikeCount} hikes · {stravaSummary.totalDistanceKm} km · {stravaSummary.totalElevationM} m gain
             </Text>
           ) : stravaStatus === 'error' ? (
-            <Text style={[styles.deviceSub, { color: '#c62828' }]}>Connection failed — tap LINK to retry</Text>
+            <Text style={[styles.deviceSub, { color: C.error }]}>Connection failed — tap LINK to retry</Text>
           ) : (
             <Text style={styles.deviceSub}>Sync hike distance, elevation and trail activity</Text>
           )}
@@ -742,128 +691,122 @@ export default function SettingsScreen() {
       <Modal
         visible={notificationsVisible}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setNotificationsVisible(false)}
       >
-        <View style={styles.feedbackOverlay}>
-          <View style={styles.feedbackCard}>
-            <Text style={styles.feedbackTitle}>Notifications</Text>
-            <Text style={styles.feedbackSubtitle}>Review incoming friend requests and sent invites.</Text>
-
-            <ScrollView style={styles.notificationsScroll} contentContainerStyle={styles.notificationsContent}>
-              <Text style={styles.notificationsSectionTitle}>Activity Inbox</Text>
-              {activityRows.length === 0 ? (
-                <Text style={styles.notificationsEmptyText}>No activity yet.</Text>
-              ) : (
-                activityRows.map((row) => (
-                  <View key={row.id} style={styles.activityInboxRow}>
-                    <MaterialCommunityIcons name="bell-ring-outline" size={16} color={C.primary} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.activityInboxMessage}>{row.message}</Text>
-                      <Text style={styles.notificationMeta}>{formatRelativeTime(row.createdAtIso)}</Text>
-                    </View>
-                  </View>
-                ))
-              )}
-
-              <Text style={styles.notificationsSectionTitle}>Pending Requests</Text>
-              {incomingRequests.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.openFriendsBtn}
-                  activeOpacity={0.8}
-                  onPress={openFriendsFromNotifications}
-                >
-                  <Ionicons name="people-outline" size={14} color={C.onPrimary} />
-                  <Text style={styles.openFriendsBtnText}>Open Friends to Review All</Text>
-                </TouchableOpacity>
-              ) : null}
-              {incomingRequests.length === 0 ? (
-                <Text style={styles.notificationsEmptyText}>No pending friend requests.</Text>
-              ) : (
-                incomingRequests.map((request) => (
-                  <View key={request.id} style={styles.notificationRow}>
-                    <TouchableOpacity
-                      style={styles.notificationProfileTap}
-                      activeOpacity={0.75}
-                      onPress={openFriendsFromNotifications}
-                    >
-                      <Image source={{ uri: request.avatar }} style={styles.notificationAvatar} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.notificationName}>{request.name}</Text>
-                        <Text style={styles.notificationMeta}>@{request.username}</Text>
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.notificationSecondaryBtn}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        void ignoreRequest(request.id);
-                      }}
-                    >
-                      <Text style={styles.notificationSecondaryText}>Ignore</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.notificationPrimaryBtn}
-                      activeOpacity={0.75}
-                      onPress={() => {
-                        void acceptRequest(request);
-                      }}
-                    >
-                      <Text style={styles.notificationPrimaryText}>Accept</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-
-              <Text style={styles.notificationsSectionTitle}>Sent Invites</Text>
-              {sentInvites.length === 0 ? (
-                <Text style={styles.notificationsEmptyText}>No invites sent yet.</Text>
-              ) : (
-                sentInvites.slice(0, 15).map((invite) => (
-                  <View key={invite.inviteId} style={styles.notificationInviteRow}>
-                    <MaterialCommunityIcons name="link-variant" size={16} color={C.primary} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.notificationMeta}>Invite sent {formatWhen(invite.sentAt)}</Text>
-                      <Text style={styles.notificationUrl} numberOfLines={1}>{invite.inviteUrl}</Text>
-                    </View>
-                  </View>
-                ))
-              )}
-
-              <Text style={styles.notificationsSectionTitle}>Outgoing Requests</Text>
-              {outgoingRequestCount === 0 ? (
-                <Text style={styles.notificationsEmptyText}>No outgoing friend requests.</Text>
-              ) : (
-                <>
-                  <Text style={styles.notificationsEmptyText}>
-                    {outgoingRequestCount} friend request{outgoingRequestCount === 1 ? '' : 's'} pending response.
-                  </Text>
-                  {outgoingRequestProfiles.length > 0 ? (
-                    outgoingRequestProfiles.map((profile) => (
-                      <View key={profile.id} style={styles.notificationInviteRow}>
-                        <Image source={{ uri: profile.avatar }} style={styles.notificationAvatar} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.notificationName}>{profile.name}</Text>
-                          <Text style={styles.notificationMeta}>@{profile.username}</Text>
-                        </View>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.notificationsEmptyText}>Loading request names...</Text>
-                  )}
-                </>
-              )}
-            </ScrollView>
-
-            <View style={styles.feedbackActions}>
-              <TouchableOpacity
-                style={styles.feedbackSendBtn}
-                onPress={() => setNotificationsVisible(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.feedbackSendText}>Done</Text>
+        <View style={styles.sheetOverlay}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setNotificationsVisible(false)} />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sheetTitle}>Activity</Text>
+                <Text style={styles.sheetSubtitle}>
+                  {totalNotificationCount > 0
+                    ? `${totalNotificationCount} new`
+                    : "You're all caught up"}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setNotificationsVisible(false)} style={styles.sheetCloseBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Close">
+                <Ionicons name="close" size={20} color={C.onSurfaceVariant} />
               </TouchableOpacity>
             </View>
+
+            <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
+              {incomingRequests.length > 0 ? (
+                <View style={styles.sheetSection}>
+                  <Text style={styles.sheetSectionTitle}>NEEDS YOUR REPLY</Text>
+                  {incomingRequests.map((request) => (
+                    <View key={request.id} style={styles.requestCard}>
+                      <TouchableOpacity style={styles.requestPerson} activeOpacity={0.75} onPress={() => openFriendProfile(request.id)}>
+                        <Image source={{ uri: request.avatar }} style={styles.requestAvatar} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <Text style={styles.requestName} numberOfLines={1}>{request.name}</Text>
+                          <Text style={styles.requestMeta} numberOfLines={1}>wants to follow your adventures</Text>
+                        </View>
+                      </TouchableOpacity>
+                      <View style={styles.requestActions}>
+                        <TouchableOpacity
+                          style={styles.requestIgnoreBtn}
+                          activeOpacity={0.75}
+                          onPress={() => { haptic.select(); void ignoreRequest(request.id); }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Ignore ${request.name}`}
+                        >
+                          <Text style={styles.requestIgnoreText}>Ignore</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.requestAcceptBtn}
+                          activeOpacity={0.75}
+                          onPress={() => {
+                            void acceptRequest(request);
+                            toast.success(`You're now following ${request.name}`, { icon: 'person-add' });
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Accept ${request.name}`}
+                        >
+                          <Ionicons name="checkmark" size={15} color={C.onPrimary} />
+                          <Text style={styles.requestAcceptText}>Accept</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
+              <View style={styles.sheetSection}>
+                {incomingRequests.length > 0 ? <Text style={styles.sheetSectionTitle}>RECENT</Text> : null}
+                {activityRows.length === 0 ? (
+                  <View style={styles.sheetEmpty}>
+                    <View style={styles.sheetEmptyIcon}>
+                      <MaterialCommunityIcons name="bell-sleep-outline" size={26} color={C.primary} />
+                    </View>
+                    <Text style={styles.sheetEmptyTitle}>Nothing new yet</Text>
+                    <Text style={styles.sheetEmptyText}>
+                      When friends High-Five your visits or log a park, you&apos;ll see it here.
+                    </Text>
+                    <TouchableOpacity style={styles.sheetEmptyBtn} activeOpacity={0.8} onPress={openFriendsFromNotifications}>
+                      <Ionicons name="people-outline" size={15} color={C.primary} />
+                      <Text style={styles.sheetEmptyBtnText}>Find friends</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  activityRows.map((row) => (
+                    <TouchableOpacity
+                      key={row.id}
+                      style={styles.activityRow}
+                      activeOpacity={row.fromUid && row.fromUid !== user?.id ? 0.7 : 1}
+                      onPress={() => openFriendProfile(row.fromUid)}
+                      disabled={!row.fromUid || row.fromUid === user?.id}
+                    >
+                      <View style={[styles.activityIcon, row.kind === 'kudos' && styles.activityIconKudos]}>
+                        <MaterialCommunityIcons name={iconForActivity(row.kind)} size={17} color={row.kind === 'kudos' ? C.onPrimary : C.primary} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.activityMessage}>{row.message}</Text>
+                        <Text style={styles.activityTime}>{formatRelativeTime(row.createdAtIso)}</Text>
+                      </View>
+                      {row.fromUid && row.fromUid !== user?.id ? (
+                        <Ionicons name="chevron-forward" size={16} color={C.outlineVariant} />
+                      ) : null}
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+
+              {outgoingRequestCount > 0 || sentInvites.length > 0 ? (
+                <TouchableOpacity style={styles.sheetFooter} activeOpacity={0.7} onPress={openFriendsFromNotifications}>
+                  <Ionicons name="paper-plane-outline" size={14} color={C.onSurfaceVariant} />
+                  <Text style={styles.sheetFooterText}>
+                    {[
+                      outgoingRequestCount > 0 ? `${outgoingRequestCount} request${outgoingRequestCount === 1 ? '' : 's'} awaiting a reply` : null,
+                      sentInvites.length > 0 ? `${sentInvites.length} invite${sentInvites.length === 1 ? '' : 's'} sent` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color={C.outlineVariant} />
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1052,7 +995,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   cardMuted: {
-    backgroundColor: '#ededea',
+    backgroundColor: C.surfaceContainerHigh,
   },
   cardMt: {
     marginTop: 10,
@@ -1100,7 +1043,7 @@ const styles = StyleSheet.create({
   deleteTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#c62828',
+    color: C.error,
   },
   rowSubtitle: {
     fontSize: 13,
@@ -1207,109 +1150,213 @@ const styles = StyleSheet.create({
   supportIcon: {
     width: 28,
   },
-  notificationsScroll: {
-    maxHeight: 460,
+  // ── Activity sheet ──
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(8, 18, 12, 0.5)',
   },
-  notificationsContent: {
-    gap: 10,
+  sheet: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    maxHeight: '85%',
   },
-  notificationsSectionTitle: {
-    marginTop: 6,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    fontWeight: '800',
-    color: C.secondary,
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.outlineVariant,
+    marginBottom: 14,
   },
-  notificationsEmptyText: {
-    fontSize: 13,
-    color: C.onSurfaceVariant,
-    lineHeight: 18,
-  },
-  notificationRow: {
+  sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+    color: C.onSurface,
+  },
+  sheetSubtitle: {
+    marginTop: 2,
+    fontSize: 13,
+    color: C.onSurfaceVariant,
+  },
+  sheetCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surfaceContainerHigh,
+  },
+  sheetScroll: {
+    flexGrow: 0,
+  },
+  sheetContent: {
+    gap: 18,
+    paddingBottom: 6,
+  },
+  sheetSection: {
     gap: 8,
   },
-  notificationProfileTap: {
+  sheetSectionTitle: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.4,
+    color: C.onSurfaceVariant,
+  },
+  requestCard: {
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: C.primaryContainer,
+  },
+  requestPerson: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  requestAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: C.surfaceContainerHighest,
+  },
+  requestName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+  requestMeta: {
+    fontSize: 12,
+    color: C.onSurfaceVariant,
+    marginTop: 1,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  requestIgnoreBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: C.surface,
+  },
+  requestIgnoreText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  requestAcceptBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: C.primary,
   },
-  notificationAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  requestAcceptText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.onPrimary,
   },
-  notificationName: {
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.surfaceContainerHighest,
+  },
+  activityIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primaryContainer,
+  },
+  activityIconKudos: {
+    backgroundColor: C.primary,
+  },
+  activityMessage: {
     fontSize: 14,
-    fontWeight: '700',
+    lineHeight: 19,
+    fontWeight: '600',
     color: C.onSurface,
   },
-  notificationMeta: {
+  activityTime: {
+    marginTop: 1,
     fontSize: 12,
     color: C.onSurfaceVariant,
   },
-  notificationPrimaryBtn: {
-    backgroundColor: C.primary,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  notificationPrimaryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.onPrimary,
-  },
-  notificationSecondaryBtn: {
-    borderWidth: 1,
-    borderColor: C.outlineVariant,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: C.surfaceContainerLow,
-  },
-  notificationSecondaryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.onSurface,
-  },
-  notificationInviteRow: {
-    flexDirection: 'row',
-    gap: 8,
+  sheetEmpty: {
     alignItems: 'center',
-  },
-  activityInboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 28,
+    paddingHorizontal: 16,
   },
-  activityInboxMessage: {
+  sheetEmptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primaryContainer,
+    marginBottom: 4,
+  },
+  sheetEmptyTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+  sheetEmptyText: {
     fontSize: 14,
-    lineHeight: 18,
-    color: C.onSurface,
-    fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
+    color: C.onSurfaceVariant,
   },
-  notificationUrl: {
-    fontSize: 12,
-    color: C.onSurface,
-  },
-  openFriendsBtn: {
-    marginTop: 2,
-    alignSelf: 'flex-start',
+  sheetEmptyBtn: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: C.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderWidth: 1.5,
+    borderColor: C.primary,
   },
-  openFriendsBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.onPrimary,
+  sheetEmptyBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.primary,
+  },
+  sheetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: C.surfaceContainerLow,
+  },
+  sheetFooterText: {
+    flex: 1,
+    fontSize: 13,
+    color: C.onSurfaceVariant,
   },
   notificationsBadge: {
     minWidth: 20,
