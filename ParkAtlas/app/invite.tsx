@@ -13,10 +13,8 @@ import { useShareCard } from '@/hooks/useShareCard';
 import { ShareCard } from '@/components/ShareCard';
 import { PARKS } from '@/data/parksData';
 
-// The parkatlas.io/invite/{code} deep link requires hosting/domain setup that isn't
-// live yet, so invites share the store listing directly — it always works.
-const APP_STORE_URL = 'https://apps.apple.com/app/id6760982981';
-const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.parkatlas.mobile';
+// parkatlas.io/get redirects to the store listing (see web/vercel.json) and reads better in a text.
+const INVITE_URL = 'https://parkatlas.io/get';
 
 export default function InviteRouteScreen() {
   const router = useRouter();
@@ -28,7 +26,7 @@ export default function InviteRouteScreen() {
   const [sharing, setSharing] = useState(false);
 
   const inviterName = user?.firstName || user?.name?.split(/\s+/)[0] || '';
-  const storeUrl = Platform.OS === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+  const storeUrl = INVITE_URL;
 
   // Background for the invite card: the user's most recent national park (their photo if they added one).
   const latest = useMemo(() => {
@@ -40,7 +38,10 @@ export default function InviteRouteScreen() {
     return { parkId: park?.id, parkName: park?.name ?? newest.parkName, state: park?.state ?? '', photoUri: withPhoto?.photoUri };
   }, [visits]);
 
-  const message = `${inviterName || 'A friend'} invited you to join ParkAtlas — track visits, hikes, camps, and road-trip stops across the National Parks.\n\n${storeUrl}`;
+  const who = inviterName || 'A friend';
+  const message = nationalParkCount > 0
+    ? `${who}'s at ${nationalParkCount} of 63 national parks and wants you on ParkAtlas — log your visits, compare rings, and plan the next trip together.\n\n${storeUrl}`
+    : `${who} invited you to join ParkAtlas — track visits, hikes, camps, and road-trip stops across all 63 national parks.\n\n${storeUrl}`;
   const onShared = () => {
     void recordInviteSent(storeUrl);
     toast.success('Invite sent', { icon: 'paper-plane' });
