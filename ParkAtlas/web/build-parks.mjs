@@ -106,6 +106,8 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
     <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
     <nav>
       <a href="/parks">National parks</a>
+      <a href="/#features">Features</a>
+      <a href="/#about">Why</a>
       <a href="/#checklist">Checklist</a>
       <a class="nav-cta" href="/get">Get the app</a>
     </nav>
