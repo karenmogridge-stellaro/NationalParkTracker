@@ -105,7 +105,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
   <header class="nav">
     <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
     <nav>
-      <a href="/parks">All parks</a>
+      <a href="/parks">National parks</a>
       <a href="/#checklist">Checklist</a>
       <a class="nav-cta" href="/get">Get the app</a>
     </nav>
@@ -115,7 +115,7 @@ const foot = ({ disclosure = false } = {}) => `
   <footer>
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
-      <a href="/parks">All parks</a>
+      <a href="/parks">National parks</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
       <a href="https://www.instagram.com/parkatlas.io/" target="_blank" rel="noopener">Instagram</a>
