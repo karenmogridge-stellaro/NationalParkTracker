@@ -41,16 +41,18 @@ type Props = {
   value: VisitDateValue;
   onChange: (value: VisitDateValue) => void;
   label?: string;
+  /** Start with the exact-date calendar expanded (used by the dev preview). */
+  initiallyOpen?: boolean;
 };
 
 /**
  * Compact "when did you go?" control. Users can pick an exact date, or just a
  * year (optionally a month) when they don't remember — or leave it unknown.
  */
-export function VisitDatePicker({ value, onChange, label = 'When did you go? (optional)' }: Props) {
+export function VisitDatePicker({ value, onChange, label = 'When did you go? (optional)', initiallyOpen = false }: Props) {
   const initialMode: Mode = value.kind === 'unknown' ? 'unknown' : value.precision === 'day' ? 'exact' : 'approx';
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [showExactPicker, setShowExactPicker] = useState(false);
+  const [showExactPicker, setShowExactPicker] = useState(initiallyOpen && initialMode === 'exact');
 
   const now = useMemo(() => new Date(), []);
   const years = useMemo(() => Array.from({ length: YEAR_SPAN }, (_, i) => now.getFullYear() - i), [now]);
@@ -182,6 +184,9 @@ export function VisitDatePicker({ value, onChange, label = 'When did you go? (op
                 maximumDate={now}
                 onChange={onExactChange}
                 accentColor={C.primary}
+                // The app card is always light; without this the picker follows system Dark Mode and draws white-on-white.
+                themeVariant="light"
+                style={Platform.OS === 'ios' ? styles.inlinePicker : undefined}
               />
               {Platform.OS === 'ios' ? (
                 <TouchableOpacity style={styles.doneBtn} onPress={() => setShowExactPicker(false)} activeOpacity={0.8}>
@@ -298,6 +303,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: C.onSurface,
+  },
+  // Inline UIDatePicker needs a real height or it collapses inside a ScrollView.
+  inlinePicker: {
+    height: 340,
+    marginTop: 4,
   },
   doneBtn: {
     alignSelf: 'flex-end',
