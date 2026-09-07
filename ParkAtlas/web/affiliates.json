@@ -34,9 +34,10 @@
       "enabled": true,
       "icon": "🥾",
       "title": "Trail gear",
-      "blurb": "Boots, packs, and layers that hold up out here.",
-      "cta": "Shop gear",
-      "url": "https://www.rei.com/search?q=hiking"
+      "blurb": "The short list of what I actually pack — packs, layers, coffee.",
+      "cta": "See the gear list",
+      "url": "/gear",
+      "internal": true
     }
   ]
 }

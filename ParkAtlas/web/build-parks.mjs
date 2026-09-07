@@ -143,7 +143,14 @@ const planTrip = (park) => {
           <h2>Plan your trip</h2>
           <p class="muted">The practical bits, so more of the weekend goes to the trail.</p>
           <div class="plan-grid">
-            ${slots.map((s) => `<a class="plan-card" href="${affiliateUrl(s, park)}" target="_blank" rel="sponsored noopener">
+            ${slots.map((s) => s.internal
+              ? `<a class="plan-card" href="${s.url}">
+              <span class="plan-icon">${s.icon}</span>
+              <strong>${esc(s.title)}</strong>
+              <span class="muted">${esc(s.blurb)}</span>
+              <span class="plan-cta">${esc(s.cta)} →</span>
+            </a>`
+              : `<a class="plan-card" href="${affiliateUrl(s, park)}" target="_blank" rel="sponsored noopener">
               <span class="plan-icon">${s.icon}</span>
               <strong>${esc(s.title)}</strong>
               <span class="muted">${esc(s.blurb)}</span>
