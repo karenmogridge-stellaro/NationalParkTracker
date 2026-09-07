@@ -86,11 +86,11 @@ function CelebrationHost() {
           <ShareCard
             ref={shareRef}
             format="story"
-            eyebrow={payload.newRank ? 'NEW RANK UNLOCKED' : 'MILESTONE'}
-            parkName={payload.newRank ? payload.newRank.title : `${payload.uniqueParks} parks`}
+            variant="rank"
+            parkId={payload.parkId}
+            parkName={payload.parkName}
             state={parkState}
             nationalVisited={payload.uniqueParks}
-            detail={payload.newRank ? `Unlocked at ${payload.parkName}` : payload.parkName}
           />
         </View>
       ) : null}

@@ -476,6 +476,7 @@ export default function ParkDetailScreen() {
         <ShareCard
           ref={storyShare.ref}
           format="story"
+          parkId={park.id}
           parkName={park.name}
           state={park.state}
           nationalVisited={nationalParkCount}
@@ -485,6 +486,7 @@ export default function ParkDetailScreen() {
         <ShareCard
           ref={cardShare.ref}
           format="card"
+          parkId={park.id}
           parkName={park.name}
           state={park.state}
           nationalVisited={nationalParkCount}
