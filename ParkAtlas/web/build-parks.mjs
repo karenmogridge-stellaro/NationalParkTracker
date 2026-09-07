@@ -129,7 +129,7 @@ const appCta = (park) => `
     <img src="/logo.png" alt="" width="56" height="56" />
     <div>
       <h3>Track ${esc(park.name)} in ParkAtlas</h3>
-      <p>Log the trail you hiked, watch your ring fill toward all 63, and share a park card to Stories. Free on iOS, no account required.</p>
+      <p>Log the trail you hiked, watch your ring fill toward all 63, and share a park card to Stories. No account required.</p>
     </div>
     <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
   </aside>`;
@@ -254,7 +254,7 @@ function indexPage() {
   const sorted = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   const url = `${SITE}/parks`;
   const title = 'All 63 U.S. National Parks by State — Trails, Camping & Fees | ParkAtlas';
-  const description = 'Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Track your progress toward all 63 in the free ParkAtlas app.';
+  const description = 'Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Track your progress toward all 63 in the ParkAtlas app.';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',

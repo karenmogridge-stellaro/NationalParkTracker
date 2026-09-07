@@ -143,7 +143,7 @@ def build_checklist(parks: list[tuple[str, str]]) -> None:
         d.text((x, ly + 34), title, font=font(24, True), fill=INK, anchor="ma")
         d.text((x, ly + 64), f"{n} park{'s' if n != 1 else ''}", font=font(20), fill=MUTED, anchor="ma")
 
-    d.text((W // 2, H - 52), "parkatlas.io  ·  @parkatlas.io  ·  Free on iOS", font=font(26, True), fill=BRAND, anchor="mm")
+    d.text((W // 2, H - 52), "parkatlas.io  ·  @parkatlas.io  ·  Available on iOS", font=font(26, True), fill=BRAND, anchor="mm")
 
     out = WEB / "parkatlas-63-checklist.pdf"
     page.save(out, "PDF", resolution=200.0)
@@ -159,7 +159,7 @@ def build_og() -> None:
     d.text((80, 250), "All 63", font=font(96, True), fill="white")
     d.text((80, 355), "national parks.", font=font(72, True), fill="white")
     d.text((80, 445), "One ring.", font=font(72, True), fill=MINT)
-    d.text((80, 545), "Track your journey · Free on iOS · parkatlas.io", font=font(30), fill=MINT)
+    d.text((80, 545), "Track your journey · Available on iOS · parkatlas.io", font=font(30), fill=MINT)
 
     # Ring motif on the right
     cx, cy, r = 1000, 315, 150
