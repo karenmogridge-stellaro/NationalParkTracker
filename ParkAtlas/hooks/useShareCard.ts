@@ -3,6 +3,7 @@ import { Platform, Share, type View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { haptic } from '@/utils/haptics';
+import { canShareToInstagramStories, shareToInstagramStories } from '@/utils/instagram';
 import { shareCardSize, type ShareCardFormat } from '@/components/ShareCard';
 
 // Export at 3x so a 360pt card becomes a crisp 1080px image for social apps.
@@ -66,5 +67,25 @@ export function useShareCard(options: Options) {
     }
   }, [sharing, options, capture]);
 
-  return { ref, share, capture, sharing };
+  /** Straight into Instagram's Stories composer when possible; otherwise the normal share sheet. */
+  const shareToInstagram = useCallback(async () => {
+    if (sharing || !ref.current) return;
+    if (!(await canShareToInstagramStories())) {
+      await share();
+      return;
+    }
+    setSharing(true);
+    haptic.tap();
+    try {
+      const uri = await capture();
+      await shareToInstagramStories(uri);
+      options.onShared?.();
+    } catch (e) {
+      options.onError?.(e);
+    } finally {
+      setSharing(false);
+    }
+  }, [sharing, options, capture, share]);
+
+  return { ref, share, shareToInstagram, capture, sharing };
 }

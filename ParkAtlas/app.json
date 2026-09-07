@@ -17,7 +17,8 @@
         "webcredentials:parkatlas.io"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["instagram", "instagram-stories"]
       }
     },
     "android": {

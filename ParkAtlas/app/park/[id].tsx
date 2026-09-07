@@ -21,6 +21,7 @@ import { haptic } from '@/utils/haptics';
 import { useToast } from '@/components/ui/Toast';
 import { ShareCard } from '@/components/ShareCard';
 import { useShareCard } from '@/hooks/useShareCard';
+import { canShareToInstagramStories } from '@/utils/instagram';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { fetchFriendActivities } from '@/utils/userDirectoryApi';
@@ -91,23 +92,31 @@ export default function ParkDetailScreen() {
   const cardShare = useShareCard({ message: shareMessage, format: 'card', onShared, onError: onShareError });
   const sharing = storyShare.sharing || cardShare.sharing;
 
-  function chooseShareFormat() {
+  async function chooseShareFormat() {
     haptic.tap();
-    const options = ['Share to Stories (9:16)', 'Share as card (3:4)', 'Cancel'];
+    const ig = await canShareToInstagramStories();
+    const options = [
+      ...(ig ? ['Post to Instagram Story'] : []),
+      'Share to Stories (9:16)',
+      'Share as card (3:4)',
+      'Cancel',
+    ];
+    const run = (i: number) => {
+      const idx = ig ? i : i + 1;
+      if (idx === 0) void storyShare.shareToInstagram();
+      if (idx === 1) void storyShare.share();
+      if (idx === 2) void cardShare.share();
+    };
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: 2, title: 'Share this park' },
-        (i) => {
-          if (i === 0) void storyShare.share();
-          if (i === 1) void cardShare.share();
-        },
+        { options, cancelButtonIndex: options.length - 1, title: 'Share this park' },
+        run,
       );
       return;
     }
     Alert.alert('Share this park', undefined, [
-      { text: options[0], onPress: () => { void storyShare.share(); } },
-      { text: options[1], onPress: () => { void cardShare.share(); } },
-      { text: 'Cancel', style: 'cancel' },
+      ...options.slice(0, -1).map((text, i) => ({ text, onPress: () => run(i) })),
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   }
 

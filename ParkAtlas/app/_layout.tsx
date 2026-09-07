@@ -65,7 +65,7 @@ function CelebrationHost() {
   const payload = demo ?? lastNewParkEvent;
   const toast = useToast();
   const rankLabel = payload?.newRank ? `New rank: ${payload.newRank.title}` : payload ? `${payload.uniqueParks} parks` : '';
-  const { ref: shareRef, share, sharing } = useShareCard({
+  const { ref: shareRef, shareToInstagram, sharing } = useShareCard({
     format: 'story',
     message: payload
       ? `${rankLabel} — ${payload.uniqueParks} of 63 U.S. National Parks. Tracking them all on ParkAtlas.`
@@ -80,7 +80,7 @@ function CelebrationHost() {
       <CelebrationOverlay
         payload={payload}
         onDismiss={() => { setDemo(null); clearNewParkEvent(); }}
-        onShare={() => { void share(); }}
+        onShare={() => { void shareToInstagram(); }}
         sharing={sharing}
       />
       {payload ? (
