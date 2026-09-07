@@ -156,17 +156,16 @@ def build_og() -> None:
     d = ImageDraw.Draw(img)
     logo = Image.open(LOGO).convert("RGBA").resize((140, 140), Image.LANCZOS)
     img.paste(logo, (80, 80), logo)
-    d.text((80, 250), "All 63", font=font(96, True), fill="white")
-    d.text((80, 355), "national parks.", font=font(72, True), fill="white")
-    d.text((80, 445), "One ring.", font=font(72, True), fill=MINT)
+    d.text((80, 250), "Get outside.", font=font(96, True), fill="white")
+    d.text((80, 355), "Remember the parks.", font=font(64, True), fill="white")
+    d.text((80, 440), "National and state.", font=font(64, True), fill=MINT)
     d.text((80, 545), "Track your journey · Available on iOS · parkatlas.io", font=font(30), fill=MINT)
 
-    # Ring motif on the right
-    cx, cy, r = 1000, 315, 150
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(60, 110, 85), width=26)
-    d.arc([cx - r, cy - r, cx + r, cy + r], start=-90, end=-90 + 360 * (14 / 63), fill="white", width=26)
-    d.text((cx, cy - 10), "14", font=font(96, True), fill="white", anchor="mm")
-    d.text((cx, cy + 62), "of 63", font=font(30), fill=MINT, anchor="mm")
+    # Pine motif on the right — a simple stylized tree instead of a progress ring.
+    cx = 1050
+    for i, (hw, top, bot) in enumerate([(60, 110, 210), (85, 180, 300), (110, 260, 400)]):
+        d.polygon([(cx, top), (cx - hw, bot), (cx + hw, bot)], fill=MINT if i % 2 else "white")
+    d.rectangle([cx - 20, 400, cx + 20, 470], fill="white")
 
     out = WEB / "og.png"
     img.save(out, "PNG", optimize=True)

@@ -129,7 +129,7 @@ const appCta = (park) => `
     <img src="/logo.png" alt="" width="56" height="56" />
     <div>
       <h3>Track ${esc(park.name)} in ParkAtlas</h3>
-      <p>Log the trail you hiked, watch your ring fill toward all 63, and share a park card to Stories. No account required.</p>
+      <p>Log the trail you hiked, keep every park you've explored in one place, and share a park card to Stories. No account required.</p>
     </div>
     <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
   </aside>`;
@@ -235,7 +235,7 @@ function parkPage(park) {
           <dt>Open</dt><dd>${d.openYear ? 'Year-round' : 'Seasonal'}</dd>
           <dt>NPS code</dt><dd>${park.npsCode.toUpperCase()}</dd>
         </dl>
-        <a class="side-cta" href="/parks">← All 63 parks</a>
+        <a class="side-cta" href="/parks">← All national parks</a>
         ${creditFor(park) ? `<p class="credit">Photo: <a href="${creditPageFor(park)}" rel="noopener nofollow" target="_blank">${esc(creditFor(park))}</a></p>` : ''}
       </aside>
     </div>
@@ -253,8 +253,8 @@ function indexPage() {
   }
   const sorted = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   const url = `${SITE}/parks`;
-  const title = 'All 63 U.S. National Parks by State — Trails, Camping & Fees | ParkAtlas';
-  const description = 'Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Track your progress toward all 63 in the ParkAtlas app.';
+  const title = 'U.S. National Parks by State — Trails, Camping & Fees | ParkAtlas';
+  const description = 'Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Keep track of the ones you\u2019ve explored in the ParkAtlas app.';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -267,8 +267,8 @@ function indexPage() {
   <main class="parks-index">
     <section class="index-hero">
       <p class="eyebrow">The full list</p>
-      <h1>All 63 national parks, by state</h1>
-      <p class="lede">Tap any park for trails, camping, fees, and the best time to go. Or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a> and start ticking.</p>
+      <h1>National parks, by state</h1>
+      <p class="lede">Tap any park for trails, camping, fees, and the best time to go. Or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a> and start planning.</p>
       <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
     </section>
     <section class="state-grid">
