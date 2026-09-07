@@ -1,0 +1,42 @@
+{
+  "_comment": "Affiliate/partner link templates used by build-parks.mjs. {q} = URL-encoded '<Park> National Park, <State>'. Replace with tracked URLs once approved; set enabled:false to hide a slot. Links render with rel=sponsored.",
+  "disclosure": "Some links on this page are affiliate links. If you book or buy through them, ParkAtlas may earn a small commission at no extra cost to you. It helps keep the app free of ads.",
+  "slots": [
+    {
+      "id": "stay",
+      "enabled": true,
+      "icon": "🏨",
+      "title": "Places to stay",
+      "blurb": "Hotels, cabins, and lodges near the park.",
+      "cta": "Search stays",
+      "url": "https://www.booking.com/searchresults.html?ss={q}"
+    },
+    {
+      "id": "camp",
+      "enabled": true,
+      "icon": "⛺",
+      "title": "Campsites",
+      "blurb": "Public campgrounds plus private land nearby.",
+      "cta": "Find a campsite",
+      "url": "https://www.hipcamp.com/en-US/search?q={q}"
+    },
+    {
+      "id": "pass",
+      "enabled": true,
+      "icon": "🎟️",
+      "title": "America the Beautiful pass",
+      "blurb": "One annual pass covers entry to every national park.",
+      "cta": "Get the pass",
+      "url": "https://store.usgs.gov/recreational-passes"
+    },
+    {
+      "id": "gear",
+      "enabled": true,
+      "icon": "🥾",
+      "title": "Trail gear",
+      "blurb": "Boots, packs, and layers that hold up out here.",
+      "cta": "Shop gear",
+      "url": "https://www.rei.com/search?q=hiking"
+    }
+  ]
+}

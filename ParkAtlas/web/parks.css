@@ -69,6 +69,23 @@
 .trail-list li:nth-child(odd) { background: var(--surface-low); }
 .trail-list strong { color: var(--primary); font-variant-numeric: tabular-nums; }
 
+/* Plan your trip (partner links) */
+.plan-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px; }
+.plan-card {
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--surface-low);
+  border-radius: 18px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+}
+.plan-card:hover { background: var(--primary-container); }
+.plan-icon { font-size: 22px; }
+.plan-card strong { font-size: 16px; }
+.plan-cta { margin-top: 6px; color: var(--primary); font-weight: 700; font-size: 14px; }
+@media (max-width: 560px) { .plan-grid { grid-template-columns: 1fr; } }
+.disclosure { max-width: 720px; margin: 0 auto 10px; }
+
 /* App CTA */
 .app-cta {
   display: grid;

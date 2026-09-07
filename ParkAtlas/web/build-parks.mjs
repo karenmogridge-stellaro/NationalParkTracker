@@ -8,7 +8,7 @@
  * Usage: node web/build-parks.mjs   (run from the ParkAtlas folder; requires esbuild devDep)
  */
 import { build } from 'esbuild';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
@@ -17,6 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'web');
 const SITE = 'https://parkatlas.io';
 const APP_STORE = 'https://apps.apple.com/app/id6760982981';
+const AFFILIATES = JSON.parse(await readFile(path.join(WEB, 'affiliates.json'), 'utf8'));
 
 // ── Load the TypeScript data by bundling a tiny entry with esbuild ────────────
 const tmp = path.join(os.tmpdir(), `parkatlas-data-${Date.now()}.mjs`);
@@ -110,7 +111,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
     </nav>
   </header>`;
 
-const foot = () => `
+const foot = ({ disclosure = false } = {}) => `
   <footer>
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
@@ -119,10 +120,34 @@ const foot = () => `
       <a href="mailto:hello@parkatlas.io">Support</a>
       <a href="https://www.instagram.com/parkatlas.io/" target="_blank" rel="noopener">Instagram</a>
     </nav>
+    ${disclosure ? `<p class="fine disclosure">${esc(AFFILIATES.disclosure)}</p>` : ''}
     <p class="fine">© 2026 Stellaroos. Park facts sourced from the National Park Service; not affiliated with NPS.</p>
   </footer>
 </body>
 </html>`;
+
+// Affiliate/partner links from web/affiliates.json. {q} = "<Park> National Park, <State>".
+const affiliateUrl = (slot, park) =>
+  slot.url.replace('{q}', encodeURIComponent(`${park.name} National Park, ${stateDisplayName(park.state)}`));
+const affiliateSlot = (id) => AFFILIATES.slots.find((s) => s.id === id && s.enabled);
+
+const planTrip = (park) => {
+  const slots = AFFILIATES.slots.filter((s) => s.enabled);
+  if (!slots.length) return '';
+  return `
+        <section class="plan">
+          <h2>Plan your trip</h2>
+          <p class="muted">The practical bits, so more of the weekend goes to the trail.</p>
+          <div class="plan-grid">
+            ${slots.map((s) => `<a class="plan-card" href="${affiliateUrl(s, park)}" target="_blank" rel="sponsored noopener">
+              <span class="plan-icon">${s.icon}</span>
+              <strong>${esc(s.title)}</strong>
+              <span class="muted">${esc(s.blurb)}</span>
+              <span class="plan-cta">${esc(s.cta)} →</span>
+            </a>`).join('\n            ')}
+          </div>
+        </section>`;
+};
 
 const appCta = (park) => `
   <aside class="app-cta">
@@ -144,7 +169,8 @@ function parkPage(park) {
   const near = nearby(park);
   const topTrails = park.trails.slice(0, 8);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${park.lat},${park.lng}`;
-  const staySearch = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(`${park.name} National Park, ${state}`)}`;
+  const staySlot = affiliateSlot('stay');
+  const staySearch = staySlot ? affiliateUrl(staySlot, park) : null;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -199,7 +225,7 @@ function parkPage(park) {
               ? `Approximately ${d.campsiteCount} campsites across the park's campgrounds. Reservations are strongly recommended in peak season (${esc(d.peakSeason)}).`
               : 'Backcountry and primitive camping are available. Check NPS.gov for permits and current conditions.')
             : 'There are no NPS campgrounds inside the park. Lodging and private campgrounds are typically available nearby.'}</p>
-          <p><a class="text-link" href="${staySearch}" target="_blank" rel="noopener nofollow">Find places to stay near ${esc(park.name)} →</a></p>
+          ${staySearch ? `<p><a class="text-link" href="${staySearch}" target="_blank" rel="sponsored noopener">Find places to stay near ${esc(park.name)} →</a></p>` : ''}
         </section>
 
         <section>
@@ -217,6 +243,8 @@ function parkPage(park) {
             <a class="text-link" href="https://www.nps.gov/${park.npsCode}/index.htm" target="_blank" rel="noopener">Official NPS page →</a>
           </p>
         </section>
+
+        ${planTrip(park)}
 
         ${appCta(park)}
       </article>
@@ -240,7 +268,7 @@ function parkPage(park) {
       </aside>
     </div>
   </main>
-${foot()}`;
+${foot({ disclosure: true })}`;
 }
 
 // ── Index page ───────────────────────────────────────────────────────────────
