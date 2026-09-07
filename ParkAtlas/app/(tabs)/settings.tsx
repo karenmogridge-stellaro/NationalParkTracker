@@ -253,7 +253,7 @@ export default function SettingsScreen() {
 
       if (isAvailable) {
         const result = await MailComposer.composeAsync({
-          recipients: ['info@stellaroos.com'],
+          recipients: ['hello@parkatlas.io'],
           subject: 'ParkAtlas App Feedback',
           body: bodyText,
         });
@@ -268,12 +268,12 @@ export default function SettingsScreen() {
 
       const subject = encodeURIComponent('ParkAtlas App Feedback');
       const body = encodeURIComponent(bodyText);
-      const url = `mailto:info@stellaroos.com?subject=${subject}&body=${body}`;
+      const url = `mailto:hello@parkatlas.io?subject=${subject}&body=${body}`;
       await Linking.openURL(url);
       setFeedbackVisible(false);
       setFeedbackText('');
     } catch {
-      toast.error('Unable to open mail. Email info@stellaroos.com directly.', { durationMs: 4500 });
+      toast.error('Unable to open mail. Email hello@parkatlas.io directly.', { durationMs: 4500 });
     } finally {
       setSendingFeedback(false);
     }
@@ -820,7 +820,7 @@ export default function SettingsScreen() {
         <View style={styles.feedbackOverlay}>
           <View style={styles.feedbackCard}>
             <Text style={styles.feedbackTitle}>Send Feedback</Text>
-            <Text style={styles.feedbackSubtitle}>Your message will open in your email app to send to info@stellaroos.com.</Text>
+            <Text style={styles.feedbackSubtitle}>Your message will open in your email app to send to hello@parkatlas.io.</Text>
 
             <TextInput
               style={styles.feedbackInput}
