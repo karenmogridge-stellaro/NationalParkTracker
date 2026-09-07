@@ -30,6 +30,10 @@ export default function ShareCardPreview() {
         <Text style={styles.label}>park · card</Text>
         <ShareCard variant="park" format="card" parkId="63" parkName="Zion" state="UT" nationalVisited={n} detail="Angels Landing · 5.4 mi" />
       </>) : null}
+      {show('invite-story') ? (<>
+        <Text style={styles.label}>invite · story</Text>
+        <ShareCard variant="invite" format="story" parkId={park} parkName="Olympic" state="WA" nationalVisited={n} userName="Karen" />
+      </>) : null}
       <View style={{ height: 60 }} />
     </ScrollView>
   );

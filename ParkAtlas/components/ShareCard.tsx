@@ -8,7 +8,7 @@ import { rankForCount, nextRankAfter, TOTAL_NATIONAL_PARKS } from '@/utils/ranks
 import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
 
 export type ShareCardFormat = 'card' | 'story';
-export type ShareCardVariant = 'park' | 'rank';
+export type ShareCardVariant = 'park' | 'rank' | 'invite';
 
 export type ShareCardProps = {
   parkName: string;
@@ -124,7 +124,9 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
     ? invite
     : variant === 'rank'
       ? 'Who\u2019s coming on the next one? \ud83d\udc40'
-      : 'Come find me on ParkAtlas \u2014 let\u2019s compare rings.';
+      : variant === 'invite'
+        ? 'Add me so we can compare rings and plan the next trip.'
+        : 'Come find me on ParkAtlas \u2014 let\u2019s compare rings.';
 
   const Background = (
     <>
@@ -195,6 +197,47 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
           <Text style={styles.tagline} numberOfLines={2}>
             {nationalVisited} national {nationalVisited === 1 ? 'park' : 'parks'} · unlocked at {parkName}
             {next ? ` · ${next.minParks - nationalVisited} to ${next.title}` : ''}
+          </Text>
+          {inviteLine ? <Text style={styles.invite}>{inviteLine}</Text> : null}
+          {CtaBar}
+        </View>
+      </View>
+    );
+  }
+
+  // ── 'invite' variant: "join me" card for the Invite friends flow ──
+  if (variant === 'invite') {
+    const ringSize = story ? 200 : 160;
+    return (
+      <View ref={ref} style={[styles.card, story && styles.cardStory]} collapsable={false}>
+        {Background}
+        <LinearGradient
+          colors={['rgba(8,18,12,0.55)', 'rgba(8,18,12,0.5)', 'rgba(8,18,12,0.94)']}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {Brand}
+
+        <View style={styles.ringWrap}>
+          <Ring size={ringSize} stroke={story ? 16 : 14} pct={pct}>
+            <View style={styles.ringCenter}>
+              <View style={styles.ringIcon}>
+                <MaterialCommunityIcons name={rank.icon} size={story ? 32 : 26} color={C.primary} />
+              </View>
+              <Text style={[styles.ringValue, story && styles.ringValueStory]}>{nationalVisited}</Text>
+              <Text style={styles.ringTotal}>of {TOTAL_NATIONAL_PARKS} parks</Text>
+            </View>
+          </Ring>
+        </View>
+
+        <View style={styles.bottom}>
+          <Text style={styles.eyebrow}>{who ? `${who.toUpperCase()} INVITED YOU` : 'YOU\u2019RE INVITED'}</Text>
+          <Text style={[styles.title, story && styles.titleStory]} numberOfLines={2}>Join me on ParkAtlas</Text>
+          <Text style={styles.tagline} numberOfLines={2}>
+            {nationalVisited > 0
+              ? `${nationalVisited} of ${TOTAL_NATIONAL_PARKS} national parks so far${parkName ? ` \u00b7 latest: ${parkName}` : ''}`
+              : `Collecting all ${TOTAL_NATIONAL_PARKS} national parks, one trip at a time.`}
           </Text>
           {inviteLine ? <Text style={styles.invite}>{inviteLine}</Text> : null}
           {CtaBar}
