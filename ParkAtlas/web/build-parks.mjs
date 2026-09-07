@@ -106,6 +106,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
     <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
     <nav>
       <a href="/parks">National parks</a>
+      <a href="/gear">Gear</a>
       <a href="/#features">Features</a>
       <a href="/#about">Why</a>
       <a href="/#checklist">Checklist</a>
@@ -118,6 +119,7 @@ const foot = ({ disclosure = false } = {}) => `
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
       <a href="/parks">National parks</a>
+      <a href="/gear">Gear</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
       <a href="https://www.instagram.com/parkatlas.io/" target="_blank" rel="noopener">Instagram</a>
@@ -325,7 +327,7 @@ for (const park of parks) {
 await writeFile(path.join(WEB, 'parks', 'index.html'), indexPage());
 
 const today = new Date().toISOString().slice(0, 10);
-const urls = ['/', '/parks', '/privacy', ...parks.map((p) => `/parks/${p.slug}`)];
+const urls = ['/', '/parks', '/gear', '/privacy', ...parks.map((p) => `/parks/${p.slug}`)];
 await writeFile(
   path.join(WEB, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls

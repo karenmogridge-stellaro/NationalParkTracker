@@ -1,0 +1,59 @@
+/* Gear page — reuses .nav/.park-hero/.app-cta/footer from styles.css + parks.css */
+.gear-hero { min-height: 420px; }
+.gear-disclosure { margin-top: 18px; font-size: 13px; opacity: 0.85; }
+
+.gear-body-wrap { max-width: var(--max); margin: 0 auto; padding: 28px 24px 72px; }
+
+.gear-toc {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 26px;
+}
+.gear-toc a {
+  font-size: 13px; font-weight: 700;
+  padding: 8px 14px; border-radius: 999px;
+  background: var(--surface-low); color: var(--primary);
+}
+.gear-toc a:hover { background: var(--primary-container); }
+
+.gear-trust {
+  font-size: 17px; line-height: 1.55; color: var(--muted);
+  border-left: 4px solid var(--primary); padding: 6px 0 6px 18px;
+  margin: 0 0 40px; max-width: 720px;
+}
+
+.gear-section { margin-bottom: 56px; }
+.gear-section-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+.gear-icon { font-size: 30px; line-height: 1; margin-top: 4px; }
+.gear-section-head h2 { font-size: 28px; font-weight: 800; margin: 0 0 4px; }
+.gear-section-head .muted { margin: 0; font-size: 15px; }
+
+.gear-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.gear-card {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--surface-low); border-radius: 22px;
+  border: 1px solid transparent;
+}
+.gear-card.is-pick { border-color: var(--primary); background: #fff; box-shadow: 0 14px 34px rgba(15, 46, 13, 0.10); }
+.gear-img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.gear-body { display: flex; flex-direction: column; gap: 8px; padding: 18px 18px 20px; flex: 1; }
+.pick-badge {
+  align-self: flex-start;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--primary); background: var(--primary-container);
+  padding: 4px 10px; border-radius: 999px;
+}
+.gear-card h3 { font-size: 17px; font-weight: 800; margin: 0; }
+.gear-card p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--muted); flex: 1; }
+.gear-btn {
+  margin-top: 8px; align-self: flex-start;
+  font-size: 14px; font-weight: 800; color: #fff;
+  background: var(--primary); padding: 10px 16px; border-radius: 999px;
+}
+.gear-btn:hover { filter: brightness(1.08); }
+
+@media (max-width: 900px) { .gear-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) {
+  .gear-grid { grid-template-columns: 1fr; }
+  .gear-section-head h2 { font-size: 24px; }
+  .gear-hero { min-height: 340px; }
+}

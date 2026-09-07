@@ -1,0 +1,125 @@
+{
+  "_howto": [
+    "This file drives parkatlas.io/gear. Edit it, then run `node web/build-gear.mjs` (or `npm run web:build`) and push.",
+    "tag: your Amazon Associates tracking ID (Associates Central → top-right). Every link gets it automatically.",
+    "Per item: `asin` (preferred — the 10-char code in an Amazon product URL, e.g. B07XYZ1234) OR `search` keywords as a fallback. `url` overrides both if you paste a full SiteStripe link.",
+    "pick: true adds the personal badge. image: optional URL for a product photo; leave off for the icon-only card.",
+    "Set enabled: false on an item or section to hide it without deleting it."
+  ],
+  "tag": "parkatlas-20",
+  "pickLabel": "Ren's pick",
+  "hero": {
+    "eyebrow": "ParkAtlas Gear",
+    "title": "Gear worth bringing along.",
+    "lede": "Things I use, recommend, or would genuinely pack for a park trip. Nothing here is filler.",
+    "image": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Mountain_Goat_at_Hidden_Lake.jpg/1920px-Mountain_Goat_at_Hidden_Lake.jpg",
+    "imageCredit": "Glacier National Park · Wikimedia Commons"
+  },
+  "trust": "I only include gear I use myself, have researched, or would genuinely recommend for a park trip.",
+  "disclosure": "As an Amazon Associate I earn from qualifying purchases.",
+  "sections": [
+    {
+      "id": "picks",
+      "icon": "⭐",
+      "title": "What I actually use",
+      "blurb": "The short list. If I'm heading out for a weekend, these are already in the car.",
+      "items": [
+        { "name": "Nitecore NU25 headlamp", "why": "Lightweight, rechargeable, and easy to throw in a daypack without thinking about it.", "search": "Nitecore NU25 headlamp", "pick": true },
+        { "name": "Osprey Daylite Plus", "why": "Twenty liters, sits flat against your back, and the water bottle pockets actually fit a Nalgene.", "search": "Osprey Daylite Plus daypack", "pick": true },
+        { "name": "Anker 10,000 mAh power bank", "why": "Two full phone charges. Enough for a weekend of photos and offline maps.", "search": "Anker PowerCore 10000", "pick": true },
+        { "name": "Hydro Flask 32 oz wide mouth", "why": "Ice at the trailhead is still ice at the car.", "search": "Hydro Flask 32 oz wide mouth", "pick": true },
+        { "name": "National Parks Passport", "why": "The cancellation stamps are half the fun. Every visitor center has one.", "search": "Passport to Your National Parks", "pick": true },
+        { "name": "Nocs Provisions 8x25 binoculars", "why": "Small enough to leave in the glovebox, sharp enough for bighorn on a far ridge.", "search": "Nocs Provisions Standard Issue 8x25 binoculars", "pick": true }
+      ]
+    },
+    {
+      "id": "day-hiking",
+      "icon": "🥾",
+      "title": "Day hiking essentials",
+      "blurb": "The stuff that makes a five-mile loop pleasant instead of a slog.",
+      "items": [
+        { "name": "Daypack (18–25 L)", "why": "Room for water, layers, snacks, and a first aid kit — nothing more.", "search": "hiking daypack 20L" },
+        { "name": "Hydration bladder", "why": "You drink more when you don't have to stop to do it.", "search": "hydration bladder 2L" },
+        { "name": "Trekking poles", "why": "Knees on the descent will thank you. Collapsible ones fit in a carry-on.", "search": "collapsible trekking poles" },
+        { "name": "Headlamp", "why": "Sunrise hikes and late finishes. Never rely on your phone flashlight.", "search": "rechargeable headlamp hiking" },
+        { "name": "Portable charger", "why": "Offline maps and photos eat batteries faster than you'd think.", "search": "portable charger 10000mAh" },
+        { "name": "Compact first aid kit", "why": "Blister care and tweezers get used more than anything else.", "search": "hiking first aid kit compact" },
+        { "name": "Mineral sunscreen", "why": "High elevation sun is not the sun you're used to.", "search": "mineral sunscreen SPF 50 face" },
+        { "name": "Lightweight rain shell", "why": "Afternoon thunderstorms are a feature of the mountain West, not a bug.", "search": "lightweight packable rain jacket" }
+      ]
+    },
+    {
+      "id": "road-trip",
+      "icon": "🚗",
+      "title": "National park road trip gear",
+      "blurb": "Parks are far apart. The drive is part of the trip — make the car work for you.",
+      "items": [
+        { "name": "USB-C car charger", "why": "Fast enough to charge two phones while navigating.", "search": "USB-C car charger 45W" },
+        { "name": "Hard cooler", "why": "Holds ice for days between towns with grocery stores.", "search": "hard cooler 45 quart" },
+        { "name": "Seat-back organizer", "why": "Snacks, maps, and sunscreen stop living on the floor.", "search": "car seat back organizer" },
+        { "name": "Binoculars", "why": "Wildlife pullouts are a lot better when you can actually see the wildlife.", "search": "compact binoculars 8x42" },
+        { "name": "Offline GPS / satellite messenger", "why": "Cell service ends at most park boundaries. This doesn't.", "search": "Garmin inReach Mini 2" },
+        { "name": "Roadside emergency kit", "why": "Jumper cables and a tire inflator, for the gas station that's 90 miles away.", "search": "roadside emergency kit with jumper cables" },
+        { "name": "Travel blanket", "why": "Sunrise overlooks are cold. Picnics are nicer on it than on gravel.", "search": "packable outdoor blanket" }
+      ]
+    },
+    {
+      "id": "camping",
+      "icon": "⛺",
+      "title": "Camping favorites",
+      "blurb": "Car-camping comfort without hauling the whole garage.",
+      "items": [
+        { "name": "Camp light", "why": "Soft, rechargeable, hangs from the tent loop.", "search": "rechargeable camping lantern" },
+        { "name": "Sleeping pad", "why": "The single biggest upgrade to sleeping outside.", "search": "insulated sleeping pad camping" },
+        { "name": "Camp chair", "why": "Low, light, and packs down to the size of a water bottle.", "search": "lightweight camp chair" },
+        { "name": "Portable stove", "why": "Coffee in ten minutes. Every morning.", "search": "portable camping stove" },
+        { "name": "Coffee setup", "why": "A pour-over dripper and a hand grinder. Non-negotiable.", "search": "camping pour over coffee maker" },
+        { "name": "Dry bags", "why": "Clothes stay dry, and dirty ones stay contained.", "search": "dry bag set" },
+        { "name": "Camp kitchen basics", "why": "One pot, one pan, a spatula, and a sponge in a mesh bag.", "search": "camping cookware set" }
+      ]
+    },
+    {
+      "id": "passport",
+      "icon": "📖",
+      "title": "Park passport & journaling",
+      "blurb": "The paper side of remembering where you've been.",
+      "items": [
+        { "name": "National Parks Passport", "why": "Collect cancellation stamps at every visitor center.", "search": "Passport to Your National Parks" },
+        { "name": "Stamp set & stickers", "why": "The annual stamp sets slot right into the passport.", "search": "national parks passport stamps" },
+        { "name": "Park journal", "why": "A page per park: date, trail, weather, who you were with.", "search": "national parks journal" },
+        { "name": "Scratch-off national parks map", "why": "Wall version of your ParkAtlas ring.", "search": "scratch off national parks map" },
+        { "name": "Field notebook", "why": "Waterproof pages for the trail.", "search": "Rite in the Rain notebook" },
+        { "name": "Map case", "why": "Keeps the paper map you swore you'd never need dry.", "search": "waterproof map case" }
+      ]
+    },
+    {
+      "id": "dogs",
+      "icon": "🐾",
+      "title": "Dog adventure gear",
+      "blurb": "Most park roads and campgrounds welcome dogs. Trails vary — check before you go.",
+      "items": [
+        { "name": "Collapsible water bowl", "why": "Clips to the pack. Used at every stop.", "search": "collapsible dog bowl" },
+        { "name": "Dog water bottle", "why": "One bottle for both of you.", "search": "dog water bottle with bowl" },
+        { "name": "Long leash", "why": "Room to sniff, still on-leash where the rules say so.", "search": "long training leash dog 15 ft" },
+        { "name": "Seat protector", "why": "Red dirt and wet dog, contained.", "search": "dog car seat cover hammock" },
+        { "name": "Portable dog bed", "why": "Rolls up; gives them a spot at camp.", "search": "portable dog bed camping" },
+        { "name": "Paw protection", "why": "Hot sandstone and sharp lava rock are hard on paws.", "search": "dog boots hiking" },
+        { "name": "Waste-bag holder", "why": "Because you will forget otherwise.", "search": "dog poop bag holder leash" }
+      ]
+    },
+    {
+      "id": "seasonal",
+      "icon": "🌡️",
+      "title": "Cold weather & desert",
+      "blurb": "Small things that change whether you're comfortable at 9,000 ft or 105°F.",
+      "items": [
+        { "name": "Hand warmers", "why": "Sunrise at Bryce in October. Enough said.", "search": "rechargeable hand warmer" },
+        { "name": "Neck gaiter", "why": "Sun, wind, dust, or cold — it does all four.", "search": "neck gaiter UPF" },
+        { "name": "Cooling towel", "why": "Soak, wring, wear. Desert hikes get easier.", "search": "cooling towel" },
+        { "name": "Wide-brim sun hat", "why": "Ears and neck are the first to burn.", "search": "wide brim sun hat UPF 50" },
+        { "name": "Electrolyte packets", "why": "Water alone isn't enough in the desert.", "search": "electrolyte powder packets" },
+        { "name": "Insulated bottle", "why": "Hot coffee at the overlook or cold water at noon.", "search": "insulated water bottle 32 oz" }
+      ]
+    }
+  ]
+}
