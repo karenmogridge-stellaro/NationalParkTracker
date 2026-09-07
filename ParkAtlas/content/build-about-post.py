@@ -99,8 +99,11 @@ for p in paras:
         d.text((72, y), ln, font=f_body, fill=WHITE)
         y += 60
     y += 40
-d.text((72, y + 10), "I want to surround myself with people who feel", font=font(SERIF, 42), fill=MINT)
-d.text((72, y + 68), "the same way. Hope to see you on the trails.", font=font(SERIF, 42), fill=MINT)
+f_close = font(SERIF, 42)
+y += 10
+for ln in wrap(d, "I want to surround myself with people who feel the same way. Hope to see you on the trails.", f_close, W - 144):
+    d.text((72, y), ln, font=f_close, fill=MINT)
+    y += 58
 brand_footer(s2)
 s2.convert("RGB").save(OUT / "about-2.png", quality=95)
 
