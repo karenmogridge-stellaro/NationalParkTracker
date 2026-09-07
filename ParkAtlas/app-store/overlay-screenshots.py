@@ -70,33 +70,36 @@ def render(src: Path, dst: Path, headline: str, sub: str) -> None:
     shot = Image.open(src).convert("RGB")
     W, H = shot.size
     canvas = Image.new("RGB", (W, H), BRAND)
+    # Sizes were tuned on the 1320-wide iPhone canvas; scale for other widths (iPad 2064).
+    k = W / 1320
+    band_h = int(BAND_H * k * (0.82 if W > 1600 else 1))
 
     # Scale the device shot to fit under the band, centered, with rounded top corners.
-    avail_h = H - BAND_H
+    avail_h = H - band_h
     scale = avail_h / H
     new_w, new_h = int(W * scale), avail_h
     small = shot.resize((new_w, new_h), Image.LANCZOS)
-    radius = 56
+    radius = int(56 * k)
     mask = Image.new("L", small.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, new_w, new_h + radius], radius=radius, fill=255)
     x = (W - new_w) // 2
-    canvas.paste(small, (x, BAND_H), mask)
+    canvas.paste(small, (x, band_h), mask)
 
     draw = ImageDraw.Draw(canvas)
-    head_font = load_font(FONT_CANDIDATES_BOLD, 118, bold=True)
-    sub_font = load_font(FONT_CANDIDATES_REG, 50, bold=False)
+    head_font = load_font(FONT_CANDIDATES_BOLD, int(118 * k), bold=True)
+    sub_font = load_font(FONT_CANDIDATES_REG, int(50 * k), bold=False)
 
     # Vertically center the text block within the band.
     lines = headline.split("\n")
-    line_h = 128
+    line_h = int(128 * k)
     head_h = line_h * len(lines)
-    block_h = head_h + 28 + 60
-    y = (BAND_H - block_h) // 2 + 10
+    block_h = head_h + int(28 * k) + int(60 * k)
+    y = (band_h - block_h) // 2 + int(10 * k)
     for line in lines:
         w = draw.textlength(line, font=head_font)
         draw.text(((W - w) / 2, y), line, font=head_font, fill=HEADLINE)
         y += line_h
-    y += 28
+    y += int(28 * k)
     w = draw.textlength(sub, font=sub_font)
     draw.text(((W - w) / 2, y), sub, font=sub_font, fill=SUB)
 
