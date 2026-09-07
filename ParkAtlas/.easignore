@@ -1,0 +1,17 @@
+# Not needed to compile the app — keeps EAS uploads small (was 464 MB).
+.git/
+node_modules/
+ios/build/
+ios/build-manual/
+ios/Pods/
+android/build/
+android/app/build/
+content/
+app-store/
+web/
+designs/
+stitch-temp/
+app-example/
+*.mp4
+*.mov
+*.heic
