@@ -49,6 +49,8 @@ export default function FriendsPage() {
     sendFriendRequest,
     acceptRequest,
     ignoreRequest,
+    cancelRequest,
+    unfollow,
     setDirectoryUsers,
     setMatchedContactIds,
     markContactsSynced,
@@ -280,7 +282,43 @@ export default function FriendsPage() {
     toast.info(`Ignored ${profile.name}`, { silent: true });
   }
 
+  function confirmUnfollow(profile: FriendProfile) {
+    haptic.select();
+    Alert.alert(
+      `Unfollow ${profile.name}?`,
+      "You'll stop seeing each other's park activity. You can follow again anytime.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unfollow',
+          style: 'destructive',
+          onPress: () => {
+            void unfollow(profile.id);
+            toast.info(`Unfollowed ${profile.name}`, { silent: true });
+          },
+        },
+      ],
+    );
+  }
 
+  function withdrawRequest(profile: FriendProfile) {
+    haptic.select();
+    void cancelRequest(profile.id);
+    toast.info(`Request to ${profile.name} cancelled`, { silent: true });
+  }
+
+  const FollowingButton = ({ profile }: { profile: FriendProfile }) => (
+    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => confirmUnfollow(profile)} accessibilityRole="button" accessibilityLabel={`Unfollow ${profile.name}`}>
+      <Text style={styles.ghostBtnText}>Following</Text>
+    </TouchableOpacity>
+  );
+
+  const RequestedButton = ({ profile }: { profile: FriendProfile }) => (
+    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => withdrawRequest(profile)} accessibilityRole="button" accessibilityLabel={`Cancel request to ${profile.name}`}>
+      <Text style={styles.ghostBtnText}>Requested</Text>
+      <Ionicons name="close" size={14} color={C.onSurfaceVariant} />
+    </TouchableOpacity>
+  );
 
   function renderPersonRow(profile: FriendProfile) {
     const state = stateFor(profile.id);
@@ -306,9 +344,9 @@ export default function FriendsPage() {
         </TouchableOpacity>
 
         {state === 'requested' ? (
-          <Text style={styles.statusText}>Requested</Text>
+          <RequestedButton profile={profile} />
         ) : state === 'friends' ? (
-          <Text style={styles.statusText}>Following</Text>
+          <FollowingButton profile={profile} />
         ) : state === 'incoming' ? (
           <View style={styles.inlineActions}>
             <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.8} onPress={() => ignore(profile)} accessibilityRole="button" accessibilityLabel={`Ignore request from ${profile.name}`}>
@@ -347,7 +385,7 @@ export default function FriendsPage() {
           <Image source={{ uri: avatarFor(profile) }} style={styles.avatar} />
           <Text style={styles.personName} numberOfLines={1}>{profile.name}</Text>
         </TouchableOpacity>
-        <Text style={styles.statusText}>Following</Text>
+        <FollowingButton profile={profile} />
       </View>
     );
   }
@@ -400,7 +438,7 @@ export default function FriendsPage() {
           <Image source={{ uri: avatarFor(profile) }} style={styles.avatar} />
           <Text style={styles.personName} numberOfLines={1}>{profile.name}</Text>
         </TouchableOpacity>
-        <Text style={styles.statusText}>Requested</Text>
+        <RequestedButton profile={profile} />
       </View>
     );
   }
@@ -676,6 +714,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   ghostBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     borderRadius: 999,
     backgroundColor: C.surfaceContainerHigh,
     paddingHorizontal: 10,

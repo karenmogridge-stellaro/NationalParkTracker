@@ -26,7 +26,7 @@ import { useFriends } from '@/hooks/useFriends';
 import { fetchFriendActivities } from '@/utils/userDirectoryApi';
 import { PARKS } from '../../data/parksData';
 import { getParkDetail } from '../../data/parkDetails';
-import { PARK_TRAILS, type Trail } from '@/data/trailsData';
+import { PARK_TRAILS, splitTrailNames, type Trail } from '@/data/trailsData';
 import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
 import { useStravaData } from '../../hooks/useStravaData';
 import { useVisitedParks } from '../../hooks/useVisitedParks';
@@ -59,7 +59,7 @@ export default function ParkDetailScreen() {
   const visited = park ? hasVisited(park.id) : false;
   const curatedTrails = useMemo<Trail[]>(() => (park ? PARK_TRAILS[park.npsCode] || [] : []), [park]);
   const hikedTrailNames = useMemo(
-    () => new Set(parkVisits.map((v) => v.trailName.trim().toLowerCase()).filter(Boolean)),
+    () => new Set(parkVisits.flatMap((v) => splitTrailNames(v.trailName).map((n) => n.toLowerCase()))),
     [parkVisits],
   );
 

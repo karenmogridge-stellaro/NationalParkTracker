@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ActionSheetIOS, Alert, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Share } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,9 +47,9 @@ export default function InviteRouteScreen() {
     toast.success('Invite sent', { icon: 'paper-plane' });
   };
   const onShareError = () => toast.error("Couldn't create the invite card. Try again.");
-  const storyShare = useShareCard({ message, format: 'story', onShared, onError: onShareError });
-  const cardShare = useShareCard({ message, format: 'card', onShared, onError: onShareError });
-  const busy = sharing || storyShare.sharing || cardShare.sharing;
+  // Card + link go out together so the recipient always has a tap-to-install path.
+  const cardShare = useShareCard({ message, format: 'card', includeMessage: true, onShared, onError: onShareError });
+  const busy = sharing || cardShare.sharing;
 
   useEffect(() => {
     const code = String(params.code || '').trim();
@@ -79,24 +79,17 @@ export default function InviteRouteScreen() {
       return;
     }
     haptic.tap();
-    const options = ['Share to Stories (9:16)', 'Share as card (3:4)', 'Share link only', 'Cancel'];
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, cancelButtonIndex: 3, title: 'Invite friends' },
-        (i) => {
-          if (i === 0) void storyShare.share();
-          if (i === 1) void cardShare.share();
-          if (i === 2) void shareLinkOnly();
-        },
-      );
+    void cardShare.share();
+  }
+
+  function onShareLink() {
+    if (busy) return;
+    if (!user?.id) {
+      router.push('/login');
       return;
     }
-    Alert.alert('Invite friends', undefined, [
-      { text: options[0], onPress: () => { void storyShare.share(); } },
-      { text: options[1], onPress: () => { void cardShare.share(); } },
-      { text: options[2], onPress: () => { void shareLinkOnly(); } },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    haptic.tap();
+    void shareLinkOnly();
   }
 
   if (!params.code) {
@@ -108,7 +101,7 @@ export default function InviteRouteScreen() {
           </View>
           <Text style={styles.title}>Invite friends</Text>
           <Text style={styles.body}>
-            Send a ParkAtlas invite card with your park count on it. Friends who join can compare rings and plan trips with you.
+            Send a ParkAtlas invite card with your park count on it, plus a link to the app. Friends who join can compare rings and plan trips with you.
           </Text>
           <TouchableOpacity style={styles.btn} activeOpacity={0.8} onPress={onShareInvite} disabled={busy}>
             {busy ? (
@@ -117,24 +110,16 @@ export default function InviteRouteScreen() {
               <Text style={styles.btnText}>Share invite</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity style={styles.btnGhost} activeOpacity={0.8} onPress={onShareLink} disabled={busy}>
+            <Text style={styles.btnGhostText}>Just send the App Store link</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.btnGhost} activeOpacity={0.8} onPress={() => router.replace('/(tabs)/directory')}>
             <Text style={styles.btnGhostText}>Back to Friends</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Off-screen cards captured by useShareCard */}
+        {/* Off-screen card captured by useShareCard */}
         <View style={styles.offscreen} pointerEvents="none">
-          <ShareCard
-            ref={storyShare.ref}
-            variant="invite"
-            format="story"
-            parkId={latest?.parkId}
-            parkName={latest?.parkName ?? ''}
-            state={latest?.state ?? ''}
-            photoUri={latest?.photoUri}
-            nationalVisited={nationalParkCount}
-            userName={inviterName || undefined}
-          />
           <ShareCard
             ref={cardShare.ref}
             variant="invite"

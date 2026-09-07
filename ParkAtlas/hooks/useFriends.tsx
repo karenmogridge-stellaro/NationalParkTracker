@@ -71,6 +71,10 @@ interface FriendsContextValue {
   sendFriendRequest: (userId: string) => Promise<void>;
   acceptRequest: (profile: FriendProfile) => Promise<void>;
   ignoreRequest: (profileId: string) => Promise<void>;
+  /** Withdraw a pending request I sent. */
+  cancelRequest: (userId: string) => Promise<void>;
+  /** Remove an active friendship (both sides stop following). */
+  unfollow: (userId: string) => Promise<void>;
   markContactsSynced: (synced: boolean) => Promise<void>;
   setDirectoryUsers: (profiles: FriendProfile[]) => Promise<void>;
   setMatchedContactIds: (ids: string[]) => Promise<void>;
@@ -524,6 +528,45 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     await persist(nextStore);
   }, [persist, store, user?.id]);
 
+  const cancelRequest = useCallback(async (userId: string) => {
+    if (!userId) return;
+    if (user?.id) {
+      await setDoc(
+        doc(db, 'friend_requests', `${user.id}__${userId}`),
+        {
+          fromUserId: user.id,
+          toUserId: userId,
+          status: 'cancelled',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      // requestedIds listener only tracks status == 'pending', so it drops this on write.
+      return;
+    }
+    await persist({ ...store, requestedIds: store.requestedIds.filter((id) => id !== userId) });
+  }, [persist, store, user?.id]);
+
+  const unfollow = useCallback(async (userId: string) => {
+    if (!userId) return;
+    if (user?.id) {
+      const pair = [userId, user.id].sort();
+      await setDoc(
+        doc(db, 'friendships', `${pair[0]}__${pair[1]}`),
+        {
+          userAId: pair[0],
+          userBId: pair[1],
+          status: 'removed',
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      // myFriends listeners only track status == 'active', so both sides drop this on write.
+      return;
+    }
+    await persist({ ...store, myFriends: store.myFriends.filter((f) => f.id !== userId) });
+  }, [persist, store, user?.id]);
+
   const markContactsSynced = useCallback(async (synced: boolean) => {
     const nextStore: FriendsStore = {
       ...store,
@@ -593,6 +636,8 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     sendFriendRequest,
     acceptRequest,
     ignoreRequest,
+    cancelRequest,
+    unfollow,
     markContactsSynced,
     setDirectoryUsers,
     setMatchedContactIds,
@@ -604,6 +649,8 @@ export function FriendsProvider({ children }: { children: React.ReactNode }) {
     sendFriendRequest,
     acceptRequest,
     ignoreRequest,
+    cancelRequest,
+    unfollow,
     markContactsSynced,
     setDirectoryUsers,
     setMatchedContactIds,

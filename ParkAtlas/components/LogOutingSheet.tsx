@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ParkAtlas as C } from '@/constants/theme';
 import { PARKS, NationalPark } from '../data/parksData';
 import { STATE_PARKS } from '../data/stateParksData';
-import { PARK_TRAILS, Trail } from '../data/trailsData';
+import { PARK_TRAILS, Trail, joinTrailNames, splitTrailNames } from '../data/trailsData';
 import { useVisitedParks, LogVisitOptions, ParkVisit } from '../hooks/useVisitedParks';
 import { stateNameFromCode } from '@/utils/search';
 
@@ -189,7 +189,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
   const [parkError, setParkError] = useState('');
 
   const [trailSearch, setTrailSearch] = useState('');
-  const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
+  const [selectedTrails, setSelectedTrails] = useState<Trail[]>([]);
   const [showTrailResults, setShowTrailResults] = useState(false);
   const [distanceMiles, setDistanceMiles] = useState('');
   const [customTrail, setCustomTrail] = useState('');
@@ -242,7 +242,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
           setParkSearch(recentPark.name);
           setShowParkResults(false);
           setParkError('');
-          setSelectedTrail(null);
+          setSelectedTrails([]);
           setTrailSearch('');
         },
       });
@@ -258,7 +258,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
           setParkSearch(nearbyPark.name);
           setShowParkResults(false);
           setParkError('');
-          setSelectedTrail(null);
+          setSelectedTrails([]);
           setTrailSearch('');
         },
       });
@@ -290,6 +290,20 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       .slice(0, 15);
   }, [availableTrails, trailSearch]);
 
+  const isTrailSelected = (trail: Trail) => selectedTrails.some((t) => t.name === trail.name);
+
+  function toggleTrail(trail: Trail) {
+    setSelectedTrails((prev) => {
+      const next = prev.some((t) => t.name === trail.name) ? prev.filter((t) => t.name !== trail.name) : [...prev, trail];
+      // Keep the distance in step with the curated picks; the user can still overwrite it.
+      const sum = next.reduce((s, t) => s + t.miles, 0);
+      setDistanceMiles(sum > 0 ? String(Math.round(sum * 10) / 10) : '');
+      return next;
+    });
+    setTrailSearch('');
+    setShowTrailResults(false);
+  }
+
   useEffect(() => {
     if (!visible) return;
 
@@ -297,7 +311,14 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       const park = allParkOptions.find((p) => p.id === editVisit.parkId) ?? null;
       setSelectedPark(park);
       setParkSearch(park?.name ?? editVisit.parkName ?? '');
-      setCustomTrail(editVisit.trailName ?? '');
+      // Re-select any curated trails saved on the visit; anything else stays as custom text.
+      const code = park?.npsCode?.toLowerCase() || park?.id || '';
+      const curated = PARK_TRAILS[code] || [];
+      const names = splitTrailNames(editVisit.trailName);
+      const picked = names.flatMap((n) => { const m = curated.find((t) => t.name.toLowerCase() === n.toLowerCase()); return m ? [m] : []; });
+      const leftovers = names.filter((n) => !picked.some((t) => t.name.toLowerCase() === n.toLowerCase()));
+      setSelectedTrails(picked);
+      setCustomTrail(joinTrailNames(leftovers));
       setDistanceMiles(editVisit.distanceMiles ? String(editVisit.distanceMiles) : '');
       setDateValue(toVisitDateValue(editVisit.dateVisited, editVisit.datePrecision, editVisit.dateUnknown));
       setPhotoUris(editVisit.photoUri ? [editVisit.photoUri] : []);
@@ -306,7 +327,6 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       setParkError('');
       setShowParkResults(false);
       setTrailSearch('');
-      setSelectedTrail(null);
       setShowTrailResults(false);
       return;
     }
@@ -315,7 +335,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     setParkSearch('');
     setCustomTrail('');
     setTrailSearch('');
-    setSelectedTrail(null);
+    setSelectedTrails([]);
     setDistanceMiles('');
     setDateValue({ kind: 'unknown' });
     setPhotoUris([]);
@@ -410,7 +430,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       return;
     }
 
-    const finalTrailName = selectedTrail?.name || customTrail.trim();
+    const finalTrailName = joinTrailNames([...selectedTrails.map((t) => t.name), customTrail.trim()]);
     const finalDistance = distanceMiles ? parseFloat(distanceMiles) : undefined;
     
     // Use local image if available, otherwise use online URL
@@ -512,12 +532,22 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
             {selectedPark && availableTrails.length > 0 ? (
               <>
                 <View>
-                  <Text style={styles.fieldLabel}>Select Trail</Text>
+                  <Text style={styles.fieldLabel}>Select Trails</Text>
+                  {selectedTrails.length > 0 ? (
+                    <View style={styles.trailChips}>
+                      {selectedTrails.map((t) => (
+                        <TouchableOpacity key={t.name} style={styles.trailChip} activeOpacity={0.8} onPress={() => toggleTrail(t)} accessibilityLabel={`Remove ${t.name}`}>
+                          <Text style={styles.trailChipText} numberOfLines={1}>{t.name}</Text>
+                          <Ionicons name="close" size={14} color={C.onPrimaryContainer} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
                   <View style={styles.inputRow}>
                     <Ionicons name="search" size={18} color={C.outline} />
                     <TextInput
                       style={styles.input}
-                      placeholder={`Search ${availableTrails.length} trails...`}
+                      placeholder={selectedTrails.length > 0 ? 'Add another trail...' : `Search ${availableTrails.length} trails...`}
                       placeholderTextColor={C.outline}
                       value={trailSearch}
                       onFocus={() => setShowTrailResults(true)}
@@ -528,7 +558,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
                       autoCorrect={false}
                       autoCapitalize="words"
                     />
-                    {selectedTrail ? <Ionicons name="checkmark-circle" size={18} color={C.primary} /> : null}
+                    {selectedTrails.length > 0 ? <Ionicons name="checkmark-circle" size={18} color={C.primary} /> : null}
                   </View>
                 </View>
 
@@ -539,25 +569,26 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
                       style={{ maxHeight: 200 }}
                       nestedScrollEnabled
                     >
-                      {filteredTrails.map((trail) => (
-                        <TouchableOpacity
-                          key={trail.name}
-                          style={styles.resultRow}
-                          activeOpacity={0.8}
-                          onPress={() => {
-                            setSelectedTrail(trail);
-                            setTrailSearch(trail.name);
-                            setDistanceMiles(String(trail.miles));
-                            setShowTrailResults(false);
-                            setCustomTrail('');
-                          }}
-                        >
-                          <View style={styles.resultTopRow}>
-                            <Text style={styles.resultName}>{trail.name}</Text>
-                            <Text style={styles.resultMiles}>{trail.miles} mi</Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
+                      {filteredTrails.map((trail) => {
+                        const active = isTrailSelected(trail);
+                        return (
+                          <TouchableOpacity
+                            key={trail.name}
+                            style={styles.resultRow}
+                            activeOpacity={0.8}
+                            onPress={() => toggleTrail(trail)}
+                            accessibilityState={{ selected: active }}
+                          >
+                            <View style={styles.resultTopRow}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                                <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={active ? C.primary : C.outlineVariant} />
+                                <Text style={styles.resultName}>{trail.name}</Text>
+                              </View>
+                              <Text style={styles.resultMiles}>{trail.miles} mi</Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </ScrollView>
                   </View>
                 ) : null}
@@ -565,18 +596,14 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
             ) : null}
 
             <View>
-              <Text style={styles.fieldLabel}>{selectedPark && availableTrails.length > 0 ? 'Custom Trail Name' : 'Trail Name'} (Optional)</Text>
+              <Text style={styles.fieldLabel}>{selectedPark && availableTrails.length > 0 ? 'Other Trail (not in the list)' : 'Trail Name'} (Optional)</Text>
               <View style={styles.inputRow}>
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. Hidden Valley Trail"
                   placeholderTextColor={C.outline}
                   value={customTrail}
-                  onChangeText={(text) => {
-                    setCustomTrail(text);
-                    setSelectedTrail(null);
-                    setDistanceMiles('');
-                  }}
+                  onChangeText={setCustomTrail}
                 />
               </View>
             </View>
@@ -792,6 +819,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: C.primary,
+  },
+  trailChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  trailChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: '100%',
+    backgroundColor: C.primaryContainer,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  trailChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onPrimaryContainer,
+    flexShrink: 1,
   },
   quickSelectWrap: {
     flexDirection: 'row',

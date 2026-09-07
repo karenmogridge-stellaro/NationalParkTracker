@@ -8,6 +8,17 @@ export interface Trail {
   miles: number;
 }
 
+/** A visit can cover several trails; they're stored in one string joined by this separator. */
+export const TRAIL_SEPARATOR = ' · ';
+
+export function splitTrailNames(value?: string | null): string[] {
+  return (value || '').split(TRAIL_SEPARATOR).map((s) => s.trim()).filter(Boolean);
+}
+
+export function joinTrailNames(names: string[]): string {
+  return names.map((s) => s.trim()).filter(Boolean).join(TRAIL_SEPARATOR);
+}
+
 export const PARK_TRAILS: Record<string, Trail[]> = {
   // Acadia
   acad: [

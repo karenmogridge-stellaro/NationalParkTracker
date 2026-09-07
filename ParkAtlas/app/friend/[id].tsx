@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,15 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ParkAtlas as C } from '@/constants/theme';
 import { ListItemSkeleton } from '@/components/ui/Skeleton';
-import { FriendActivity, fetchFriendActivities } from '@/utils/userDirectoryApi';
+import { FriendActivity, fetchFriendActivities, fetchUserProfile } from '@/utils/userDirectoryApi';
+import { useFriends } from '@/hooks/useFriends';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/components/ui/Toast';
+import { haptic } from '@/utils/haptics';
+import { PARKS } from '@/data/parksData';
+import { MILESTONES, RANKS, TOTAL_NATIONAL_PARKS, rankForCount } from '@/utils/ranks';
+
+const NATIONAL_IDS = new Set(PARKS.map((p) => p.id));
 
 function formatVisitedDate(value?: string): string | null {
   if (!value) return null;
@@ -34,6 +43,15 @@ export default function FriendProfileScreen() {
 
   const [activities, setActivities] = useState<FriendActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<{ name?: string; username?: string; avatarUrl?: string } | null>(null);
+  const { user } = useAuth();
+  const { myFriends, requestedIds, incomingRequests, sendFriendRequest, acceptRequest, cancelRequest, unfollow } = useFriends();
+  const toast = useToast();
+
+  const isFriend = myFriends.some((f) => f.id === params.id);
+  const isRequested = requestedIds.has(params.id);
+  const incoming = incomingRequests.find((f) => f.id === params.id);
+  const isSelf = user?.id === params.id;
 
   useEffect(() => {
     let active = true;
@@ -45,8 +63,10 @@ export default function FriendProfileScreen() {
       }
 
       try {
-        const items = await fetchFriendActivities([params.id]);
-        if (active) setActivities(items.filter((item) => item.userId === params.id));
+        const [items, stored] = await Promise.all([fetchFriendActivities([params.id]), fetchUserProfile(params.id)]);
+        if (!active) return;
+        setActivities(items.filter((item) => item.userId === params.id));
+        if (stored) setProfile({ name: stored.name, username: stored.username, avatarUrl: stored.avatarUrl });
       } finally {
         if (active) setLoading(false);
       }
@@ -64,8 +84,50 @@ export default function FriendProfileScreen() {
     [activities]
   );
 
-  const displayName = params.name || 'Friend';
-  const displayUsername = params.meta || (params.username ? `@${params.username}` : '');
+  // Badges are derived from their public visits: rank ladder + park-count milestones reached.
+  const nationalCount = useMemo(
+    () => new Set(activities.map((a) => a.parkId).filter((id) => NATIONAL_IDS.has(id))).size,
+    [activities],
+  );
+  const rank = rankForCount(nationalCount);
+  const earnedRanks = RANKS.filter((r) => r.minParks > 0 && nationalCount >= r.minParks);
+  const earnedMilestones = MILESTONES.filter((m) => nationalCount >= m);
+  const fallbackAvatar = myFriends.find((f) => f.id === params.id)?.avatar;
+
+  const displayName = profile?.name || params.name || myFriends.find((f) => f.id === params.id)?.name || 'Friend';
+  const firstName = displayName.split(/\s+/)[0];
+  const username = profile?.username || params.username;
+  const displayUsername = params.meta || (username ? `@${username}` : '');
+  const avatarUri = profile?.avatarUrl || params.avatar || fallbackAvatar;
+
+  function onFollowPress() {
+    if (!user?.id) {
+      router.push('/login');
+      return;
+    }
+    haptic.select();
+    if (isFriend) {
+      Alert.alert(`Unfollow ${firstName}?`, "You'll stop seeing each other's park activity.", [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unfollow', style: 'destructive', onPress: () => { void unfollow(params.id); toast.info(`Unfollowed ${firstName}`, { silent: true }); } },
+      ]);
+      return;
+    }
+    if (isRequested) {
+      void cancelRequest(params.id);
+      toast.info('Request cancelled', { silent: true });
+      return;
+    }
+    if (incoming) {
+      void acceptRequest(incoming);
+      toast.success(`You and ${firstName} are now following each other`);
+      return;
+    }
+    void sendFriendRequest(params.id);
+    toast.success(`Request sent to ${firstName}`, { silent: true });
+  }
+
+  const followLabel = isFriend ? 'Following' : isRequested ? 'Requested' : incoming ? 'Accept' : 'Follow';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -79,11 +141,53 @@ export default function FriendProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.heroCard}>
-          {params.avatar ? <Image source={{ uri: params.avatar }} style={styles.avatar} /> : <View style={styles.avatarFallback} />}
+          {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : <View style={styles.avatarFallback} />}
           <Text style={styles.name}>{displayName}</Text>
           {displayUsername ? <Text style={styles.username}>{displayUsername}</Text> : null}
-          {params.badge ? <Text style={styles.badge}>{params.badge}</Text> : null}
+          <View style={styles.rankPill}>
+            <MaterialCommunityIcons name={rank.icon} size={14} color={C.onPrimary} />
+            <Text style={styles.rankPillText}>{rank.title}</Text>
+            <Text style={styles.rankPillCount}>· {nationalCount} of {TOTAL_NATIONAL_PARKS}</Text>
+          </View>
+          {!isSelf ? (
+            <TouchableOpacity
+              style={[styles.followBtn, (isFriend || isRequested) && styles.followBtnGhost]}
+              activeOpacity={0.8}
+              onPress={onFollowPress}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.followBtnText, (isFriend || isRequested) && styles.followBtnGhostText]}>{followLabel}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
+
+        {!loading && (earnedRanks.length > 0 || earnedMilestones.length > 0) ? (
+          <View style={styles.badgesCard}>
+            <Text style={styles.badgesTitle}>Badges</Text>
+            <View style={styles.badgeGrid}>
+              {earnedRanks.map((r) => (
+                <View key={r.id} style={styles.badge}>
+                  <View style={styles.badgeIcon}>
+                    <MaterialCommunityIcons name={r.icon} size={22} color={C.primary} />
+                  </View>
+                  <Text style={styles.badgeLabel} numberOfLines={1}>{r.title}</Text>
+                  <Text style={styles.badgeSub}>{r.minParks} {r.minParks === 1 ? 'park' : 'parks'}</Text>
+                </View>
+              ))}
+              {earnedMilestones
+                .filter((m) => !RANKS.some((r) => r.minParks === m))
+                .map((m) => (
+                  <View key={`m${m}`} style={styles.badge}>
+                    <View style={[styles.badgeIcon, styles.badgeIconMilestone]}>
+                      <Text style={styles.badgeNumber}>{m}</Text>
+                    </View>
+                    <Text style={styles.badgeLabel} numberOfLines={1}>{m} parks</Text>
+                    <Text style={styles.badgeSub}>milestone</Text>
+                  </View>
+                ))}
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -203,16 +307,61 @@ const styles = StyleSheet.create({
     color: C.onSurfaceVariant,
   },
   badge: {
-    marginTop: 10,
+    width: '30%',
+    flexGrow: 1,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderRadius: 18,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.surfaceContainerHighest,
+  },
+  rankPill: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: C.primary,
-    color: C.onPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-    overflow: 'hidden',
   },
+  rankPillText: { color: C.onPrimary, fontSize: 12, fontWeight: '800' },
+  rankPillCount: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
+  followBtn: {
+    marginTop: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: C.primary,
+  },
+  followBtnGhost: { backgroundColor: C.surfaceContainerHigh },
+  followBtnText: { color: C.onPrimary, fontSize: 14, fontWeight: '800' },
+  followBtnGhostText: { color: C.onSurface },
+  badgesCard: {
+    borderRadius: 24,
+    padding: 16,
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.surfaceContainerHighest,
+    gap: 12,
+  },
+  badgesTitle: { fontSize: 16, fontWeight: '800', color: C.onSurface },
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.primaryContainer,
+  },
+  badgeIconMilestone: { backgroundColor: C.surfaceContainerHigh },
+  badgeNumber: { fontSize: 16, fontWeight: '800', color: C.primary },
+  badgeLabel: { fontSize: 13, fontWeight: '700', color: C.onSurface },
+  badgeSub: { fontSize: 11, color: C.onSurfaceVariant },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',

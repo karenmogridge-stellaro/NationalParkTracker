@@ -11,6 +11,8 @@ const EXPORT_SCALE = 3;
 type Options = {
   message: string;
   format?: ShareCardFormat;
+  /** Send the image and `message` together (iOS share sheet). Messages/Mail keep both; Instagram keeps the image. */
+  includeMessage?: boolean;
   onError?: (e: unknown) => void;
   /** Fires after the share sheet closes (iOS can't distinguish share vs. dismiss via expo-sharing). */
   onShared?: () => void;
@@ -18,29 +20,37 @@ type Options = {
 
 /**
  * Captures an off-screen ShareCard ref to a PNG and hands it to the system share sheet.
- * Returns { ref, share, sharing }. Attach `ref` to the ShareCard.
+ * Returns { ref, share, capture, sharing }. Attach `ref` to the ShareCard.
  */
 export function useShareCard(options: Options) {
   const ref = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
   const { width, height } = shareCardSize(options.format);
 
+  /** Renders the card to a temp PNG (1080px wide) and returns its file URI. */
+  const capture = useCallback(async () => {
+    // Small delay lets any freshly-mounted card finish its first layout/paint.
+    await new Promise((r) => setTimeout(r, 60));
+    return captureRef(ref, {
+      format: 'png',
+      quality: 1,
+      result: 'tmpfile',
+      width: width * EXPORT_SCALE,
+      height: height * EXPORT_SCALE,
+    });
+  }, [width, height]);
+
   const share = useCallback(async () => {
     if (sharing || !ref.current) return;
     setSharing(true);
     haptic.tap();
     try {
-      // Small delay lets any freshly-mounted card finish its first layout/paint.
-      await new Promise((r) => setTimeout(r, 60));
-      const uri = await captureRef(ref, {
-        format: 'png',
-        quality: 1,
-        result: 'tmpfile',
-        width: width * EXPORT_SCALE,
-        height: height * EXPORT_SCALE,
-      });
+      const uri = await capture();
 
-      if (await Sharing.isAvailableAsync()) {
+      if (options.includeMessage && Platform.OS === 'ios') {
+        const result = await Share.share({ url: uri, message: options.message });
+        if (result.action === Share.sharedAction) options.onShared?.();
+      } else if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share your park' });
         options.onShared?.();
       } else {
@@ -54,7 +64,7 @@ export function useShareCard(options: Options) {
     } finally {
       setSharing(false);
     }
-  }, [sharing, options, width, height]);
+  }, [sharing, options, capture]);
 
-  return { ref, share, sharing };
+  return { ref, share, capture, sharing };
 }

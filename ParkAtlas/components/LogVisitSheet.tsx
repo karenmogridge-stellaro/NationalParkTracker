@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C, Radii } from '@/constants/theme';
-import { PARK_TRAILS, type Trail } from '@/data/trailsData';
+import { PARK_TRAILS, joinTrailNames, type Trail } from '@/data/trailsData';
 import { haptic } from '@/utils/haptics';
 import { VisitDatePicker, type VisitDateValue } from '@/components/VisitDatePicker';
 import type { LogVisitOptions } from '@/hooks/useVisitedParks';
@@ -37,56 +37,60 @@ interface Props {
 }
 
 export function LogVisitSheet({ visible, parkName, npsCode, initialTrail, onClose, onSave }: Props) {
-  const [trailName, setTrailName] = useState('');
-  const [selectedTrail, setSelectedTrail] = useState<Trail | null>(null);
+  // Search box doubles as a free-text trail name when nothing in the list matches.
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<Trail[]>([]);
   const [dateValue, setDateValue] = useState<VisitDateValue>({ kind: 'unknown' });
 
   const trails = useMemo<Trail[]>(() => (npsCode ? PARK_TRAILS[npsCode] || [] : []), [npsCode]);
 
   useEffect(() => {
     if (!visible) return;
-    setSelectedTrail(initialTrail ?? null);
-    setTrailName(initialTrail?.name ?? '');
+    setSelected(initialTrail ? [initialTrail] : []);
+    setQuery('');
     setDateValue({ kind: 'unknown' });
   }, [visible, initialTrail]);
 
   const filteredTrails = useMemo(() => {
-    const q = trailName.trim().toLowerCase();
-    if (!q || (selectedTrail && selectedTrail.name === trailName)) return trails;
+    const q = query.trim().toLowerCase();
+    if (!q) return trails;
     return trails.filter((t) => t.name.toLowerCase().includes(q));
-  }, [trails, trailName, selectedTrail]);
+  }, [trails, query]);
+
+  const isSelected = (trail: Trail) => selected.some((t) => t.name === trail.name);
+  // Typed text becomes a custom trail unless it exactly names a curated one.
+  const customName = useMemo(() => {
+    const q = query.trim();
+    if (!q) return '';
+    return trails.some((t) => t.name.toLowerCase() === q.toLowerCase()) ? '' : q;
+  }, [query, trails]);
+  const totalMiles = selected.reduce((s, t) => s + t.miles, 0);
+  const count = selected.length + (customName ? 1 : 0);
 
   function pickTrail(trail: Trail) {
     haptic.select();
-    if (selectedTrail?.name === trail.name) {
-      setSelectedTrail(null);
-      setTrailName('');
-      return;
-    }
-    setSelectedTrail(trail);
-    setTrailName(trail.name);
+    setSelected((prev) => (prev.some((t) => t.name === trail.name) ? prev.filter((t) => t.name !== trail.name) : [...prev, trail]));
+    setQuery('');
   }
 
-  function onChangeText(text: string) {
-    setTrailName(text);
-    if (selectedTrail && text !== selectedTrail.name) setSelectedTrail(null);
+  function reset() {
+    setQuery('');
+    setSelected([]);
   }
 
   function handleSave() {
     onSave({
-      trailName: trailName.trim(),
-      trailMiles: selectedTrail?.miles,
+      trailName: joinTrailNames([...selected.map((t) => t.name), customName]),
+      trailMiles: totalMiles > 0 ? Math.round(totalMiles * 10) / 10 : undefined,
       date: dateValue.kind === 'date'
         ? { dateVisited: dateValue.date.toISOString(), dateUnknown: false, datePrecision: dateValue.precision }
         : { dateUnknown: true },
     });
-    setTrailName('');
-    setSelectedTrail(null);
+    reset();
   }
 
   function handleClose() {
-    setTrailName('');
-    setSelectedTrail(null);
+    reset();
     onClose();
   }
 
@@ -130,21 +134,31 @@ export function LogVisitSheet({ visible, parkName, npsCode, initialTrail, onClos
 
           {/* Trail input */}
           <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Trail hiked (optional)</Text>
-            <View style={[styles.inputRow, selectedTrail && styles.inputRowSelected]}>
-              <MaterialCommunityIcons name="hiking" size={18} color={selectedTrail ? C.primary : C.outlineVariant} />
+            <Text style={styles.inputLabel}>Trails hiked (optional — pick as many as you did)</Text>
+            {selected.length > 0 ? (
+              <View style={styles.chips}>
+                {selected.map((t) => (
+                  <TouchableOpacity key={t.name} style={styles.chip} onPress={() => pickTrail(t)} activeOpacity={0.8} accessibilityLabel={`Remove ${t.name}`}>
+                    <Text style={styles.chipText} numberOfLines={1}>{t.name}</Text>
+                    <Ionicons name="close" size={14} color={C.onPrimaryContainer} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+            <View style={[styles.inputRow, count > 0 && styles.inputRowSelected]}>
+              <MaterialCommunityIcons name="hiking" size={18} color={count > 0 ? C.primary : C.outlineVariant} />
               <TextInput
                 style={styles.input}
                 placeholder={trails.length > 0 ? `Search ${trails.length} trails or type your own` : "e.g. Angel's Landing, Mist Trail..."}
                 placeholderTextColor={C.outlineVariant}
-                value={trailName}
-                onChangeText={onChangeText}
+                value={query}
+                onChangeText={setQuery}
                 returnKeyType="done"
                 onSubmitEditing={handleSave}
                 maxLength={80}
               />
-              {trailName.length > 0 && (
-                <TouchableOpacity onPress={() => { setTrailName(''); setSelectedTrail(null); }} activeOpacity={0.7}>
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery('')} activeOpacity={0.7}>
                   <Ionicons name="close-circle" size={18} color={C.outlineVariant} />
                 </TouchableOpacity>
               )}
@@ -159,9 +173,9 @@ export function LogVisitSheet({ visible, parkName, npsCode, initialTrail, onClos
                 nestedScrollEnabled
               >
                 {filteredTrails.length === 0 ? (
-                  <Text style={styles.trailEmpty}>No matching trail — we&apos;ll save “{trailName.trim()}” as a custom trail.</Text>
+                  <Text style={styles.trailEmpty}>No matching trail — we&apos;ll save “{query.trim()}” as a custom trail.</Text>
                 ) : filteredTrails.map((trail) => {
-                  const active = selectedTrail?.name === trail.name;
+                  const active = isSelected(trail);
                   return (
                     <TouchableOpacity
                       key={trail.name}
@@ -193,7 +207,11 @@ export function LogVisitSheet({ visible, parkName, npsCode, initialTrail, onClos
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
               <Ionicons name="checkmark" size={18} color={C.onPrimary} />
               <Text style={styles.saveBtnText}>
-                {selectedTrail ? `Log ${selectedTrail.miles.toFixed(1)} mi hike` : 'Mark as Visited'}
+                {count === 0
+                  ? 'Mark as Visited'
+                  : totalMiles > 0
+                    ? `Log ${count} ${count === 1 ? 'trail' : 'trails'} · ${totalMiles.toFixed(1)} mi`
+                    : `Log ${count} ${count === 1 ? 'trail' : 'trails'}`}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleClose} activeOpacity={0.7}>
@@ -302,6 +320,28 @@ const styles = StyleSheet.create({
   inputRowSelected: {
     borderColor: C.primary,
     backgroundColor: C.primaryContainer,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: '100%',
+    backgroundColor: C.primaryContainer,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onPrimaryContainer,
+    flexShrink: 1,
   },
   trailList: {
     maxHeight: 190,
