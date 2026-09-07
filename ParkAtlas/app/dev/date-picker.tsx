@@ -9,7 +9,7 @@ export default function DatePickerPreview() {
   if (!__DEV__) return null;
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Tap "Exact date" → calendar should be fully visible</Text>
+      <Text style={styles.label}>Tap &ldquo;Exact date&rdquo; → calendar should be fully visible</Text>
       <VisitDatePicker value={value} onChange={setValue} initiallyOpen />
     </ScrollView>
   );

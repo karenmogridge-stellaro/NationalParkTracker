@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -34,15 +34,6 @@ import { STATE_PARKS } from '@/data/stateParksData';
 import { fetchFriendActivities, FriendActivity } from '@/utils/userDirectoryApi';
 import { collection, deleteDoc, doc, limit, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db } from '@/utils/firebase';
-
-const SEASON_MONTHS = [
-  { label: 'APR', month: 3 },
-  { label: 'MAY', month: 4 },
-  { label: 'JUN', month: 5 },
-  { label: 'JUL', month: 6 },
-  { label: 'AUG', month: 7 },
-  { label: 'SEP', month: 8 },
-] as const;
 
 function firstName(name?: string): string {
   if (!name || !name.trim()) return 'Explorer';
@@ -168,6 +159,11 @@ export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingVisit, setEditingVisit] = useState<ParkVisit | null>(null);
   const [communityMode, setCommunityMode] = useState<CommunityMode>('all');
+  // Feed controls: narrow to one park (see every visit there) and collapse cards to compact rows.
+  // Dev-only route params (?park=63&compact=1) preset them for screenshot tooling.
+  const devParams = useLocalSearchParams<{ park?: string; compact?: string }>();
+  const [parkFilter, setParkFilter] = useState<string | null>(__DEV__ && devParams.park ? String(devParams.park) : null);
+  const [compactFeed, setCompactFeed] = useState(__DEV__ && devParams.compact === '1');
   const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
   const [friendActivitiesLoaded, setFriendActivitiesLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -273,58 +269,6 @@ export default function HomeScreen() {
     return visitedStateIds.size;
   }, [visits]);
 
-  const seasonalMiles = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const mileageByMonth = new Map<number, number>();
-    const roundMiles = (value: number) => Math.round(value * 10) / 10;
-    const dateForVisit = (visit: ParkVisit): Date => {
-      if (visit.dateVisited) {
-        const explicit = new Date(visit.dateVisited);
-        if (!Number.isNaN(explicit.getTime())) return explicit;
-      }
-
-      // Fall back to timestamp embedded in visitId: <parkId>_<epochMs>
-      const maybeTs = Number(String(visit.visitId || '').split('_').pop());
-      if (Number.isFinite(maybeTs) && maybeTs > 0) {
-        const fromId = new Date(maybeTs);
-        if (!Number.isNaN(fromId.getTime())) return fromId;
-      }
-
-      return new Date();
-    };
-
-    SEASON_MONTHS.forEach(({ month }) => mileageByMonth.set(month, 0));
-
-    activities.forEach((activity) => {
-      const date = new Date(activity.start_date);
-      if (date.getFullYear() !== currentYear) return;
-      if (!mileageByMonth.has(date.getMonth())) return;
-      const miles = (activity.distance ?? 0) / 1609.34;
-      if (!Number.isFinite(miles) || miles <= 0) return;
-      mileageByMonth.set(date.getMonth(), (mileageByMonth.get(date.getMonth()) ?? 0) + miles);
-    });
-
-    visits.forEach((visit) => {
-      const date = dateForVisit(visit);
-      if (date.getFullYear() !== currentYear) return;
-      if (!mileageByMonth.has(date.getMonth())) return;
-      const miles = visit.distanceMiles ?? 0;
-      if (!Number.isFinite(miles) || miles <= 0) return;
-      mileageByMonth.set(date.getMonth(), (mileageByMonth.get(date.getMonth()) ?? 0) + miles);
-    });
-
-    return SEASON_MONTHS.map(({ label, month }) => ({
-      label,
-      month,
-      miles: roundMiles(mileageByMonth.get(month) ?? 0),
-    }));
-  }, [activities, visits]);
-
-  const seasonalTotal = useMemo(
-    () => seasonalMiles.reduce((sum, m) => sum + m.miles, 0),
-    [seasonalMiles]
-  );
-
   const myEvents = useMemo<FeedItem[]>(() => {
     const strava: FeedItem[] = activities.slice(0, 10).map((a) => ({ type: 'strava', data: a }));
     const manual: FeedItem[] = visits.slice(0, 10).map((v) => ({ type: 'manual', data: v }));
@@ -376,10 +320,47 @@ export default function HomeScreen() {
   }, [myEvents, friendsEvents]);
 
   const displayedFeed = useMemo<FeedItem[]>(() => {
+    if (parkFilter) {
+      // Filtered view is uncapped so the user sees every trip to that park.
+      const mine: FeedItem[] = communityMode === 'friends' ? [] : [
+        ...activities.filter((a) => parkForActivity(a)?.id === parkFilter).map((a) => ({ type: 'strava' as const, data: a })),
+        ...visits.filter((v) => v.parkId === parkFilter).map((v) => ({ type: 'manual' as const, data: v })),
+      ];
+      const friends: FeedItem[] = communityMode === 'mine' ? [] : friendActivities
+        .filter((a) => a.userId !== user?.id && a.parkId === parkFilter)
+        .map((a) => ({ type: 'friend' as const, data: a }));
+      const dateOf = (i: FeedItem) => i.type === 'strava'
+        ? i.data.start_date
+        : i.type === 'friend'
+          ? i.data.createdAt || i.data.dateVisited || '1970-01-01'
+          : i.data.dateVisited || sortIsoFromVisitId(i.data.visitId) || '1970-01-01';
+      return [...mine, ...friends].sort((a, b) => new Date(dateOf(b)).getTime() - new Date(dateOf(a)).getTime());
+    }
     if (communityMode === 'mine') return myEvents;
     if (communityMode === 'friends') return friendsEvents;
     return feedEvents;
-  }, [communityMode, myEvents, friendsEvents, feedEvents]);
+  }, [parkFilter, communityMode, myEvents, friendsEvents, feedEvents, activities, visits, friendActivities, parkForActivity, user?.id]);
+
+  // Chips for the park filter: every park the user has logged, most-visited first.
+  const parkFilterOptions = useMemo(() => {
+    const counts = new Map<string, { id: string; name: string; count: number; miles: number }>();
+    visits.forEach((v) => {
+      const cur = counts.get(v.parkId) ?? { id: v.parkId, name: parkById.get(v.parkId)?.name ?? v.parkName, count: 0, miles: 0 };
+      cur.count += 1;
+      cur.miles += v.distanceMiles ?? 0;
+      counts.set(v.parkId, cur);
+    });
+    activities.forEach((a) => {
+      const p = parkForActivity(a);
+      if (!p) return;
+      const cur = counts.get(p.id) ?? { id: p.id, name: p.name, count: 0, miles: 0 };
+      cur.count += 1;
+      cur.miles += (a.distance ?? 0) / 1609.34;
+      counts.set(p.id, cur);
+    });
+    return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [visits, activities, parkById, parkForActivity]);
+  const activeParkFilter = parkFilter ? parkFilterOptions.find((p) => p.id === parkFilter) : undefined;
 
   const visibleEventIds = useMemo(() => {
     return displayedFeed.map((item) => {
@@ -785,8 +766,8 @@ export default function HomeScreen() {
               <ProgressHero
                 nationalVisited={nationalVisited}
                 stats={[
+                  { label: 'National parks', value: `${nationalVisited}` },
                   { label: 'State parks', value: `${stateVisited}` },
-                  { label: 'Season mi', value: `${Math.round(seasonalTotal)}` },
                 ]}
               />
             </View>
@@ -794,7 +775,17 @@ export default function HomeScreen() {
             <View style={styles.section}>
               <View style={styles.recentHeader}>
                 <Text style={styles.recentTitle}>Recent Adventures</Text>
-                <View style={styles.toggleWrap}>
+                <View style={styles.headerActions}>
+                  <TouchableOpacity
+                    style={styles.iconToggle}
+                    onPress={() => { haptic.select(); setCompactFeed((v) => !v); }}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={compactFeed ? 'Show full cards' : 'Show compact list'}
+                  >
+                    <MaterialCommunityIcons name={compactFeed ? 'view-agenda-outline' : 'view-list-outline'} size={20} color={C.onSurfaceVariant} />
+                  </TouchableOpacity>
+                  <View style={styles.toggleWrap}>
                   <TouchableOpacity
                     style={[styles.toggleButton, communityMode === 'all' && styles.toggleButtonActive]}
                     onPress={() => { haptic.select(); setCommunityMode('all'); }}
@@ -816,10 +807,49 @@ export default function HomeScreen() {
                   >
                     <Text style={[styles.toggleText, communityMode === 'friends' && styles.toggleTextActive]}>Friends</Text>
                   </TouchableOpacity>
+                  </View>
                 </View>
               </View>
 
-              <View style={styles.cardsList}>
+              {parkFilterOptions.length > 1 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.parkChips}>
+                  <TouchableOpacity
+                    style={[styles.parkChip, !parkFilter && styles.parkChipActive]}
+                    onPress={() => { haptic.select(); setParkFilter(null); }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.parkChipText, !parkFilter && styles.parkChipTextActive]}>All parks</Text>
+                  </TouchableOpacity>
+                  {parkFilterOptions.map((p) => {
+                    const active = parkFilter === p.id;
+                    return (
+                      <TouchableOpacity
+                        key={p.id}
+                        style={[styles.parkChip, active && styles.parkChipActive]}
+                        onPress={() => { haptic.select(); setParkFilter(active ? null : p.id); }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.parkChipText, active && styles.parkChipTextActive]} numberOfLines={1}>{p.name}</Text>
+                        <View style={[styles.parkChipCount, active && styles.parkChipCountActive]}>
+                          <Text style={[styles.parkChipCountText, active && styles.parkChipCountTextActive]}>{p.count}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+
+              {activeParkFilter ? (
+                <View style={styles.filterSummary}>
+                  <MaterialCommunityIcons name="pine-tree" size={16} color={C.primary} />
+                  <Text style={styles.filterSummaryText}>
+                    {activeParkFilter.count} {activeParkFilter.count === 1 ? 'visit' : 'visits'} to {activeParkFilter.name}
+                    {activeParkFilter.miles > 0 ? ` · ${activeParkFilter.miles.toFixed(1)} mi` : ''}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={[styles.cardsList, compactFeed && styles.cardsListCompact]}>
                 {isFeedLoading && adventureCards.length === 0 ? (
                   <>
                     <FeedCardSkeleton />
@@ -898,7 +928,7 @@ export default function HomeScreen() {
                     trailName={card.trailName}
                     dateLabel={card.timeLabel}
                     actorLabel={card.actorLabel}
-                    variant="standard"
+                    variant={compactFeed ? 'compact' : 'standard'}
                     canHighFive={card.canKudos}
                     isHighFived={card.isKudosd}
                     onHighFive={card.canKudos && card.eventId && card.eventOwnerUid
@@ -916,7 +946,7 @@ export default function HomeScreen() {
                 ))}
 
                 {adventureCards.length > 0 ? (
-                  <Text style={styles.feedFooterText}>You&apos;re all caught up.</Text>
+                  <Text style={styles.feedFooterText}>{activeParkFilter ? `That\u2019s every trip to ${activeParkFilter.name}.` : 'You\u2019re all caught up.'}</Text>
                 ) : null}
               </View>
             </View>
@@ -1125,6 +1155,82 @@ const styles = StyleSheet.create({
   },
   cardsList: {
     gap: 14,
+  },
+  cardsListCompact: {
+    gap: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#dde3df',
+  },
+  parkChips: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 12,
+  },
+  parkChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: C.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: C.surfaceContainerHighest,
+    maxWidth: 220,
+  },
+  parkChipActive: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  parkChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  parkChipTextActive: {
+    color: C.onPrimary,
+  },
+  parkChipCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surfaceContainerHighest,
+  },
+  parkChipCountActive: {
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+  parkChipCountText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.onSurfaceVariant,
+  },
+  parkChipCountTextActive: {
+    color: C.onPrimary,
+  },
+  filterSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  filterSummaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.primary,
   },
   adventureCard: {
     backgroundColor: '#ffffff',

@@ -15,7 +15,7 @@ import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ActivityFeedCardVariant = 'hero' | 'standard';
+export type ActivityFeedCardVariant = 'hero' | 'standard' | 'compact';
 
 export type ActivityFeedCardProps = {
   /**
@@ -52,6 +52,7 @@ export type ActivityFeedCardProps = {
    * Visual size variant.
    * hero    = 260px height  (first card in special flows only)
    * standard = 220px height (feed default)
+   * compact  = 72px row with thumbnail (collapsed feed)
    */
   variant?: ActivityFeedCardVariant;
 
@@ -119,6 +120,43 @@ export function ActivityFeedCard({
   const secondaryLine = [trailName, dateLabel].filter(Boolean).join(' • ');
   const fallbackUri = fallbackImageForPark(parkId);
   const gradient = gradientForPark(parkId);
+  const thumbUri = !imgError && imageUri?.trim() ? imageUri : fallbackUri;
+
+  if (variant === 'compact') {
+    return (
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={onPress ? 0.85 : 1}
+        onPress={onPress}
+        disabled={!onPress}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={`${actorLabel ?? ''} ${parkName}${trailName ? `, ${trailName}` : ''}${dateLabel ? `, ${dateLabel}` : ''}`}
+      >
+        <Image source={{ uri: thumbUri }} style={styles.rowThumb} resizeMode="cover" onError={() => setImgError(true)} accessibilityIgnoresInvertColors />
+        <View style={styles.rowBody}>
+          {actorLabel ? <Text style={styles.rowActor} numberOfLines={1}>{actorLabel}</Text> : null}
+          <Text style={styles.rowPark} numberOfLines={1}>{parkName}</Text>
+          {secondaryLine ? <Text style={styles.rowSecondary} numberOfLines={1}>{secondaryLine}</Text> : null}
+        </View>
+        {canHighFive ? (
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+            <TouchableOpacity
+              style={[styles.rowHighFive, isHighFived && styles.rowHighFiveActive]}
+              onPress={handleHighFive}
+              activeOpacity={0.85}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={isHighFived ? 'High-Fived' : 'High-Five this visit'}
+              accessibilityState={{ selected: isHighFived }}
+            >
+              <Text style={styles.rowHighFiveText}>✋</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -225,6 +263,59 @@ const styles = StyleSheet.create({
   },
   cardHero: {
     height: 268,
+  },
+
+  // Compact row
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 8,
+    paddingRight: 12,
+    borderWidth: 1,
+    borderColor: C.surfaceContainerHighest,
+  },
+  rowThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#1a2e22',
+  },
+  rowBody: {
+    flex: 1,
+    gap: 1,
+  },
+  rowActor: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.onSurfaceVariant,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  rowPark: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: C.onSurface,
+  },
+  rowSecondary: {
+    fontSize: 12.5,
+    color: C.onSurfaceVariant,
+  },
+  rowHighFive: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: C.surfaceContainerHigh,
+  },
+  rowHighFiveActive: {
+    backgroundColor: C.primaryContainer,
+  },
+  rowHighFiveText: {
+    fontSize: 18,
   },
 
   // Last-resort logo (fully offline – both image URLs failed)
