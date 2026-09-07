@@ -20,11 +20,11 @@ export default function ShareCardPreview() {
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       {show('rank-story') ? (<>
         <Text style={styles.label}>rank · story</Text>
-        <ShareCard variant="rank" format="story" parkId={park} parkName="Olympic" state="WA" nationalVisited={n} />
+        <ShareCard variant="rank" format="story" parkId={park} parkName="Olympic" state="WA" nationalVisited={n} userName="Karen" />
       </>) : null}
       {show('park-story') ? (<>
         <Text style={styles.label}>park · story</Text>
-        <ShareCard variant="park" format="story" parkId={park} parkName="Olympic" state="WA" nationalVisited={n} detail="2 visits · 14.6 mi" />
+        <ShareCard variant="park" format="story" parkId={park} parkName="Olympic" state="WA" nationalVisited={n} detail="Hoh River Trail · 14.6 mi" userName="Karen" />
       </>) : null}
       {show('park-card') ? (<>
         <Text style={styles.label}>park · card</Text>

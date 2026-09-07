@@ -103,6 +103,8 @@
 .facts-dl dt { color: var(--muted); }
 .facts-dl dd { margin: 0; font-weight: 700; }
 .side-cta { display: inline-block; margin-top: 8px; font-weight: 700; color: var(--primary); }
+.credit { margin-top: 20px; font-size: 11px; color: var(--muted); }
+.credit a { text-decoration: underline; }
 
 /* Index */
 .index-hero { max-width: var(--max); margin: 0 auto; padding: 32px 24px 24px; display: grid; gap: 12px; justify-items: start; }

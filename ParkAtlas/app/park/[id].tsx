@@ -21,6 +21,7 @@ import { haptic } from '@/utils/haptics';
 import { useToast } from '@/components/ui/Toast';
 import { ShareCard } from '@/components/ShareCard';
 import { useShareCard } from '@/hooks/useShareCard';
+import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { fetchFriendActivities } from '@/utils/userDirectoryApi';
 import { PARKS } from '../../data/parksData';
@@ -44,6 +45,8 @@ export default function ParkDetailScreen() {
   const { activities, parkForActivity } = useStravaData();
   const { hasVisited, logVisit, visitsForPark, nationalParkCount } = useVisitedParks();
   const { myFriends } = useFriends();
+  const { user } = useAuth();
+  const shareName = (user?.firstName || user?.name?.split(/\s+/)[0] || '').trim() || undefined;
   const [sheetVisible, setSheetVisible] = useState(false);
   const [sheetTrail, setSheetTrail] = useState<Trail | null>(null);
   const [showAllTrails, setShowAllTrails] = useState(false);
@@ -482,6 +485,7 @@ export default function ParkDetailScreen() {
           nationalVisited={nationalParkCount}
           photoUri={heroPhoto}
           detail={shareDetail}
+          userName={shareName}
         />
         <ShareCard
           ref={cardShare.ref}
@@ -492,6 +496,7 @@ export default function ParkDetailScreen() {
           nationalVisited={nationalParkCount}
           photoUri={heroPhoto}
           detail={shareDetail}
+          userName={shareName}
         />
       </View>
 

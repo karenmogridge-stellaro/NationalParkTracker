@@ -20,6 +20,10 @@ export type ShareCardProps = {
   photoUri?: string;
   /** Optional line under the park name, e.g. "3 visits · 12.4 mi". */
   detail?: string;
+  /** First name of the person sharing; makes the card read as theirs ("Karen just hit Pathfinder"). */
+  userName?: string;
+  /** Invitation line shown above the CTA bar. Defaults per variant; pass '' to hide. */
+  invite?: string;
   /** 'park' = "I visited X" photo card; 'rank' = ring-centric rank-up / milestone card. */
   variant?: ShareCardVariant;
   /** 'card' = 3:4 for feeds/iMessage; 'story' = 9:16 for Instagram/TikTok Stories. */
@@ -106,7 +110,7 @@ function Ring({ size, stroke, pct, children }: { size: number; stroke: number; p
  * Rendered off-screen; never shown directly in the UI.
  */
 export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
-  { parkName, state, nationalVisited, parkId, photoUri, detail, variant = 'park', format = 'card' },
+  { parkName, state, nationalVisited, parkId, photoUri, detail, userName, invite, variant = 'park', format = 'card' },
   ref,
 ) {
   const rank = rankForCount(nationalVisited);
@@ -115,6 +119,12 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   const bg = photoUri || fallbackImageForPark(parkId);
   const gradient = gradientForPark(parkId);
   const pct = nationalVisited / TOTAL_NATIONAL_PARKS;
+  const who = userName?.trim();
+  const inviteLine = invite !== undefined
+    ? invite
+    : variant === 'rank'
+      ? 'Who\u2019s coming on the next one? \ud83d\udc40'
+      : 'Come find me on ParkAtlas \u2014 let\u2019s compare rings.';
 
   const Background = (
     <>
@@ -126,7 +136,9 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   const Brand = (
     <View style={styles.topRow}>
       <View style={styles.brand}>
-        <Image source={require('../assets/images/parkatlas-logo.png')} style={styles.logo} resizeMode="contain" />
+        <View style={styles.logoTile}>
+          <Image source={require('../assets/images/parkatlas-logo.png')} style={styles.logo} resizeMode="contain" />
+        </View>
         <Text style={styles.brandText}>ParkAtlas</Text>
       </View>
       {state ? (
@@ -134,6 +146,20 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
           <Text style={styles.pillText}>{state}</Text>
         </View>
       ) : null}
+    </View>
+  );
+
+  // High-contrast strip that survives Stories compression and reads as a button.
+  const CtaBar = (
+    <View style={styles.ctaBar}>
+      <View style={styles.ctaLeft}>
+        <Text style={styles.ctaTitle}>Track your parks free</Text>
+        <Text style={styles.ctaUrl}>parkatlas.io</Text>
+      </View>
+      <View style={styles.ctaBtn}>
+        <MaterialCommunityIcons name="apple" size={14} color={C.onPrimary} />
+        <Text style={styles.ctaBtnText}>Get the app</Text>
+      </View>
     </View>
   );
 
@@ -164,20 +190,14 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
         </View>
 
         <View style={styles.bottom}>
-          <Text style={styles.eyebrow}>NEW RANK UNLOCKED</Text>
+          <Text style={styles.eyebrow}>{who ? `${who.toUpperCase()} JUST HIT` : 'NEW RANK UNLOCKED'}</Text>
           <Text style={[styles.title, story && styles.titleStory]} numberOfLines={2}>{rank.title}</Text>
-          <Text style={styles.tagline} numberOfLines={2}>{rank.tagline}</Text>
-          <View style={styles.footer}>
-            <View style={styles.footerLeft}>
-              <MaterialCommunityIcons name="pine-tree" size={16} color={C.successContainer} />
-              <Text style={styles.footerText} numberOfLines={1}>Unlocked at {parkName}</Text>
-            </View>
-            {next ? (
-              <Text style={styles.footerMuted}>{next.minParks - nationalVisited} to {next.title}</Text>
-            ) : (
-              <Text style={styles.footerMuted}>Every park. Done.</Text>
-            )}
-          </View>
+          <Text style={styles.tagline} numberOfLines={2}>
+            {nationalVisited} national {nationalVisited === 1 ? 'park' : 'parks'} · unlocked at {parkName}
+            {next ? ` · ${next.minParks - nationalVisited} to ${next.title}` : ''}
+          </Text>
+          {inviteLine ? <Text style={styles.invite}>{inviteLine}</Text> : null}
+          {CtaBar}
         </View>
       </View>
     );
@@ -196,12 +216,14 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
       {Brand}
 
       <View style={styles.bottom}>
-        <Text style={styles.eyebrow}>I VISITED</Text>
+        <Text style={styles.eyebrow}>{who ? `${who.toUpperCase()} VISITED` : 'I VISITED'}</Text>
         <Text style={[styles.title, story && styles.titleStory]} numberOfLines={3}>{parkName}</Text>
-        {detail ? <Text style={styles.tagline}>{detail}</Text> : null}
+        <Text style={styles.tagline}>
+          {detail ? `${detail} · ` : ''}park {nationalVisited} of {TOTAL_NATIONAL_PARKS} on my list
+        </Text>
 
         <View style={styles.statsRow}>
-          <Ring size={72} stroke={7} pct={pct}>
+          <Ring size={64} stroke={7} pct={pct}>
             <Text style={styles.miniRingValue}>{nationalVisited}</Text>
           </Ring>
           <View style={styles.statsText}>
@@ -213,6 +235,9 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
             <Text style={styles.rankPillText}>{rank.title}</Text>
           </View>
         </View>
+
+        {inviteLine ? <Text style={styles.invite}>{inviteLine}</Text> : null}
+        {CtaBar}
       </View>
     </View>
   );
@@ -246,15 +271,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  logoTile: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logo: {
-    width: 30,
-    height: 30,
+    width: 26,
+    height: 26,
   },
   brandText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.2,
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowRadius: 6,
   },
   pill: {
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -311,10 +346,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   eyebrow: {
-    color: C.successContainer,
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 2.2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 6,
   },
   title: {
     color: '#ffffff',
@@ -332,6 +369,53 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontWeight: '600',
+  },
+  invite: {
+    marginTop: 10,
+    color: '#ffffff',
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  ctaBar: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  ctaLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  ctaTitle: {
+    color: C.onSurface,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  ctaUrl: {
+    color: C.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  ctaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.primary,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  ctaBtnText: {
+    color: C.onPrimary,
+    fontSize: 12,
+    fontWeight: '800',
   },
   footer: {
     marginTop: 16,
@@ -364,13 +448,13 @@ const styles = StyleSheet.create({
 
   // Park variant stats row
   statsRow: {
-    marginTop: 18,
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.18)',
-    paddingTop: 16,
+    paddingTop: 12,
   },
   miniRingValue: {
     color: '#ffffff',

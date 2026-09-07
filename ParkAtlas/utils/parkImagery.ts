@@ -1,4 +1,5 @@
 import { PARK_TERRAIN_BY_ID, type ParkTerrainKey } from '@/data/parksData';
+import { PARK_IMAGES } from '@/data/parkImages';
 
 const UNSPLASH = (id: string, w = 1400) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=80`;
 
@@ -22,7 +23,15 @@ export function terrainForPark(parkId?: string): ParkTerrainKey {
   return (parkId && PARK_TERRAIN_BY_ID[parkId]) || 'woodland';
 }
 
+/** The park's own photo (shared with parkatlas.io) when we have one, else a terrain stock shot. */
 export function fallbackImageForPark(parkId?: string): string {
+  if (parkId && PARK_IMAGES[parkId]) return PARK_IMAGES[parkId].url;
+  return TERRAIN_IMAGE[terrainForPark(parkId)];
+}
+
+/** Smaller variant for list thumbnails / feed cards. */
+export function thumbImageForPark(parkId?: string): string {
+  if (parkId && PARK_IMAGES[parkId]) return PARK_IMAGES[parkId].thumb;
   return TERRAIN_IMAGE[terrainForPark(parkId)];
 }
 

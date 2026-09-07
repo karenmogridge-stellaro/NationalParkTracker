@@ -46,6 +46,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 /** Shows the confetti card whenever a first-time national park visit is logged anywhere in the app. */
 function CelebrationHost() {
   const { lastNewParkEvent, clearNewParkEvent } = useVisitedParks();
+  const { user } = useAuth();
+  const firstName = (user?.firstName || user?.name?.split(/\s+/)[0] || '').trim();
   const [demo, setDemo] = useState<CelebrationPayload | null>(null);
 
   // Dev-only: screenshot tooling drops screenshot_celebrate.json to preview the overlay.
@@ -91,6 +93,7 @@ function CelebrationHost() {
             parkName={payload.parkName}
             state={parkState}
             nationalVisited={payload.uniqueParks}
+            userName={firstName || undefined}
           />
         </View>
       ) : null}

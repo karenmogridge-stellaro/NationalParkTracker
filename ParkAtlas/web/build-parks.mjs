@@ -26,6 +26,7 @@ await build({
       export { PARKS, PARK_TERRAIN_BY_ID } from './data/parksData';
       export { getParkDetail } from './data/parkDetails';
       export { PARK_TRAILS } from './data/trailsData';
+      export { PARK_IMAGES } from './data/parkImages';
       export { stateDisplayName } from './utils/search';
     `,
     resolveDir: ROOT,
@@ -37,7 +38,7 @@ await build({
   outfile: tmp,
   logLevel: 'silent',
 });
-const { PARKS, PARK_TERRAIN_BY_ID, getParkDetail, PARK_TRAILS, stateDisplayName } = await import(tmp);
+const { PARKS, PARK_TERRAIN_BY_ID, getParkDetail, PARK_TRAILS, PARK_IMAGES, stateDisplayName } = await import(tmp);
 await rm(tmp, { force: true });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,8 +48,12 @@ const TERRAIN_IMAGE = {
   woodland: 'photo-1441974231531-c6227db76b6e',
   desert: 'photo-1473580044384-7ba9967e16a0',
 };
+// Same photo the app shows for the park, so web and app match.
 const heroFor = (park, w = 1600) =>
+  PARK_IMAGES[park.id]?.[w >= 1280 ? 'url' : 'thumb'] ??
   `https://images.unsplash.com/${TERRAIN_IMAGE[PARK_TERRAIN_BY_ID[park.id] ?? 'woodland']}?auto=format&fit=crop&w=${w}&q=80`;
+const creditFor = (park) => PARK_IMAGES[park.id]?.credit;
+const creditPageFor = (park) => PARK_IMAGES[park.id]?.page;
 
 const slugify = (s) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u02bb\u2018\u2019']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -231,6 +236,7 @@ function parkPage(park) {
           <dt>NPS code</dt><dd>${park.npsCode.toUpperCase()}</dd>
         </dl>
         <a class="side-cta" href="/parks">← All 63 parks</a>
+        ${creditFor(park) ? `<p class="credit">Photo: <a href="${creditPageFor(park)}" rel="noopener nofollow" target="_blank">${esc(creditFor(park))}</a></p>` : ''}
       </aside>
     </div>
   </main>
