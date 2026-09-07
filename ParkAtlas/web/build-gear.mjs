@@ -16,7 +16,8 @@ const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 function amazonUrl(item) {
   if (item.url) {
     const u = new URL(item.url);
-    if (!u.searchParams.has('tag')) u.searchParams.set('tag', G.tag);
+    // amzn.to short links already carry the Associates tag; leave them untouched.
+    if (u.hostname !== 'amzn.to' && !u.searchParams.has('tag')) u.searchParams.set('tag', G.tag);
     return u.toString();
   }
   if (item.asin) return `https://www.amazon.com/dp/${item.asin}?tag=${encodeURIComponent(G.tag)}`;
