@@ -12,7 +12,7 @@ import {
   FlatList,
   Image,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import MapView, { Marker, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -20,7 +20,7 @@ import { ParkAtlas as C } from '@/constants/theme';
 import { haptic } from '@/utils/haptics';
 import { useToast } from '@/components/ui/Toast';
 import { ProgressHero } from '@/components/ProgressHero';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { PARKS, NationalPark } from '../../data/parksData';
 import { STATE_PARKS } from '../../data/stateParksData';
 import { useVisitedParks } from '../../hooks/useVisitedParks';
@@ -61,6 +61,11 @@ export default function ExploreScreen() {
     longitudeDelta: 70,
   });
   const mapRef = React.useRef<MapView | null>(null);
+  const fullMapRef = React.useRef<MapView | null>(null);
+  const insets = useSafeAreaInsets();
+  // Dev-only ?fullscreen=1 opens the map modal for screenshot tooling.
+  const devParams = useLocalSearchParams<{ fullscreen?: string }>();
+  const [mapFullscreen, setMapFullscreen] = useState(__DEV__ && devParams.fullscreen === '1');
   const { hasVisited, logVisit } = useVisitedParks();
   const toast = useToast();
 
@@ -317,7 +322,7 @@ export default function ExploreScreen() {
       longitudeDelta: Math.max(0.2, Math.min(120, mapRegion.longitudeDelta * multiplier)),
     };
     setMapRegion(next);
-    mapRef.current?.animateToRegion(next, 180);
+    (mapFullscreen ? fullMapRef : mapRef).current?.animateToRegion(next, 180);
   }
 
   function openParkDetails(park: NationalPark) {
@@ -327,6 +332,128 @@ export default function ExploreScreen() {
     }
     router.push(`/park/${park.id}`);
   }
+
+  // Same map in two homes: the 280pt card on the tab, and a full-screen modal. Region state is shared.
+  const renderMap = (fullscreen: boolean) => (
+    <View style={fullscreen ? styles.mapWrapFull : styles.mapWrap}>
+      <MapView
+        ref={fullscreen ? fullMapRef : mapRef}
+        style={styles.map}
+        initialRegion={mapRegion}
+        zoomEnabled
+        zoomTapEnabled
+        scrollEnabled
+        pitchEnabled
+        rotateEnabled
+        showsUserLocation={fullscreen}
+        onRegionChangeComplete={(region) => setMapRegion(region)}
+      >
+        {mappedParks.map((park) => {
+          const visited = hasVisitedUI(park.id);
+          return (
+            <Marker
+              key={park.id}
+              coordinate={{ latitude: park.lat, longitude: park.lng }}
+              pinColor={visited ? C.primary : C.outlineVariant}
+              title={park.name}
+              description={`${park.state} · ${visited ? 'Visited' : 'To Visit'}`}
+              onPress={() => setSelectedMapPark(park)}
+            />
+          );
+        })}
+      </MapView>
+
+      {fullscreen ? (
+        <TouchableOpacity
+          style={[styles.mapOverlayLabel, styles.mapCloseBtn, { top: insets.top + 10 }]}
+          onPress={() => { haptic.select(); setMapFullscreen(false); }}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Exit full screen map"
+        >
+          <Ionicons name="close" size={18} color={C.onSurface} />
+          <Text style={styles.mapOverlayLabelText}>Close</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.mapOverlayLabel}
+          onPress={() => { haptic.select(); setMapFullscreen(true); }}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Open map full screen"
+        >
+          <Ionicons name="expand-outline" size={14} color={C.onSurface} />
+          <Text style={styles.mapOverlayLabelText}>Full screen</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={[styles.mapZoomControls, fullscreen && { top: insets.top + 10, right: 14 }]}>
+        <TouchableOpacity style={styles.mapZoomBtn} activeOpacity={0.8} onPress={() => zoomMap(0.6)}>
+          <Ionicons name="add" size={18} color={C.onSurface} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.mapZoomBtn} activeOpacity={0.8} onPress={() => zoomMap(1.5)}>
+          <Ionicons name="remove" size={18} color={C.onSurface} />
+        </TouchableOpacity>
+      </View>
+
+      {selectedMapPark ? (
+        <View style={[styles.mapBottomSheet, fullscreen && styles.mapBottomSheetFull, fullscreen && { bottom: insets.bottom + 14 }]}>
+          <View style={styles.mapBottomSheetHeader}>
+            <Text style={styles.mapBottomSheetTitle}>{selectedMapPark.name}</Text>
+            <Text style={styles.mapBottomSheetMeta}>{selectedMapPark.state} · {hasVisitedUI(selectedMapPark.id) ? 'Visited' : 'To Visit'}</Text>
+          </View>
+          <View style={styles.mapBottomSheetActions}>
+            <TouchableOpacity
+              style={[styles.selectedParkActionBtn, styles.mapBottomSheetActionBtn]}
+              activeOpacity={0.85}
+              onPress={() => { if (fullscreen) setMapFullscreen(false); openParkDetails(selectedMapPark); }}
+            >
+              <Text style={styles.selectedParkActionText}>View park</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.selectedParkActionBtn,
+                styles.selectedParkVisitedBtn,
+                styles.mapBottomSheetActionBtn,
+                hasVisitedUI(selectedMapPark.id) && styles.selectedParkVisitedBtnDone,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => markParkVisited(selectedMapPark)}
+              disabled={hasVisitedUI(selectedMapPark.id)}
+            >
+              <Text
+                style={[
+                  styles.selectedParkActionText,
+                  styles.selectedParkVisitedText,
+                  hasVisitedUI(selectedMapPark.id) && styles.selectedParkVisitedTextDone,
+                ]}
+              >
+                {hasVisitedUI(selectedMapPark.id) ? 'Visited' : 'Mark as visited'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.selectedParkActionBtn,
+                styles.mapBottomSheetActionBtn,
+                checklistIds.includes(selectedMapPark.id) && styles.nextAdventureListBtnActive,
+              ]}
+              activeOpacity={0.85}
+              onPress={() => toggleChecklistPark(selectedMapPark.id)}
+            >
+              <Text
+                style={[
+                  styles.selectedParkActionText,
+                  checklistIds.includes(selectedMapPark.id) && styles.nextAdventureListBtnTextActive,
+                ]}
+              >
+                {checklistIds.includes(selectedMapPark.id) ? 'In list' : 'Add to list'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -594,111 +721,7 @@ export default function ExploreScreen() {
             })}
           </View>
 
-          <View style={styles.mapWrap}>
-            <MapView
-              ref={mapRef}
-              style={styles.map}
-              initialRegion={mapRegion}
-              zoomEnabled
-              zoomTapEnabled
-              scrollEnabled
-              pitchEnabled
-              rotateEnabled
-              onRegionChangeComplete={(region) => setMapRegion(region)}
-            >
-              {mappedParks.map((park) => {
-                const visited = hasVisitedUI(park.id);
-                return (
-                  <Marker
-                    key={park.id}
-                    coordinate={{ latitude: park.lat, longitude: park.lng }}
-                    pinColor={visited ? C.primary : C.outlineVariant}
-                    title={park.name}
-                    description={`${park.state} · ${visited ? 'Visited' : 'To Visit'}`}
-                    onPress={() => setSelectedMapPark(park)}
-                  />
-                );
-              })}
-            </MapView>
-
-              <View style={styles.mapOverlayLabel}>
-                <Text style={styles.mapOverlayLabelText}>Explore map</Text>
-              </View>
-
-            <View style={styles.mapZoomControls}>
-              <TouchableOpacity
-                style={styles.mapZoomBtn}
-                activeOpacity={0.8}
-                onPress={() => zoomMap(0.6)}
-              >
-                <Ionicons name="add" size={18} color={C.onSurface} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.mapZoomBtn}
-                activeOpacity={0.8}
-                onPress={() => zoomMap(1.5)}
-              >
-                <Ionicons name="remove" size={18} color={C.onSurface} />
-              </TouchableOpacity>
-            </View>
-
-              {selectedMapPark ? (
-                <View style={styles.mapBottomSheet}>
-                  <View style={styles.mapBottomSheetHeader}>
-                    <Text style={styles.mapBottomSheetTitle}>{selectedMapPark.name}</Text>
-                    <Text style={styles.mapBottomSheetMeta}>{selectedMapPark.state} · {hasVisitedUI(selectedMapPark.id) ? 'Visited' : 'To Visit'}</Text>
-                  </View>
-                  <View style={styles.mapBottomSheetActions}>
-                    <TouchableOpacity
-                      style={[styles.selectedParkActionBtn, styles.mapBottomSheetActionBtn]}
-                      activeOpacity={0.85}
-                      onPress={() => openParkDetails(selectedMapPark)}
-                    >
-                      <Text style={styles.selectedParkActionText}>View park</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectedParkActionBtn,
-                        styles.selectedParkVisitedBtn,
-                        styles.mapBottomSheetActionBtn,
-                        hasVisitedUI(selectedMapPark.id) && styles.selectedParkVisitedBtnDone,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => markParkVisited(selectedMapPark)}
-                      disabled={hasVisitedUI(selectedMapPark.id)}
-                    >
-                      <Text
-                        style={[
-                          styles.selectedParkActionText,
-                          styles.selectedParkVisitedText,
-                          hasVisitedUI(selectedMapPark.id) && styles.selectedParkVisitedTextDone,
-                        ]}
-                      >
-                        {hasVisitedUI(selectedMapPark.id) ? 'Visited' : 'Mark as visited'}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.selectedParkActionBtn,
-                        styles.mapBottomSheetActionBtn,
-                        checklistIds.includes(selectedMapPark.id) && styles.nextAdventureListBtnActive,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => toggleChecklistPark(selectedMapPark.id)}
-                    >
-                      <Text
-                        style={[
-                          styles.selectedParkActionText,
-                          checklistIds.includes(selectedMapPark.id) && styles.nextAdventureListBtnTextActive,
-                        ]}
-                      >
-                        {checklistIds.includes(selectedMapPark.id) ? 'In list' : 'Add to list'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : null}
-          </View>
+          {renderMap(false)}
         </View>
 
             <View style={styles.checklistCard}>
@@ -764,6 +787,12 @@ export default function ExploreScreen() {
         ) : null}
 
       </ScrollView>
+
+      <Modal visible={mapFullscreen} animationType="fade" onRequestClose={() => setMapFullscreen(false)}>
+        <View style={styles.mapFullSafe}>
+          {renderMap(true)}
+        </View>
+      </Modal>
 
       <Modal visible={checklistModalVisible} transparent animationType="slide" onRequestClose={() => setChecklistModalVisible(false)}>
         <View style={styles.modalOverlay}>
@@ -1115,6 +1144,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.outlineVariant,
   },
+  mapWrapFull: {
+    flex: 1,
+  },
+  mapFullSafe: {
+    flex: 1,
+    backgroundColor: C.background,
+  },
+  mapCloseBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  mapZoomControlsFull: {
+    top: 14,
+    right: 14,
+  },
+  mapBottomSheetFull: {
+    left: 14,
+    right: 14,
+    padding: 14,
+    borderRadius: 18,
+  },
   map: {
     flex: 1,
   },
@@ -1122,6 +1172,9 @@ const styles = StyleSheet.create({
       position: 'absolute',
       left: 10,
       top: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
       paddingHorizontal: 9,
       paddingVertical: 5,
       borderRadius: 99,
