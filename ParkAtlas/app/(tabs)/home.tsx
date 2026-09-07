@@ -7,7 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  Alert,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +22,7 @@ import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { useFriends } from '@/hooks/useFriends';
 import { LogOutingSheet } from '../../components/LogOutingSheet';
+import { VisitActionSheet } from '@/components/VisitActionSheet';
 import { ActivityFeedCard } from '@/components/ActivityFeedCard';
 import { LoginGateSheet } from '@/components/LoginGateSheet';
 import { setPendingAction, peekPendingAction, consumePendingAction, type PendingAction } from '@/utils/pendingAction';
@@ -161,7 +161,7 @@ export default function HomeScreen() {
   const [communityMode, setCommunityMode] = useState<CommunityMode>('all');
   // Feed controls: narrow to one park (see every visit there) and collapse cards to compact rows.
   // Dev-only route params (?park=63&compact=1) preset them for screenshot tooling.
-  const devParams = useLocalSearchParams<{ park?: string; compact?: string }>();
+  const devParams = useLocalSearchParams<{ park?: string; compact?: string; action?: string }>();
   const [parkFilter, setParkFilter] = useState<string | null>(__DEV__ && devParams.park ? String(devParams.park) : null);
   const [compactFeed, setCompactFeed] = useState(__DEV__ && devParams.compact === '1');
   const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
@@ -443,34 +443,16 @@ export default function HomeScreen() {
     return counts;
   }, [feedEvents, parkById, parkForActivity, user?.id]);
 
+  const [actionVisit, setActionVisit] = useState<ParkVisit | null>(null);
+  React.useEffect(() => {
+    if (__DEV__ && devParams.action === '1' && visits.length > 0 && !actionVisit) setActionVisit(visits[visits.length - 1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visits.length]);
   const onCardPress = useCallback((item: FeedItem) => {
     if (item.type !== 'manual') return;
-
-    const visit = item.data;
-    Alert.alert(
-      visit.trailName || visit.parkName,
-      'What would you like to do?',
-      [
-        {
-          text: 'Edit',
-          onPress: () => {
-            setEditingVisit(visit);
-            setSheetVisible(true);
-          },
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert('Delete Entry', `Remove "${visit.trailName || visit.parkName}" from your log?`, [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: () => removeVisit(visit.visitId) },
-            ]),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
-  }, [removeVisit]);
+    haptic.select();
+    setActionVisit(item.data);
+  }, []);
 
   const isEventKudosd = useCallback((eventId: string) => {
     if (Object.prototype.hasOwnProperty.call(optimisticKudos, eventId)) {
@@ -965,6 +947,14 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
         </TouchableOpacity>
       ) : null}
+
+      <VisitActionSheet
+        visit={actionVisit}
+        onClose={() => setActionVisit(null)}
+        onEdit={(v) => { setEditingVisit(v); setSheetVisible(true); }}
+        onDelete={(v) => { void removeVisit(v.visitId); }}
+        onViewPark={actionVisit && nationalParkIds.has(actionVisit.parkId) ? (v) => router.push(`/park/${v.parkId}`) : undefined}
+      />
 
       <LogOutingSheet
         visible={sheetVisible}
