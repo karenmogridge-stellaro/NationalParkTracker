@@ -51,7 +51,7 @@ const heroFor = (park, w = 1600) =>
   `https://images.unsplash.com/${TERRAIN_IMAGE[PARK_TERRAIN_BY_ID[park.id] ?? 'woodland']}?auto=format&fit=crop&w=${w}&q=80`;
 
 const slugify = (s) =>
-  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u02bb\u2018\u2019']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
