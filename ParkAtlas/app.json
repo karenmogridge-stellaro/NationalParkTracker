@@ -3,7 +3,7 @@
     "name": "ParkAtlas",
     "slug": "ParkAtlas",
     "description": "Track visits, hikes, camps, and memorable stops across all 63 U.S. National Parks.",
-    "version": "2.0",
+    "version": "2.1",
     "sdkVersion": "55.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon-square.png",
