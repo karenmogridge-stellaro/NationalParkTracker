@@ -352,8 +352,9 @@ export default function SettingsScreen() {
       await deleteAllDataForCurrentUser();
       await deleteAccount();
       toast.info('Your account and data were deleted', { icon: 'trash', durationMs: 4000 });
-    } catch {
-      toast.error("Couldn't delete your account. Try again.");
+    } catch (error: any) {
+      // Firebase refuses account deletion on stale sessions; the message tells them to re-sign-in.
+      toast.error(error?.message ?? "Couldn't delete your account. Try again.", { durationMs: 5000 });
     } finally {
       setDeletingAccount(false);
     }

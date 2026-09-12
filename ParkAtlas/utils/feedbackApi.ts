@@ -36,26 +36,27 @@ export type FeedbackRecord = {
   status?: 'new' | 'reviewed' | 'done';
 };
 
+// Rules make feedback/ screenshots admin-read-only, so the submitter only records the path.
 async function uploadScreenshot(uri: string, id: string): Promise<string | null> {
   try {
     const blob = await (await fetch(uri)).blob();
-    const storageRef = ref(storage, `feedback/${id}.jpg`);
-    await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
-    return await getDownloadURL(storageRef);
+    const path = `feedback/${id}.jpg`;
+    await uploadBytes(ref(storage, path), blob, { contentType: 'image/jpeg' });
+    return path;
   } catch {
     return null;
   }
 }
 
-/** Writes one feedback doc (screenshot uploaded first so the doc carries a URL). */
+/** Writes one feedback doc (screenshot uploaded first so the doc carries its path). */
 export async function submitFeedback(input: FeedbackInput): Promise<string> {
   const id = `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const screenshotUrl = input.screenshotUri ? await uploadScreenshot(input.screenshotUri, id) : null;
+  const screenshotPath = input.screenshotUri ? await uploadScreenshot(input.screenshotUri, id) : null;
   const docRef = await addDoc(collection(db, 'feedback'), {
     id,
     note: input.note.trim(),
     category: input.category,
-    screenshotUrl,
+    screenshotPath,
     route: input.route ?? null,
     userId: input.userId ?? null,
     userName: input.userName ?? null,
@@ -70,17 +71,21 @@ export async function submitFeedback(input: FeedbackInput): Promise<string> {
   return docRef.id;
 }
 
-/** Newest-first list for the dev review screen. */
+/** Newest-first list for the dev review screen (admin-only under rules). Resolves screenshot URLs. */
 export async function fetchFeedback(max = 100): Promise<FeedbackRecord[]> {
   const snap = await getDocs(query(collection(db, 'feedback'), orderBy('createdAt', 'desc'), limit(max)));
-  return snap.docs.map((d) => {
+  return Promise.all(snap.docs.map(async (d) => {
     const data = d.data() as Record<string, unknown>;
     const created = data.createdAt as { toDate?: () => Date } | undefined;
+    const path = (data.screenshotPath as string | null) ?? null;
+    const screenshotUrl = path
+      ? await getDownloadURL(ref(storage, path)).catch(() => null)
+      : ((data.screenshotUrl as string | null) ?? null);
     return {
       id: d.id,
       note: String(data.note ?? ''),
       category: (data.category as FeedbackCategory) ?? 'other',
-      screenshotUrl: (data.screenshotUrl as string | null) ?? null,
+      screenshotUrl,
       route: (data.route as string | undefined) ?? undefined,
       userId: (data.userId as string | null) ?? null,
       userName: (data.userName as string | null) ?? null,
@@ -92,5 +97,5 @@ export async function fetchFeedback(max = 100): Promise<FeedbackRecord[]> {
       status: (data.status as FeedbackRecord['status']) ?? 'new',
       createdAt: created?.toDate ? created.toDate().toISOString() : undefined,
     };
-  });
+  }));
 }

@@ -35,9 +35,13 @@ export async function promptGoogleSignIn(): Promise<GoogleProfile> {
     if (!isSuccessResponse(response)) {
       throw new GoogleSignInCancelled();
     }
-    const { user } = response.data;
+    const { user, idToken } = response.data;
+    if (!idToken) {
+      throw new Error('Google did not return an ID token. Check that the iOS client id belongs to the Firebase project.');
+    }
     return {
       id: user.id,
+      idToken,
       email: user.email ?? undefined,
       name: user.name ?? undefined,
       givenName: user.givenName ?? undefined,

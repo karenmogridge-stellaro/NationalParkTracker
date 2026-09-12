@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// ParkAtlas Cloud Storage rules. See firestore.rules for the identity model.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function member() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.uid in [
+        'REPLACE_WITH_YOUR_UID'
+      ];
+    }
+    function isImageUnder(maxBytes) {
+      return request.resource != null
+        && request.resource.size < maxBytes
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // Visit photos: owner uploads into their own folder; any signed-in user can view (friends' feeds).
+    match /visit_photos/{uid}/{file} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if member() && request.auth.uid == uid && isImageUnder(10 * 1024 * 1024);
+      allow delete: if request.auth.uid == uid;
+    }
+
+    // Shake-to-feedback screenshots: anyone can submit, only reviewers can view.
+    match /feedback/{file} {
+      allow get, list: if isAdmin();
+      allow create: if signedIn() && isImageUnder(5 * 1024 * 1024);
+      allow update, delete: if isAdmin();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -15,14 +15,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, doc, documentId, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { collection, getDocs, limit, query, where } from 'firebase/firestore';
 import { useAuth, AuthError } from '@/hooks/useAuth';
 import { ParkAtlas as C } from '@/constants/theme';
 import { GOOGLE_SIGN_IN_ENABLED, GoogleSignInCancelled, promptGoogleSignIn } from '@/utils/googleSignIn';
 import { consumePendingInviteCode, peekPendingInviteCode } from '@/utils/pendingInvite';
 import { findPendingInviteCodeForContact } from '@/utils/inviteApi';
 import { peekPendingAction, consumePendingAction } from '@/utils/pendingAction';
-import { db } from '@/utils/firebase';
+import { auth, db } from '@/utils/firebase';
 
 type Mode = 'signin' | 'signup';
 
@@ -33,6 +33,7 @@ export default function LoginScreen() {
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
+    sendPasswordReset,
     unlockWithBiometrics,
     dismissBiometricPrompt,
     signInDev,
@@ -50,6 +51,8 @@ export default function LoginScreen() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{
     firstName?: string;
@@ -82,99 +85,7 @@ export default function LoginScreen() {
     }
   }
 
-  async function resolveUserIdsFromEmailAuth(emailHint?: string): Promise<string[]> {
-    const normalizedEmail = emailHint?.trim().toLowerCase();
-    if (!normalizedEmail) return [];
-
-    const ids = new Set<string>();
-    const docIds = [encodeURIComponent(normalizedEmail), normalizedEmail];
-
-    for (const docId of docIds) {
-      try {
-        const snap = await getDoc(doc(db, 'email_auth', docId));
-        if (!snap.exists()) continue;
-        const data = snap.data() as { userId?: unknown };
-        if (typeof data.userId === 'string' && data.userId.trim()) {
-          ids.add(data.userId.trim());
-        }
-      } catch {
-        // Ignore individual lookup failures.
-      }
-    }
-
-    return Array.from(ids);
-  }
-
-  async function resolveUserIdsForEmail(emailHint?: string): Promise<string[]> {
-    const normalizedEmail = emailHint?.trim().toLowerCase();
-    if (!normalizedEmail) return [];
-
-    try {
-      const snap = await getDocs(
-        query(
-          collection(db, 'users'),
-          where('email', '==', normalizedEmail),
-          limit(10)
-        )
-      );
-      return snap.docs.map((docSnap) => docSnap.id).filter(Boolean);
-    } catch {
-      return [];
-    }
-  }
-
-  async function hasPendingIncomingRequestForEmail(emailHint?: string): Promise<boolean> {
-    const normalizedEmail = emailHint?.trim().toLowerCase();
-    if (!normalizedEmail) return false;
-
-    try {
-      const pendingReqSnap = await getDocs(
-        query(
-          collection(db, 'friend_requests'),
-          where('status', '==', 'pending'),
-          limit(120)
-        )
-      );
-
-      const toUserIds = Array.from(
-        new Set(
-          pendingReqSnap.docs
-            .map((snap) => snap.data()?.toUserId)
-            .filter((id): id is string => typeof id === 'string' && id.length > 0)
-        )
-      );
-
-      // Batch profile lookups (10 per Firestore 'in' query) instead of one getDoc per
-      // candidate — this was previously up to 120 sequential round trips on every login.
-      const chunks: string[][] = [];
-      for (let i = 0; i < toUserIds.length; i += 10) {
-        chunks.push(toUserIds.slice(i, i + 10));
-      }
-
-      const snapshots = await Promise.all(
-        chunks.map((chunk) =>
-          getDocs(query(collection(db, 'users'), where(documentId(), 'in', chunk))).catch(() => null)
-        )
-      );
-
-      return snapshots.some((snapshot) =>
-        snapshot?.docs.some((userSnap) => {
-          const data = userSnap.data() as { email?: unknown };
-          const userEmail = typeof data.email === 'string' ? data.email.trim().toLowerCase() : '';
-          return userEmail === normalizedEmail;
-        })
-      );
-    } catch {
-      return false;
-    }
-  }
-
-  async function routeAfterAuthSuccess(emailHint?: string, userIdHint?: string) {
-    const fallbackEmailUserId = emailHint?.trim()
-      ? `email_${emailHint.trim().toLowerCase()}`
-      : undefined;
-    const resolvedUserId = userIdHint || fallbackEmailUserId;
-
+  async function routeAfterAuthSuccess(emailHint?: string, userId?: string) {
     let pendingInviteCode = consumePendingInviteCode();
 
     if (!pendingInviteCode && emailHint?.trim()) {
@@ -190,25 +101,7 @@ export default function LoginScreen() {
       return;
     }
 
-    const candidateUserIds = Array.from(
-      new Set(
-        [
-          ...(resolvedUserId ? [resolvedUserId] : []),
-          ...(await resolveUserIdsFromEmailAuth(emailHint)),
-          ...(await resolveUserIdsForEmail(emailHint)),
-        ].filter(Boolean)
-      )
-    );
-
-    for (const candidateUserId of candidateUserIds) {
-      const hasPendingRequest = await hasPendingIncomingRequest(candidateUserId);
-      if (hasPendingRequest) {
-        router.replace('/(tabs)/directory?pendingIncoming=1');
-        return;
-      }
-    }
-
-    if (await hasPendingIncomingRequestForEmail(emailHint)) {
+    if (userId && (await hasPendingIncomingRequest(userId))) {
       router.replace('/(tabs)/directory?pendingIncoming=1');
       return;
     }
@@ -245,7 +138,7 @@ export default function LoginScreen() {
     setFieldErrors({});
     try {
       const signedIn = await signInWithApple();
-      if (signedIn) await routeAfterAuthSuccess();
+      if (signedIn) await routeAfterAuthSuccess(auth.currentUser?.email ?? undefined, auth.currentUser?.uid);
     } catch (e) {
       // Cancellations never reach here; anything else is a real failure worth telling the user about.
       setFieldErrors({
@@ -262,11 +155,11 @@ export default function LoginScreen() {
     try {
       const profile = await promptGoogleSignIn();
       await signInWithGoogle(profile);
-      await routeAfterAuthSuccess(profile.email, `google_${profile.id}`);
+      await routeAfterAuthSuccess(profile.email, auth.currentUser?.uid);
     } catch (e) {
       if (e instanceof GoogleSignInCancelled) return;
       console.error('[login] Google sign-in error:', e);
-      setFieldErrors({ general: "Couldn't sign in with Google. Please try again." });
+      setFieldErrors({ general: e instanceof AuthError ? e.message : "Couldn't sign in with Google. Please try again." });
     } finally {
       setGoogleLoading(false);
     }
@@ -298,14 +191,12 @@ export default function LoginScreen() {
 
     setEmailLoading(true);
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const derivedEmailUserId = `email_${normalizedEmail}`;
       if (mode === 'signup') {
         await signUpWithEmail(email, password, firstName, lastName);
       } else {
         await signInWithEmail(email, password);
       }
-      await routeAfterAuthSuccess(email, derivedEmailUserId);
+      await routeAfterAuthSuccess(email, auth.currentUser?.uid);
     } catch (e) {
       if (e instanceof AuthError) {
         switch (e.code) {
@@ -313,9 +204,9 @@ export default function LoginScreen() {
           case 'WEAK_PASSWORD':    setFieldErrors({ password: e.message }); break;
           case 'EMAIL_EXISTS':     setFieldErrors({ email: e.message });    break;
           case 'SERVICE_UNAVAILABLE':
-            setFieldErrors({
-              general: 'Cloud sign-in is temporarily unavailable. Please try again in a moment.',
-            });
+          case 'TOO_MANY_ATTEMPTS':
+          case 'REAUTH_REQUIRED':
+            setFieldErrors({ general: e.message });
             break;
           case 'APPLE_SIGN_IN_REQUIRED':
             setFieldErrors({
@@ -328,18 +219,12 @@ export default function LoginScreen() {
             });
             break;
           case 'PASSWORD_NOT_SET':
-            setFieldErrors({
-              email: 'Account found, but no email password is set yet. Tap Sign up with this same email/password once to restore access.',
-            });
-            break;
           case 'USER_NOT_FOUND':
-            setFieldErrors({
-              email: mode === 'signin'
-                ? 'No cloud account found for that email yet. If this account was created before the Firestore migration, tap Sign up with the same email/password once to restore access.'
-                : e.message,
-            });
+            setFieldErrors({ email: e.message });
             break;
-          case 'INVALID_CREDENTIALS': setFieldErrors({ password: e.message }); break;
+          case 'INVALID_CREDENTIALS':
+            setFieldErrors({ password: mode === 'signin' ? `${e.message} Forgot it? Tap “Forgot password” below.` : e.message });
+            break;
           default: setFieldErrors({ general: 'Something went wrong. Please try again.' });
         }
       } else {
@@ -350,6 +235,25 @@ export default function LoginScreen() {
       }
     } finally {
       setEmailLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setFieldErrors({ email: 'Enter your email above and we’ll send a reset link.' });
+      emailRef.current?.focus();
+      return;
+    }
+    setFieldErrors({});
+    setResetLoading(true);
+    try {
+      await sendPasswordReset(email);
+      setResetSent(true);
+    } catch (e) {
+      if (e instanceof AuthError && e.code === 'INVALID_EMAIL') setFieldErrors({ email: e.message });
+      else setFieldErrors({ general: e instanceof AuthError ? e.message : 'Couldn’t send the reset email. Please try again.' });
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -373,7 +277,7 @@ export default function LoginScreen() {
 
   async function handleDevSignIn() {
     await signInDev();
-    await routeAfterAuthSuccess(undefined, 'dev_user');
+    await routeAfterAuthSuccess(undefined, auth.currentUser?.uid);
   }
 
   const showBiometricPrompt = pendingBiometricUser != null;
@@ -588,6 +492,15 @@ export default function LoginScreen() {
           {!!fieldErrors.password && (
             <Text style={styles.errorText}>{fieldErrors.password}</Text>
           )}
+          {mode === 'signin' ? (
+            resetSent ? (
+              <Text style={styles.resetSentText}>Reset link sent to {email.trim().toLowerCase()} — check your inbox (and spam).</Text>
+            ) : (
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotLink} disabled={resetLoading} hitSlop={6}>
+                <Text style={styles.forgotText}>{resetLoading ? 'Sending…' : 'Forgot password?'}</Text>
+              </TouchableOpacity>
+            )
+          ) : null}
         </View>
 
         {/* ── Submit button ─────────────────────────────────────────────── */}
@@ -879,6 +792,9 @@ const styles = StyleSheet.create({
     color: '#c0392b',
     marginTop: 2,
   },
+  forgotLink: { alignSelf: 'flex-end', marginTop: 4, padding: 2 },
+  forgotText: { fontSize: 13, color: C.primary, fontWeight: '600' },
+  resetSentText: { fontSize: 12.5, color: C.primary, marginTop: 4, lineHeight: 17 },
   generalError: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -1,0 +1,127 @@
+rules_version = '2';
+
+// ParkAtlas Firestore rules.
+// Identity: Firebase Auth. Guests hold an anonymous session; members have apple.com / google.com / password.
+// Legacy accounts were imported with their original ids (apple_…, google_…, email_…) as UIDs, so every
+// ownership field below compares directly against request.auth.uid.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    function signedIn() {
+      return request.auth != null;
+    }
+    // Real account (not an anonymous guest).
+    function member() {
+      return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+    // Reviewer UIDs for the feedback inbox. Add yours here (Authentication → Users → User UID).
+    function isAdmin() {
+      return signedIn() && request.auth.uid in [
+        'REPLACE_WITH_YOUR_UID'
+      ];
+    }
+
+    // ── Users (public profile directory) ───────────────────────────────────────
+    match /users/{uid} {
+      allow get, list: if signedIn();
+      allow create, update: if isUser(uid) && request.resource.data.id == uid;
+      allow delete: if isUser(uid);
+    }
+
+    // Per-user preferences (directory cache, contacts sync flags, sent invites).
+    match /user_prefs/{uid} {
+      allow read, write: if isUser(uid);
+    }
+
+    // ── Visits ─────────────────────────────────────────────────────────────────
+    // Doc id is `${userId}__${visitId}`; friends read each other's visits for the feed.
+    match /park_visits/{docId} {
+      allow get, list: if signedIn();
+      allow create: if member()
+        && isUser(request.resource.data.userId)
+        && docId == request.auth.uid + '__' + request.resource.data.visitId;
+      allow update: if isUser(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId;
+      allow delete: if isUser(resource.data.userId);
+    }
+
+    // ── Social graph ───────────────────────────────────────────────────────────
+    match /friendships/{docId} {
+      allow get, list: if signedIn();
+      allow create: if member()
+        && (isUser(request.resource.data.userAId) || isUser(request.resource.data.userBId));
+      allow update: if member()
+        && (isUser(resource.data.userAId) || isUser(resource.data.userBId))
+        && request.resource.data.userAId == resource.data.userAId
+        && request.resource.data.userBId == resource.data.userBId;
+      allow delete: if false;
+    }
+
+    match /friend_requests/{docId} {
+      // Queries must filter on fromUserId or toUserId == the caller.
+      allow get, list: if signedIn()
+        && (isUser(resource.data.fromUserId) || isUser(resource.data.toUserId));
+      allow create: if member()
+        && isUser(request.resource.data.fromUserId)
+        && request.resource.data.status == 'pending';
+      allow update: if member()
+        && (isUser(resource.data.fromUserId) || isUser(resource.data.toUserId))
+        && request.resource.data.fromUserId == resource.data.fromUserId
+        && request.resource.data.toUserId == resource.data.toUserId;
+      allow delete: if isUser(resource.data.fromUserId);
+    }
+
+    // High-fives. Anyone signed in can count them; only the author writes theirs.
+    match /kudos/{docId} {
+      allow get, list: if signedIn();
+      allow create: if member() && isUser(request.resource.data.fromUid);
+      allow update, delete: if isUser(resource.data.fromUid);
+    }
+
+    // Notification inbox: written by the actor into the recipient's feed, read only by the recipient.
+    // The actor may retract (un-high-five); the recipient may clear.
+    match /activity/{docId} {
+      allow get, list: if isUser(resource.data.toUid);
+      allow create: if member() && isUser(request.resource.data.fromUid);
+      allow update: if member() && isUser(resource.data.fromUid)
+        && request.resource.data.toUid == resource.data.toUid;
+      allow delete: if isUser(resource.data.toUid) || isUser(resource.data.fromUid);
+    }
+
+    // ── Invites ────────────────────────────────────────────────────────────────
+    // Guests resolve invite codes from deep links before they have an account.
+    match /invites/{code} {
+      allow get, list: if signedIn();
+      allow create: if member() && isUser(request.resource.data.inviterUserId);
+      allow update: if member()
+        && (isUser(resource.data.inviterUserId) || isUser(request.resource.data.acceptedByUserId))
+        && request.resource.data.inviterUserId == resource.data.inviterUserId;
+      allow delete: if isUser(resource.data.inviterUserId);
+    }
+
+    // ── Feedback (shake-to-report) ─────────────────────────────────────────────
+    match /feedback/{docId} {
+      allow create: if signedIn()
+        && request.resource.data.note is string
+        && request.resource.data.note.size() > 0
+        && request.resource.data.note.size() <= 1000
+        && request.resource.data.category in ['bug', 'idea', 'other']
+        && (request.resource.data.userId == null || isUser(request.resource.data.userId));
+      allow get, list, update, delete: if isAdmin();
+    }
+
+    // Legacy password store — replaced by Firebase Auth. Delete the collection after import.
+    match /email_auth/{docId} {
+      allow read, write: if false;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
