@@ -143,11 +143,15 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   const [reviewPromptLoaded, setReviewPromptLoaded] = useState(false);
   const [lastNewParkEvent, setLastNewParkEvent] = useState<NewParkEvent | null>(null);
   const eventIdRef = useRef(0);
+  // Visits we've already tried to re-upload this session; stops retry loops when the file is gone or upload fails.
+  const backfillTriedRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (user?.id) {
+      const uid = user.id;
+      const uname = user.name;
       setLoading(true);
-      const visitQuery = query(collection(db, 'park_visits'), where('userId', '==', user.id));
+      const visitQuery = query(collection(db, 'park_visits'), where('userId', '==', uid));
       const unsubscribe = onSnapshot(visitQuery, (snapshot) => {
         const nextVisits = snapshot.docs
           .map((snap) => mapFirestoreVisit(snap.id, snap.data() as FirestoreParkVisitDoc))
@@ -159,9 +163,38 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
           });
         setVisits(nextVisits);
         setLoading(false);
+
+        // Photos saved before Storage existed are still file:// paths only this phone can see.
+        const stale = nextVisits.filter((v) => {
+          if (backfillTriedRef.current.has(v.visitId)) return false;
+          const uris = v.photoUris?.length ? v.photoUris : v.photoUri ? [v.photoUri] : [];
+          return uris.some((u) => u.startsWith('file://'));
+        });
+        stale.forEach((v) => backfillTriedRef.current.add(v.visitId));
+        void (async () => {
+          for (const v of stale) {
+            try {
+              await upsertParkVisitActivity({
+                visitId: v.visitId,
+                userId: uid,
+                userName: uname,
+                parkId: v.parkId,
+                parkName: v.parkName,
+                trailName: v.trailName,
+                dateVisited: v.dateVisited,
+                datePrecision: v.datePrecision,
+                distanceMiles: v.distanceMiles,
+                photoUri: v.photoUri,
+                photoUris: v.photoUris,
+              });
+            } catch {
+              // Best-effort; the visit itself is unaffected.
+            }
+          }
+        })();
       });
 
-      void migrateLocalVisitsToFirestore(user.id, user.name);
+      void migrateLocalVisitsToFirestore(uid, uname);
 
       return () => unsubscribe();
     }
