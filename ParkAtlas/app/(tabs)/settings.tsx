@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as MailComposer from 'expo-mail-composer';
+import { openFeedback } from '@/utils/feedbackTrigger';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
@@ -663,11 +664,11 @@ export default function SettingsScreen() {
           <Text style={styles.groupLabelText}>SUPPORT</Text>
         </View>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => setFeedbackVisible(true)}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => openFeedback()}>
             <MaterialCommunityIcons name="message-text-outline" size={22} color={C.primary} style={styles.supportIcon} />
             <View style={styles.rowTextWrap}>
               <Text style={styles.rowTitle}>Send Feedback</Text>
-              <Text style={styles.rowSubtitle}>Share ideas, bugs, and feature requests</Text>
+              <Text style={styles.rowSubtitle}>Or just shake your phone on any screen</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
           </TouchableOpacity>

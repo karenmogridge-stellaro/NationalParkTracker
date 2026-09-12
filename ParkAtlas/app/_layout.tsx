@@ -1,4 +1,4 @@
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, usePathname, useRouter, useSegments } from "expo-router";
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +19,10 @@ import { useShareCard } from '@/hooks/useShareCard';
 import { PARKS } from '@/data/parksData';
 import { NameCaptureSheet } from '@/components/NameCaptureSheet';
 import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
+import { FeedbackSheet } from '@/components/FeedbackSheet';
+import { useShake } from '@/hooks/useShake';
+import { captureScreen } from 'react-native-view-shot';
+import { onOpenFeedback } from '@/utils/feedbackTrigger';
 
 // Unsigned simulator builds lack the keychain entitlement; the warning is expected there and just covers the UI.
 if (__DEV__) LogBox.ignoreLogs([/SecureStore (read|write|delete) unavailable/]);
@@ -105,6 +109,28 @@ const hostStyles = StyleSheet.create({
   offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
 
+/** Shake the phone (or tap "Send feedback" in Settings) → grab a screenshot → feedback sheet. */
+function FeedbackHost() {
+  const pathname = usePathname();
+  const [visible, setVisible] = useState(false);
+  const [shot, setShot] = useState<string | null>(null);
+  const [route, setRoute] = useState<string>('');
+
+  const open = async () => {
+    if (visible) return;
+    setRoute(pathname);
+    // Capture before the sheet animates in so the screenshot shows what the user was looking at.
+    const uri = await captureScreen({ format: 'jpg', quality: 0.8, result: 'tmpfile' }).catch(() => null);
+    setShot(uri);
+    setVisible(true);
+  };
+
+  useShake(() => { void open(); }, !visible);
+  useEffect(() => onOpenFeedback(() => { void open(); }), [visible, pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <FeedbackSheet visible={visible} screenshotUri={shot} route={route} onClose={() => setVisible(false)} />;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -129,6 +155,7 @@ export default function RootLayout() {
           <CelebrationHost />
           <NameCaptureSheet />
           <NearbyParksPrompt />
+          <FeedbackHost />
           <StatusBar style="auto" />
         </ToastProvider>
       </ThemeProvider>
