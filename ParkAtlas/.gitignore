@@ -46,3 +46,4 @@ app-example
 scripts/out/
 *service-account*.json
 *-sa.json
+*firebase-adminsdk*.json
