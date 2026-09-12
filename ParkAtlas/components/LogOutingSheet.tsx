@@ -24,6 +24,7 @@ import { useVisitedParks, LogVisitOptions, ParkVisit } from '../hooks/useVisited
 import { stateNameFromCode } from '@/utils/search';
 
 const DEFAULT_HIKE_IMAGE_URL = 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1400&q=80';
+const MAX_PHOTOS = 6;
 
 let DEFAULT_HIKE_IMAGE_REQUIRE: any = null;
 try {
@@ -54,6 +55,7 @@ interface QuickSelectChipsProps {
 interface PhotoDropzoneOrPickerProps {
   photoUris: string[];
   onPress: () => void;
+  onRemove: (index: number) => void;
 }
 
 interface GpsLoggingToggleRowProps {
@@ -119,31 +121,47 @@ function QuickSelectChips({ chips }: QuickSelectChipsProps) {
   );
 }
 
-function PhotoDropzoneOrPicker({ photoUris, onPress }: PhotoDropzoneOrPickerProps) {
+function PhotoDropzoneOrPicker({ photoUris, onPress, onRemove }: PhotoDropzoneOrPickerProps) {
   const hasPhotos = photoUris.length > 0;
   return (
     <View>
-      <Text style={styles.fieldLabel}>Your Adventure Photo</Text>
+      <Text style={styles.fieldLabel}>Your Adventure Photos</Text>
       <TouchableOpacity style={styles.photoDropzone} activeOpacity={0.8} onPress={onPress}>
         {hasPhotos ? (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoPreviewRow}>
               {photoUris.map((uri, idx) => (
-                <Image key={`${uri}_${idx}`} source={{ uri }} style={styles.photoPreview} />
+                <View key={`${uri}_${idx}`} style={styles.photoPreviewWrap}>
+                  <Image source={{ uri }} style={styles.photoPreview} />
+                  {idx === 0 ? <View style={styles.photoCoverTag}><Text style={styles.photoCoverTagText}>Cover</Text></View> : null}
+                  <TouchableOpacity
+                    style={styles.photoRemove}
+                    onPress={() => onRemove(idx)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Remove photo"
+                  >
+                    <Ionicons name="close" size={12} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               ))}
+              {photoUris.length < MAX_PHOTOS ? (
+                <TouchableOpacity style={styles.photoAddTile} onPress={onPress} activeOpacity={0.8} accessibilityLabel="Add photo">
+                  <Ionicons name="add" size={24} color={C.primary} />
+                </TouchableOpacity>
+              ) : null}
             </ScrollView>
             <View style={styles.photoActionHintRow}>
               <Ionicons name="camera-outline" size={16} color={C.primary} />
-              {/* Only one photo is ever saved per visit (see photoUris[0] at save time below),
-                  so this must read as replace, not add — matching the single-select picker. */}
-              <Text style={styles.photoActionHintText}>Tap to replace photo</Text>
+              <Text style={styles.photoActionHintText}>
+                {photoUris.length < MAX_PHOTOS ? `Tap to add more (${photoUris.length}/${MAX_PHOTOS})` : `${MAX_PHOTOS} photos max`}
+              </Text>
             </View>
           </>
         ) : (
           <>
             <Ionicons name="images-outline" size={32} color={C.outline} />
-            <Text style={styles.dropzoneText}>Tap to upload photos</Text>
-            <Text style={styles.dropzoneHint}>JPG or PNG</Text>
+            <Text style={styles.dropzoneText}>Tap to add photos</Text>
+            <Text style={styles.dropzoneHint}>Up to {MAX_PHOTOS} · first one is the cover</Text>
           </>
         )}
       </TouchableOpacity>
@@ -321,7 +339,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
       setCustomTrail(joinTrailNames(leftovers));
       setDistanceMiles(editVisit.distanceMiles ? String(editVisit.distanceMiles) : '');
       setDateValue(toVisitDateValue(editVisit.dateVisited, editVisit.datePrecision, editVisit.dateUnknown));
-      setPhotoUris(editVisit.photoUri ? [editVisit.photoUri] : []);
+      setPhotoUris(editVisit.photoUris?.length ? editVisit.photoUris : editVisit.photoUri ? [editVisit.photoUri] : []);
       setComments('');
       setGpsEnabled(true);
       setParkError('');
@@ -356,18 +374,20 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     }
 
     try {
+      const remaining = Math.max(1, MAX_PHOTOS - photoUris.length);
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
-        allowsMultipleSelection: false,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsMultipleSelection: true,
+        selectionLimit: remaining,
+        orderedSelection: true,
+        quality: 0.8,
         preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
         shouldDownloadFromNetwork: true,
       });
 
       if (result.canceled) return;
-      const selectedUri = result.assets[0]?.uri;
-      if (selectedUri) setPhotoUris([selectedUri]);
+      const picked = result.assets.map((a) => a.uri).filter(Boolean);
+      if (picked.length) setPhotoUris((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
     } catch {
       Alert.alert('Photo Error', 'We could not read that photo. Please choose a different image.');
     }
@@ -389,7 +409,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
       if (!result.canceled && result.assets[0]) {
         const uri = result.assets[0].uri;
-        setPhotoUris(uri ? [uri] : []);
+        if (uri) setPhotoUris((prev) => [...prev, uri].slice(0, MAX_PHOTOS));
       }
     } catch {
       Alert.alert('Camera Error', 'We could not read that photo. Please try again.');
@@ -441,6 +461,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
     const opts: LogVisitOptions = {
       photoUri: photoUris[0] ?? defaultPhotoUri,
+      photoUris,
       ...(dateValue.kind === 'date'
         ? { dateVisited: dateValue.date.toISOString(), dateUnknown: false, datePrecision: dateValue.precision }
         : { dateUnknown: true }),
@@ -624,7 +645,11 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
             <VisitDatePicker value={dateValue} onChange={setDateValue} label="Date of Visit (Optional)" />
 
-            <PhotoDropzoneOrPicker photoUris={photoUris} onPress={handlePhotoPress} />
+            <PhotoDropzoneOrPicker
+              photoUris={photoUris}
+              onPress={handlePhotoPress}
+              onRemove={(i) => setPhotoUris((prev) => prev.filter((_, idx) => idx !== i))}
+            />
 
             <View>
               <Text style={styles.fieldLabel}>Comments (Optional)</Text>
@@ -897,10 +922,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 4,
   },
+  photoPreviewWrap: { width: 88, height: 88 },
   photoPreview: {
     width: 88,
     height: 88,
     borderRadius: 10,
+  },
+  photoRemove: {
+    position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+    backgroundColor: 'rgba(8,18,12,0.85)', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: C.surface,
+  },
+  photoCoverTag: { position: 'absolute', left: 6, bottom: 6, backgroundColor: 'rgba(8,18,12,0.7)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  photoCoverTagText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
+  photoAddTile: {
+    width: 88, height: 88, borderRadius: 10, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.primary,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: C.primaryContainer,
   },
   photoActionHintRow: {
     flexDirection: 'row',

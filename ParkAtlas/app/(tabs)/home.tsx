@@ -119,6 +119,13 @@ function sortIsoFromVisitId(visitId?: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** Feed order is "when it hit the feed": a 2019 trip logged today belongs at the top, like a friend's post. */
+function feedSortIso(item: FeedItem): string {
+  if (item.type === 'strava') return item.data.start_date;
+  if (item.type === 'friend') return item.data.createdAt || item.data.dateVisited || '1970-01-01';
+  return sortIsoFromVisitId(item.data.visitId) || item.data.dateVisited || '1970-01-01';
+}
+
 type FeedItem =
   | { type: 'strava'; data: StravaActivity }
   | { type: 'manual'; data: ParkVisit }
@@ -138,6 +145,7 @@ type AdventureCardItem = {
   subtitle: string;
   distance: string;
   imageUri: string;
+  photoCount: number;
   parkId?: string;
   tag: string;
   // ActivityFeedCard fields
@@ -271,18 +279,10 @@ export default function HomeScreen() {
 
   const myEvents = useMemo<FeedItem[]>(() => {
     const strava: FeedItem[] = activities.slice(0, 10).map((a) => ({ type: 'strava', data: a }));
-    const manual: FeedItem[] = visits.slice(0, 10).map((v) => ({ type: 'manual', data: v }));
+    const manual: FeedItem[] = visits.map((v) => ({ type: 'manual', data: v }));
 
     return [...strava, ...manual]
-      .sort((a, b) => {
-        const dateA = a.type === 'strava'
-          ? a.data.start_date
-          : (a.data.dateVisited || sortIsoFromVisitId(a.data.visitId) || '1970-01-01');
-        const dateB = b.type === 'strava'
-          ? b.data.start_date
-          : (b.data.dateVisited || sortIsoFromVisitId(b.data.visitId) || '1970-01-01');
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      })
+      .sort((a, b) => new Date(feedSortIso(b)).getTime() - new Date(feedSortIso(a)).getTime())
       .slice(0, 8);
   }, [activities, visits]);
 
@@ -303,19 +303,7 @@ export default function HomeScreen() {
 
   const feedEvents = useMemo<FeedItem[]>(() => {
     return [...myEvents, ...friendsEvents]
-      .sort((a, b) => {
-        const dateA = a.type === 'strava'
-          ? a.data.start_date
-          : a.type === 'friend'
-            ? a.data.createdAt || a.data.dateVisited || '1970-01-01'
-            : a.data.dateVisited || sortIsoFromVisitId(a.data.visitId) || '1970-01-01';
-        const dateB = b.type === 'strava'
-          ? b.data.start_date
-          : b.type === 'friend'
-            ? b.data.createdAt || b.data.dateVisited || '1970-01-01'
-            : b.data.dateVisited || sortIsoFromVisitId(b.data.visitId) || '1970-01-01';
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-      })
+      .sort((a, b) => new Date(feedSortIso(b)).getTime() - new Date(feedSortIso(a)).getTime())
       .slice(0, 8);
   }, [myEvents, friendsEvents]);
 
@@ -651,6 +639,7 @@ export default function HomeScreen() {
           : isFriend
             ? (item.data as FriendActivity).photoUri || fallbackImageForPark(parkId)
             : (item.data as ParkVisit).photoUri || fallbackImageForPark(parkId),
+        photoCount: isStrava ? 0 : ((item.data as ParkVisit | FriendActivity).photoUris?.length ?? 0),
         parkId,
         tag: contextLabel,
         // ActivityFeedCard props
@@ -905,6 +894,7 @@ export default function HomeScreen() {
                     key={card.key}
                     cardKey={card.key}
                     imageUri={card.imageUri}
+                    photoCount={card.photoCount}
                     parkId={card.parkId}
                     parkName={card.parkName}
                     trailName={card.trailName}

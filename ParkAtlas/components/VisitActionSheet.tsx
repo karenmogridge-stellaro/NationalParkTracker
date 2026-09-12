@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ParkAtlas as C, Radii } from '@/constants/theme';
@@ -20,10 +20,12 @@ type Props = {
 /** Bottom sheet for a logged visit: photo header, quick facts, and Edit / View park / Delete. */
 export function VisitActionSheet({ visit, onClose, onEdit, onDelete, onViewPark }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
-  useEffect(() => { if (visit) setConfirmDelete(false); }, [visit]);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  useEffect(() => { if (visit) { setConfirmDelete(false); setPhotoIndex(0); } }, [visit]);
 
   if (!visit) return null;
-  const photo = visit.photoUri || fallbackImageForPark(visit.parkId);
+  const photos = visit.photoUris?.length ? visit.photoUris : visit.photoUri ? [visit.photoUri] : [];
+  const photo = photos[photoIndex] || photos[0] || fallbackImageForPark(visit.parkId);
   const when = visit.dateUnknown ? 'Date not recorded' : formatVisitDate(visit.dateVisited, visit.datePrecision) ?? 'Date not recorded';
   const facts = [
     visit.trailName || null,
@@ -62,7 +64,23 @@ export function VisitActionSheet({ visit, onClose, onEdit, onDelete, onViewPark 
               <Text style={styles.title} numberOfLines={2}>{visit.parkName}</Text>
               {facts ? <Text style={styles.facts} numberOfLines={2}>{facts}</Text> : null}
             </View>
+            {photos.length > 1 ? (
+              <View style={styles.photoCounter}>
+                <Ionicons name="images" size={12} color="#fff" />
+                <Text style={styles.photoCounterText}>{photoIndex + 1}/{photos.length}</Text>
+              </View>
+            ) : null}
           </View>
+
+          {photos.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
+              {photos.map((uri, i) => (
+                <TouchableOpacity key={`${uri}_${i}`} onPress={() => { haptic.select(); setPhotoIndex(i); }} activeOpacity={0.85}>
+                  <Image source={{ uri }} style={[styles.thumb, i === photoIndex && styles.thumbActive]} resizeMode="cover" />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : null}
 
           {confirmDelete ? (
             <View style={styles.confirm}>
@@ -86,7 +104,7 @@ export function VisitActionSheet({ visit, onClose, onEdit, onDelete, onViewPark 
             </View>
           ) : (
             <View style={styles.rows}>
-              <Row icon="create-outline" label="Edit visit" sub="Trails, date, distance, photo" onPress={() => { haptic.select(); onClose(); onEdit(visit); }} />
+              <Row icon="create-outline" label="Edit visit" sub="Trails, date, distance, photos" onPress={() => { haptic.select(); onClose(); onEdit(visit); }} />
               {onViewPark ? (
                 <Row icon="map-outline" label="Open park page" sub="Trails, friends, share card" onPress={() => { haptic.select(); onClose(); onViewPark(visit); }} />
               ) : null}
@@ -110,6 +128,14 @@ const styles = StyleSheet.create({
   },
   handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.7)', marginTop: 8, position: 'absolute', top: 0, zIndex: 2 },
   hero: { height: 168, justifyContent: 'flex-end', backgroundColor: '#1a2e22' },
+  photoCounter: {
+    position: 'absolute', top: 18, left: 14, flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(8,18,12,0.5)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  photoCounterText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  strip: { paddingHorizontal: 14, paddingTop: 10, gap: 8 },
+  thumb: { width: 56, height: 56, borderRadius: 10, opacity: 0.6, backgroundColor: C.surfaceContainerLow },
+  thumbActive: { opacity: 1, borderWidth: 2, borderColor: C.primary },
   close: {
     position: 'absolute', top: 18, right: 14, width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(8,18,12,0.5)', alignItems: 'center', justifyContent: 'center',

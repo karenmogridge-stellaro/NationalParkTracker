@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ParkAtlas as C } from '@/constants/theme';
 import { fallbackImageForPark, gradientForPark } from '@/utils/parkImagery';
@@ -29,6 +30,9 @@ export type ActivityFeedCardProps = {
    * When absent or on load failure the component shows a terrain-matched fallback.
    */
   imageUri: string;
+
+  /** Total photos on the visit; a "+N" badge shows when > 1. */
+  photoCount?: number;
 
   /** Used to pick a terrain-appropriate fallback photo/gradient. */
   parkId?: string;
@@ -77,6 +81,7 @@ export type ActivityFeedCardProps = {
 
 export function ActivityFeedCard({
   imageUri,
+  photoCount = 0,
   parkId,
   parkName,
   trailName,
@@ -133,7 +138,12 @@ export function ActivityFeedCard({
         accessibilityRole="button"
         accessibilityLabel={`${actorLabel ?? ''} ${parkName}${trailName ? `, ${trailName}` : ''}${dateLabel ? `, ${dateLabel}` : ''}`}
       >
-        <Image source={{ uri: thumbUri }} style={styles.rowThumb} resizeMode="cover" onError={() => setImgError(true)} accessibilityIgnoresInvertColors />
+        <View>
+          <Image source={{ uri: thumbUri }} style={styles.rowThumb} resizeMode="cover" onError={() => setImgError(true)} accessibilityIgnoresInvertColors />
+          {photoCount > 1 ? (
+            <View style={styles.rowPhotoBadge}><Text style={styles.rowPhotoBadgeText}>{photoCount}</Text></View>
+          ) : null}
+        </View>
         <View style={styles.rowBody}>
           {actorLabel ? <Text style={styles.rowActor} numberOfLines={1}>{actorLabel}</Text> : null}
           <Text style={styles.rowPark} numberOfLines={1}>{parkName}</Text>
@@ -213,6 +223,13 @@ export function ActivityFeedCard({
       {actorLabel ? (
         <View style={styles.actorPill}>
           <Text style={styles.actorPillText} numberOfLines={1}>{actorLabel}</Text>
+        </View>
+      ) : null}
+
+      {photoCount > 1 ? (
+        <View style={styles.photoPill}>
+          <Ionicons name="images" size={12} color="#f0f7f2" />
+          <Text style={styles.photoPillText}>{photoCount}</Text>
         </View>
       ) : null}
 
@@ -347,6 +364,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.1,
   },
+  photoPill: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(8, 18, 12, 0.52)',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  photoPillText: { color: '#f0f7f2', fontSize: 12, fontWeight: '700' },
+  rowPhotoBadge: {
+    position: 'absolute', right: -4, bottom: -4, minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5,
+    backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.surface,
+  },
+  rowPhotoBadgeText: { color: C.onPrimary, fontSize: 10, fontWeight: '800' },
 
   // Text + action anchored to bottom
   body: {

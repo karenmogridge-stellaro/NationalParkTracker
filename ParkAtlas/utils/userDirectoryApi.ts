@@ -33,6 +33,7 @@ export type FriendActivity = {
   createdAt?: string;
   distanceMiles?: number;
   photoUri?: string;
+  photoUris?: string[];
 };
 
 export type ParkVisitActivityInput = {
@@ -46,14 +47,14 @@ export type ParkVisitActivityInput = {
   datePrecision?: 'day' | 'month' | 'year';
   distanceMiles?: number;
   photoUri?: string;
+  photoUris?: string[];
 };
 
 function isRemotePhotoUri(uri?: string): boolean {
   return !!uri && (uri.startsWith('https://') || uri.startsWith('http://'));
 }
 
-async function uploadVisitPhotoIfNeeded(input: ParkVisitActivityInput): Promise<string | null> {
-  const uri = input.photoUri;
+async function uploadPhotoIfNeeded(uri: string | undefined, userId: string, visitId: string, index: number): Promise<string | null> {
   if (!uri) return null;
   if (isRemotePhotoUri(uri)) return uri;
   if (!uri.startsWith('file://')) return uri;
@@ -63,7 +64,7 @@ async function uploadVisitPhotoIfNeeded(input: ParkVisitActivityInput): Promise<
     const blob = await response.blob();
     const extMatch = uri.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
     const ext = (extMatch?.[1] || 'jpg').toLowerCase();
-    const path = `visit_photos/${input.userId}/${input.visitId}_${Date.now()}.${ext}`;
+    const path = `visit_photos/${userId}/${visitId}_${Date.now()}_${index}.${ext}`;
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob, {
       contentType: blob.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
@@ -110,6 +111,7 @@ type FirestoreFriendActivityDoc = {
   dateVisited?: string;
   distanceMiles?: number;
   photoUri?: string;
+  photoUris?: unknown;
   createdAt?: { toDate?: () => Date };
 };
 
@@ -136,6 +138,9 @@ function normalizeFriendActivity(docData: FirestoreFriendActivityDoc): FriendAct
     createdAt: createdAtIso,
     distanceMiles: typeof docData.distanceMiles === 'number' ? docData.distanceMiles : undefined,
     photoUri: typeof docData.photoUri === 'string' ? docData.photoUri : undefined,
+    photoUris: Array.isArray(docData.photoUris)
+      ? docData.photoUris.filter((u): u is string => typeof u === 'string' && !!u)
+      : undefined,
   };
 }
 
@@ -395,7 +400,13 @@ export async function fetchFriendActivities(friendIds: string[]): Promise<Friend
 export async function upsertParkVisitActivity(input: ParkVisitActivityInput): Promise<void> {
   if (!input.userId || !input.visitId || !input.parkId) return;
 
-  const resolvedPhotoUri = await uploadVisitPhotoIfNeeded(input);
+  const sourcePhotos = input.photoUris && input.photoUris.length > 0
+    ? input.photoUris
+    : input.photoUri ? [input.photoUri] : [];
+  const resolvedPhotoUris = (
+    await Promise.all(sourcePhotos.map((uri, i) => uploadPhotoIfNeeded(uri, input.userId, input.visitId, i)))
+  ).filter((u): u is string => !!u);
+  const resolvedPhotoUri = resolvedPhotoUris[0] ?? null;
   const docId = `${input.userId}__${input.visitId}`;
   const docRef = doc(db, 'park_visits', docId);
   const existingSnap = await getDoc(docRef);
@@ -414,6 +425,7 @@ export async function upsertParkVisitActivity(input: ParkVisitActivityInput): Pr
       datePrecision: input.datePrecision && input.datePrecision !== 'day' ? input.datePrecision : null,
       distanceMiles: typeof input.distanceMiles === 'number' ? input.distanceMiles : null,
       photoUri: resolvedPhotoUri || null,
+      photoUris: resolvedPhotoUris.length > 0 ? resolvedPhotoUris : null,
       updatedAt: serverTimestamp(),
       ...(isNewVisit ? { createdAt: serverTimestamp() } : {}),
     },

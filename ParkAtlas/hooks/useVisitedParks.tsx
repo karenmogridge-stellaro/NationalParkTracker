@@ -38,6 +38,8 @@ export interface ParkVisit {
   parkName: string;
   trailName: string;        // empty string if no trail selected
   photoUri?: string;        // optional user-uploaded outing photo (data URI or local URI)
+  /** All photos for the outing; photoUri stays as the cover (photoUris[0]) for older readers. */
+  photoUris?: string[];
   dateVisited?: string;     // ISO date string (missing when user chose unknown date)
   dateUnknown?: boolean;
   /** How much of dateVisited the user actually knew; defaults to 'day'. */
@@ -50,6 +52,8 @@ export interface ParkVisit {
 
 export interface LogVisitOptions {
   photoUri?: string | null;
+  /** Pass [] or null to clear all photos; omit to leave unchanged on update. */
+  photoUris?: string[] | null;
   distanceMiles?: number;
   dateVisited?: string;
   dateUnknown?: boolean;
@@ -92,6 +96,7 @@ type FirestoreParkVisitDoc = {
   parkName?: string;
   trailName?: string;
   photoUri?: string;
+  photoUris?: unknown;
   dateVisited?: string;
   dateUnknown?: boolean;
   datePrecision?: string;
@@ -103,12 +108,16 @@ type FirestoreParkVisitDoc = {
 
 function mapFirestoreVisit(docId: string, data: FirestoreParkVisitDoc): ParkVisit | null {
   if (!data?.parkId || !data?.parkName) return null;
+  const photoUris = Array.isArray(data.photoUris)
+    ? data.photoUris.filter((u): u is string => typeof u === 'string' && !!u)
+    : undefined;
   return {
     visitId: typeof data.visitId === 'string' ? data.visitId : docId,
     parkId: data.parkId,
     parkName: data.parkName,
     trailName: typeof data.trailName === 'string' ? data.trailName : '',
-    photoUri: typeof data.photoUri === 'string' ? data.photoUri : undefined,
+    photoUri: typeof data.photoUri === 'string' ? data.photoUri : photoUris?.[0],
+    photoUris: photoUris && photoUris.length > 0 ? photoUris : undefined,
     dateVisited: typeof data.dateVisited === 'string' ? data.dateVisited : undefined,
     dateUnknown: typeof data.dateUnknown === 'boolean' ? data.dateUnknown : undefined,
     datePrecision: data.datePrecision === 'month' || data.datePrecision === 'year' ? data.datePrecision : undefined,
@@ -251,7 +260,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
 
   const logVisit = useCallback(async (parkId: string, parkName: string, trailName: string, opts?: LogVisitOptions) => {
     const userId = user?.id || GUEST_USER_ID;
-    const { photoUri, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
+    const { photoUri, photoUris, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
 
     // Snapshot before the write so we can tell whether this unlocks a new national park.
     const before = visitsRef.current;
@@ -262,12 +271,14 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     const visitDate = hasExplicitDate
       ? (dateUnknown ? undefined : dateVisited)
       : new Date().toISOString();
+    const photos = (photoUris ?? []).filter(Boolean);
     const visit: ParkVisit = {
       visitId: `${parkId}_${Date.now()}`,
       parkId,
       parkName,
       trailName: trailName.trim(),
-      photoUri: photoUri || undefined,
+      photoUri: photos[0] || photoUri || undefined,
+      photoUris: photos.length > 0 ? photos : undefined,
       dateVisited: visitDate,
       dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : false,
       datePrecision: visitDate && datePrecision && datePrecision !== 'day' ? datePrecision : undefined,
@@ -312,6 +323,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
           datePrecision: visit.datePrecision,
           distanceMiles: visit.distanceMiles,
           photoUri: visit.photoUri,
+          photoUris: visit.photoUris,
         });
       } catch {
         // Non-blocking: keep local visit even if cloud sync fails.
@@ -371,7 +383,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     opts?: LogVisitOptions,
   ) => {
     const userId = user?.id || GUEST_USER_ID;
-    const { photoUri, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
+    const { photoUri, photoUris, distanceMiles, dateVisited, dateUnknown, datePrecision, elevationGainFt, activityType, rating } = opts ?? {};
     // Read the latest visits via ref, not the closed-over `visits` state, so two quick
     // edits in a row each build on the other's result instead of one clobbering the other.
     const current = user?.id ? visitsRef.current : await loadFromDiskForUser(userId);
@@ -379,13 +391,19 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       if (v.visitId !== visitId) return v;
       const hasExplicitDate = dateUnknown !== undefined || dateVisited !== undefined;
       const visitDate = hasExplicitDate ? (dateUnknown ? undefined : dateVisited) : v.dateVisited;
-      const nextPhotoUri = photoUri === null ? undefined : (photoUri ?? v.photoUri);
+      const nextPhotoUris = photoUris === undefined
+        ? v.photoUris
+        : (photoUris ?? []).filter(Boolean).length > 0 ? (photoUris ?? []).filter(Boolean) : undefined;
+      const nextPhotoUri = photoUris !== undefined
+        ? nextPhotoUris?.[0]
+        : photoUri === null ? undefined : (photoUri ?? v.photoUri);
       return {
         ...v,
         parkId,
         parkName,
         trailName: trailName.trim(),
         photoUri: nextPhotoUri,
+        photoUris: nextPhotoUris,
         dateVisited: visitDate,
         dateUnknown: hasExplicitDate ? (dateUnknown || !visitDate) : v.dateUnknown,
         datePrecision: !visitDate
@@ -416,6 +434,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
             datePrecision: updatedVisit.datePrecision,
             distanceMiles: updatedVisit.distanceMiles,
             photoUri: updatedVisit.photoUri,
+            photoUris: updatedVisit.photoUris,
           });
         } catch {
           // Non-blocking: keep local update even if cloud sync fails.
