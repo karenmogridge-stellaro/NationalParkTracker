@@ -74,6 +74,12 @@
       "expo-secure-store",
       "expo-apple-authentication",
       [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.760347104368-pbqmtkeb70gb5u9499s318l3cmc6krnc"
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow ParkAtlas to use Face ID to securely unlock your account."

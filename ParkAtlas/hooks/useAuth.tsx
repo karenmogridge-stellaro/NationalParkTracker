@@ -424,7 +424,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       return true;
     } catch (e) {
-      throw toAuthError(e, "Couldn't sign in with Apple. Please try again.");
+      // Firebase reports a rejected Apple token as invalid-credential; that's configuration, not a typo.
+      const mapped = toAuthError(e, "Couldn't sign in with Apple. Please try again.");
+      if (mapped.code === 'INVALID_CREDENTIALS') {
+        throw new AuthError('SERVICE_UNAVAILABLE', "Apple sign-in couldn't be verified right now. Please try again shortly or use email.");
+      }
+      throw mapped;
     }
   }, []);
 
