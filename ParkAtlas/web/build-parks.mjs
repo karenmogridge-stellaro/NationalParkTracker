@@ -92,6 +92,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/parks.css" />
   <script src="/analytics.js"></script>
+  <script src="/site.js" defer></script>
   <meta name="apple-itunes-app" content="app-id=6760982981" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="ParkAtlas" />
@@ -105,7 +106,8 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
 <body>
   <header class="nav">
     <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
-    <nav>
+    <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-menu"><span></span><span></span><span></span></button>
+    <nav id="site-menu">
       <a href="/parks">National parks</a>
       <a href="/gear">Gear</a>
       <a href="/#features">Features</a>

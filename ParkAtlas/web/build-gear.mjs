@@ -67,6 +67,7 @@ const html = `<!doctype html>
   <link rel="stylesheet" href="/parks.css" />
   <link rel="stylesheet" href="/gear.css" />
   <script src="/analytics.js"></script>
+  <script src="/site.js" defer></script>
   <meta name="apple-itunes-app" content="app-id=6760982981" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="ParkAtlas" />
@@ -79,9 +80,11 @@ const html = `<!doctype html>
 <body>
   <header class="nav">
     <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
-    <nav>
+    <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-menu"><span></span><span></span><span></span></button>
+    <nav id="site-menu">
       <a href="/parks">National parks</a>
       <a href="/gear" aria-current="page">Gear</a>
+      <a href="/#features">Features</a>
       <a href="/#about">Why</a>
       <a href="/#checklist">Checklist</a>
       <a class="nav-cta" href="/get">Get the app</a>

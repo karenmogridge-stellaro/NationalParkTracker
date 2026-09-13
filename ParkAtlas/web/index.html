@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/styles.css" />
   <script src="/analytics.js"></script>
+  <script src="/site.js" defer></script>
 
   <!-- Smart App Banner (Safari on iOS) -->
   <meta name="apple-itunes-app" content="app-id=6760982981" />
@@ -47,7 +48,8 @@
       <img src="/logo.png" alt="" width="36" height="36" />
       <span>ParkAtlas</span>
     </a>
-    <nav>
+    <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-menu"><span></span><span></span><span></span></button>
+    <nav id="site-menu">
       <a href="/parks">National parks</a>
       <a href="/gear">Gear</a>
       <a href="#features">Features</a>
