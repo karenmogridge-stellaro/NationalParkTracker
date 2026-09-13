@@ -91,6 +91,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/parks.css" />
+  <script src="/analytics.js"></script>
   <meta name="apple-itunes-app" content="app-id=6760982981" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="ParkAtlas" />
