@@ -12,7 +12,8 @@ service firebase.storage {
     }
     function isAdmin() {
       return signedIn() && request.auth.uid in [
-        'REPLACE_WITH_YOUR_UID'
+        'apple_000942.b249fe449fae439bad37e6fec3b6fedf.0118',
+        'email_karenmogridge@gmail.com'
       ];
     }
     function isImageUnder(maxBytes) {
