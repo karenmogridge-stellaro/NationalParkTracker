@@ -20,6 +20,7 @@ import { PARKS } from '@/data/parksData';
 import { NameCaptureSheet } from '@/components/NameCaptureSheet';
 import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
 import { FeedbackSheet } from '@/components/FeedbackSheet';
+import { UpdateGate } from '@/components/UpdateGate';
 import { useShake } from '@/hooks/useShake';
 import { captureScreen } from 'react-native-view-shot';
 import { onOpenFeedback } from '@/utils/feedbackTrigger';
@@ -156,6 +157,7 @@ export default function RootLayout() {
           <NameCaptureSheet />
           <NearbyParksPrompt />
           <FeedbackHost />
+          <UpdateGate />
           <StatusBar style="auto" />
         </ToastProvider>
       </ThemeProvider>
