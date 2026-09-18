@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import { AppState } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as StoreReview from 'expo-store-review';
 import { collection, deleteDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
@@ -28,6 +29,48 @@ function reviewPromptedFileForUser(userId: string): string {
 function migrationMarkerFileForUser(userId: string): string {
   const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${FileSystem.documentDirectory}visits_firestore_migrated_${safeUserId}.json`;
+}
+
+/** Writes that haven't reached Firestore yet (no signal at the trailhead). Replayed on launch/foreground. */
+function pendingSyncFileForUser(userId: string): string {
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${FileSystem.documentDirectory}visits_pending_${safeUserId}.json`;
+}
+
+type PendingOp = { op: 'upsert'; visit: ParkVisit; ts: number } | { op: 'delete'; visitId: string; ts: number };
+
+async function readPending(userId: string): Promise<PendingOp[]> {
+  try {
+    const info = await FileSystem.getInfoAsync(pendingSyncFileForUser(userId));
+    if (!info.exists) return [];
+    const parsed = JSON.parse(await FileSystem.readAsStringAsync(pendingSyncFileForUser(userId)));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writePending(userId: string, ops: PendingOp[]): Promise<void> {
+  try {
+    await FileSystem.writeAsStringAsync(pendingSyncFileForUser(userId), JSON.stringify(ops));
+  } catch {
+    // Disk write failing is the same as before this queue existed: best-effort.
+  }
+}
+
+function pendingKey(op: PendingOp): string {
+  return op.op === 'upsert' ? op.visit.visitId : op.visitId;
+}
+
+/** Overlays queued local changes on the server's list so offline work is visible after relaunch. */
+function applyPending(server: ParkVisit[], pending: PendingOp[]): ParkVisit[] {
+  if (pending.length === 0) return server;
+  const deletes = new Set(pending.filter((p) => p.op === 'delete').map((p) => pendingKey(p)));
+  const upserts = new Map(pending.flatMap((p) => (p.op === 'upsert' ? [[p.visit.visitId, p.visit] as const] : [])));
+  const merged = server.filter((v) => !deletes.has(v.visitId)).map((v) => upserts.get(v.visitId) ?? v);
+  const known = new Set(merged.map((v) => v.visitId));
+  upserts.forEach((v, id) => { if (!known.has(id)) merged.push(v); });
+  return merged.sort((a, b) => new Date(b.dateVisited || '1970-01-01').getTime() - new Date(a.dateVisited || '1970-01-01').getTime());
 }
 
 export type VisitDatePrecision = 'day' | 'month' | 'year';
@@ -145,22 +188,76 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   const eventIdRef = useRef(0);
   // Visits we've already tried to re-upload this session; stops retry loops when the file is gone or upload fails.
   const backfillTriedRef = useRef(new Set<string>());
+  const pendingRef = useRef<PendingOp[]>([]);
+  const flushingRef = useRef(false);
+
+  /** Adds/replaces a queued op for a visit and persists the queue. */
+  const enqueue = useCallback(async (userId: string, op: PendingOp) => {
+    const key = pendingKey(op);
+    pendingRef.current = [...pendingRef.current.filter((p) => pendingKey(p) !== key), op];
+    await writePending(userId, pendingRef.current);
+  }, []);
+
+  const dequeue = useCallback(async (userId: string, key: string) => {
+    if (!pendingRef.current.some((p) => pendingKey(p) === key)) return;
+    pendingRef.current = pendingRef.current.filter((p) => pendingKey(p) !== key);
+    await writePending(userId, pendingRef.current);
+  }, []);
+
+  /** Replays queued ops oldest-first; stops at the first failure (still offline). */
+  const flushPending = useCallback(async (userId: string, userName: string) => {
+    if (flushingRef.current || pendingRef.current.length === 0) return;
+    flushingRef.current = true;
+    try {
+      for (const op of [...pendingRef.current].sort((a, b) => a.ts - b.ts)) {
+        try {
+          if (op.op === 'upsert') {
+            const v = op.visit;
+            await upsertParkVisitActivity({
+              visitId: v.visitId, userId, userName, parkId: v.parkId, parkName: v.parkName, trailName: v.trailName,
+              dateVisited: v.dateVisited, datePrecision: v.datePrecision, distanceMiles: v.distanceMiles,
+              photoUri: v.photoUri, photoUris: v.photoUris,
+            });
+          } else {
+            await deleteParkVisitActivity(userId, op.visitId);
+          }
+          await dequeue(userId, pendingKey(op));
+        } catch {
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+  }, [dequeue]);
+
+  // Replay the offline queue whenever the app comes back to the foreground.
+  useEffect(() => {
+    if (!user?.id) return;
+    const uid = user.id;
+    const uname = user.name;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void flushPending(uid, uname);
+    });
+    return () => sub.remove();
+  }, [user?.id, user?.name, flushPending]);
 
   useEffect(() => {
     if (user?.id) {
       const uid = user.id;
       const uname = user.name;
       setLoading(true);
+      // Load anything still waiting from a previous offline session, then try to push it.
+      const pendingLoaded = readPending(uid).then((ops) => { pendingRef.current = ops; void flushPending(uid, uname); });
       const visitQuery = query(collection(db, 'park_visits'), where('userId', '==', uid));
       const unsubscribe = onSnapshot(visitQuery, (snapshot) => {
-        const nextVisits = snapshot.docs
-          .map((snap) => mapFirestoreVisit(snap.id, snap.data() as FirestoreParkVisitDoc))
-          .filter((visit): visit is ParkVisit => !!visit)
-          .sort((a, b) => {
-            const aTime = new Date(a.dateVisited || '1970-01-01').getTime();
-            const bTime = new Date(b.dateVisited || '1970-01-01').getTime();
-            return bTime - aTime;
-          });
+        void pendingLoaded.then(() => {
+        const nextVisits = applyPending(
+          snapshot.docs
+            .map((snap) => mapFirestoreVisit(snap.id, snap.data() as FirestoreParkVisitDoc))
+            .filter((visit): visit is ParkVisit => !!visit),
+          pendingRef.current,
+        );
         setVisits(nextVisits);
         setLoading(false);
 
@@ -192,6 +289,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
             }
           }
         })();
+        });
       });
 
       void migrateLocalVisitsToFirestore(uid, uname);
@@ -344,10 +442,13 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     }
 
     if (user?.id) {
+      const uid = user.id;
+      // Queue first: if we're offline and the app is killed, the visit still syncs next launch.
+      await enqueue(uid, { op: 'upsert', visit, ts: Date.now() });
       try {
         await upsertParkVisitActivity({
           visitId: visit.visitId,
-          userId: user.id,
+          userId: uid,
           userName: user.name,
           parkId: visit.parkId,
           parkName: visit.parkName,
@@ -358,11 +459,12 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
           photoUri: visit.photoUri,
           photoUris: visit.photoUris,
         });
+        await dequeue(uid, visit.visitId);
       } catch {
-        // Non-blocking: keep local visit even if cloud sync fails.
+        // Stays queued; flushPending retries on foreground/launch.
       }
     }
-  }, [persist, user?.id, user?.name]);
+  }, [persist, user?.id, user?.name, enqueue, dequeue]);
 
   const removeVisit = useCallback(async (visitId: string) => {
     const userId = user?.id || GUEST_USER_ID;
@@ -374,13 +476,16 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     }
 
     if (user?.id) {
+      const uid = user.id;
+      await enqueue(uid, { op: 'delete', visitId, ts: Date.now() });
       try {
-        await deleteParkVisitActivity(user.id, visitId);
+        await deleteParkVisitActivity(uid, visitId);
+        await dequeue(uid, visitId);
       } catch {
-        // Non-blocking: keep local deletion even if cloud sync fails.
+        // Stays queued; flushPending retries on foreground/launch.
       }
     }
-  }, [persist, user?.id]);
+  }, [persist, user?.id, enqueue, dequeue]);
 
   const deleteAllDataForCurrentUser = useCallback(async () => {
     const userId = user?.id || GUEST_USER_ID;
@@ -453,12 +558,14 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     await persist(updated);
 
     if (user?.id) {
+      const uid = user.id;
       const updatedVisit = updated.find((v) => v.visitId === visitId);
       if (updatedVisit) {
+        await enqueue(uid, { op: 'upsert', visit: updatedVisit, ts: Date.now() });
         try {
           await upsertParkVisitActivity({
             visitId: updatedVisit.visitId,
-            userId: user.id,
+            userId: uid,
             userName: user.name,
             parkId: updatedVisit.parkId,
             parkName: updatedVisit.parkName,
@@ -469,12 +576,13 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
             photoUri: updatedVisit.photoUri,
             photoUris: updatedVisit.photoUris,
           });
+          await dequeue(uid, updatedVisit.visitId);
         } catch {
-          // Non-blocking: keep local update even if cloud sync fails.
+          // Stays queued; flushPending retries on foreground/launch.
         }
       }
     }
-  }, [persist, user?.id, user?.name]);
+  }, [persist, user?.id, user?.name, enqueue, dequeue]);
 
   const hasVisited = useCallback((parkId: string) => {
     return visits.some((v) => v.parkId === parkId);

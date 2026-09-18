@@ -49,6 +49,7 @@ export default function ParkDetailScreen() {
   const { user } = useAuth();
   const shareName = (user?.firstName || user?.name?.split(/\s+/)[0] || '').trim() || undefined;
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [quickLogging, setQuickLogging] = useState(false);
   const [sheetTrail, setSheetTrail] = useState<Trail | null>(null);
   const [showAllTrails, setShowAllTrails] = useState(false);
   const [heroImageFailed, setHeroImageFailed] = useState(false);
@@ -68,6 +69,17 @@ export default function ParkDetailScreen() {
     haptic.medium();
     setSheetTrail(trail ?? null);
     setSheetVisible(true);
+  }
+
+  // One tap, no fields: today's date, no trail. Works with no signal (queued locally); details can be added later from Home.
+  function quickLog() {
+    if (!park || quickLogging) return;
+    haptic.medium();
+    setQuickLogging(true);
+    const firstVisit = !hasVisited(park.id);
+    void logVisit(park.id, park.name, '', { dateVisited: new Date().toISOString(), dateUnknown: false, datePrecision: 'day' });
+    if (!firstVisit) toast.success(`Logged ${park.name} · today`, { icon: 'checkmark-done', durationMs: 3200 });
+    setTimeout(() => setQuickLogging(false), 1200);
   }
   const heroPhoto = useMemo(
     () => parkVisits.find((v) => v.photoUri && !/hike-default|unsplash/i.test(v.photoUri))?.photoUri,
@@ -256,23 +268,41 @@ export default function ParkDetailScreen() {
           </View>
         </View>
 
-        {/* Primary CTA */}
-        <TouchableOpacity
-          style={[styles.logVisitBtn, visited && styles.logVisitBtnVisited]}
-          onPress={() => openLogSheet()}
-          activeOpacity={0.85}
-        >
-          <Ionicons
-            name={visited ? 'add-circle' : 'add-circle-outline'}
-            size={18}
-            color={visited ? C.primary : C.onPrimary}
-          />
-          <Text style={[styles.logVisitBtnText, visited && styles.logVisitBtnTextVisited]}>
-            {visited
-              ? `Log another visit · ${parkVisits.length} so far`
-              : 'Log a Visit'}
-          </Text>
-        </TouchableOpacity>
+        {/* Primary CTA: quick one-tap log, with the detailed sheet as the secondary path */}
+        <View style={styles.logRow}>
+          <TouchableOpacity
+            style={[styles.logVisitBtn, styles.logQuickBtn, visited && styles.logVisitBtnVisited]}
+            onPress={quickLog}
+            activeOpacity={0.85}
+            disabled={quickLogging}
+            accessibilityRole="button"
+            accessibilityLabel={visited ? 'Log another visit today' : 'Mark as visited today'}
+          >
+            <Ionicons
+              name={visited ? 'checkmark-done-circle' : 'checkmark-circle-outline'}
+              size={20}
+              color={visited ? C.primary : C.onPrimary}
+            />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.logVisitBtnText, visited && styles.logVisitBtnTextVisited]}>
+                {visited ? 'I’m here again' : 'I’m here'}
+              </Text>
+              <Text style={[styles.logQuickSub, visited && styles.logVisitBtnTextVisited]}>
+                {visited ? `${parkVisits.length} ${parkVisits.length === 1 ? 'visit' : 'visits'} so far · logs today` : 'One tap · logs today · works offline'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logDetailBtn}
+            onPress={() => openLogSheet()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Log a visit with trail and date"
+          >
+            <Ionicons name="create-outline" size={18} color={C.primary} />
+            <Text style={styles.logDetailText}>Trail{'\n'}& date</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Friends who've been here */}
         {friendsLoading || friendVisitors.length > 0 ? (
@@ -536,18 +566,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.background,
   },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
   logVisitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     backgroundColor: C.primary,
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 4,
     borderRadius: Radii.md,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
+  logQuickBtn: { flex: 1, paddingHorizontal: 14, justifyContent: 'flex-start', gap: 10 },
+  logQuickSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
+  logDetailBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingHorizontal: 12,
+    borderRadius: Radii.md,
+    backgroundColor: C.primaryContainer,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+  },
+  logDetailText: { fontSize: 11.5, fontWeight: '700', color: C.primary, textAlign: 'center', lineHeight: 14 },
   logVisitBtnVisited: {
     backgroundColor: C.primaryContainer,
     borderWidth: 1.5,

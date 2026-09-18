@@ -37,6 +37,9 @@ export function missingFirebaseConfigKeys(): string[] {
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+// Offline at a trailhead: give up on uploads quickly so the visit falls back to the local sync queue.
+storage.maxUploadRetryTime = 20_000;
+storage.maxOperationRetryTime = 15_000;
 
 // initializeAuth throws if called twice (Fast Refresh), so fall back to the existing instance.
 function createAuth(): Auth {
