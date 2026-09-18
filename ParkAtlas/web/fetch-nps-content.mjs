@@ -30,20 +30,23 @@ await build({ stdin: { contents: `export { PARKS } from './data/parksData';`, re
 const { PARKS } = await import(tmp);
 await rm(tmp, { force: true });
 const codes = PARKS.map((p) => p.npsCode).filter(Boolean);
+// Sequoia and Kings Canyon are one NPS unit ("seki"); the app tracks them separately.
+const ALIAS = { kica: 'seki', sequ: 'seki' };
+const apiCodes = [...new Set(codes.map((c) => ALIAS[c] || c))];
 
 const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
 const existing = existsSync(OUT) ? JSON.parse(readFileSync(OUT, 'utf8')) : {};
 const out = { ...existing };
 
-for (let i = 0; i < codes.length; i += 20) {
-  const batch = codes.slice(i, i + 20);
+for (let i = 0; i < apiCodes.length; i += 20) {
+  const batch = apiCodes.slice(i, i + 20);
   const url = `https://developer.nps.gov/api/v1/parks?parkCode=${batch.join(',')}&limit=50&api_key=${key}`;
   const r = await fetch(url);
   if (!r.ok) { console.error(`NPS API ${r.status}: ${await r.text()}`); process.exit(1); }
   const { data } = await r.json();
   for (const p of data) {
     const hours = p.operatingHours?.[0];
-    out[p.parkCode] = {
+    const record = {
       fullName: clean(p.fullName),
       designation: clean(p.designation),
       description: clean(p.description),
@@ -60,8 +63,9 @@ for (let i = 0; i < codes.length; i += 20) {
       images: (p.images || []).slice(0, 3).map((im) => ({ url: im.url, title: clean(im.title), credit: clean(im.credit), altText: clean(im.altText) })),
       fetchedAt: new Date().toISOString().slice(0, 10),
     };
+    for (const appCode of codes.filter((c) => (ALIAS[c] || c) === p.parkCode)) out[appCode] = record;
   }
-  process.stdout.write(`\rfetched ${Math.min(i + 20, codes.length)}/${codes.length}`);
+  process.stdout.write(`\rfetched ${Math.min(i + 20, apiCodes.length)}/${apiCodes.length}`);
 }
 console.log();
 writeFileSync(OUT, JSON.stringify(out, null, 2) + '\n');
