@@ -18,6 +18,8 @@ const WEB = path.join(ROOT, 'web');
 const SITE = 'https://parkatlas.io';
 const APP_STORE = 'https://apps.apple.com/app/id6760982981';
 const AFFILIATES = JSON.parse(await readFile(path.join(WEB, 'affiliates.json'), 'utf8'));
+// Official NPS copy (public domain) pulled by web/fetch-nps-content.mjs; pages still build without it.
+const NPS = await readFile(path.join(WEB, 'nps-content.json'), 'utf8').then(JSON.parse).catch(() => ({}));
 
 // ── Load the TypeScript data by bundling a tiny entry with esbuild ────────────
 const tmp = path.join(os.tmpdir(), `parkatlas-data-${Date.now()}.mjs`);
@@ -77,6 +79,23 @@ const nearby = (park, n = 4) =>
     .map((p) => ({ p, mi: milesBetween(park, p) }))
     .sort((a, b) => a.mi - b.mi)
     .slice(0, n);
+
+// Deterministic "more parks" picks so every page links to a different spread of the catalog.
+const moreParks = (park, n = 8) => {
+  const others = parks.filter((p) => p.id !== park.id);
+  const start = parks.findIndex((p) => p.id === park.id);
+  const step = Math.max(1, Math.floor(others.length / n));
+  return Array.from({ length: n }, (_, i) => others[(start + 3 + i * step) % others.length]);
+};
+
+// Split NPS prose into readable paragraphs (their copy is one long block).
+const paragraphs = (text, max = 3) => {
+  const sentences = (text || '').match(/[^.!?]+[.!?]+(\s|$)/g) || [];
+  const out = []; let cur = '';
+  for (const s of sentences) { cur += s; if (cur.length > 320) { out.push(cur.trim()); cur = ''; } }
+  if (cur.trim()) out.push(cur.trim());
+  return out.slice(0, max);
+};
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
 const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
@@ -181,30 +200,58 @@ function parkPage(park) {
   const title = `${park.name} National Park — Trails, Camping, Fees & Best Time to Visit | ParkAtlas`;
   const description = `${d.description} Popular trails, camping, entry fee, peak season, and directions for ${park.name} National Park in ${state}.`;
   const near = nearby(park);
+  const more = moreParks(park);
+  const nps = NPS[park.npsCode] || null;
   const topTrails = park.trails.slice(0, 8);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${park.lat},${park.lng}`;
   const staySlot = affiliateSlot('stay');
   const staySearch = staySlot ? affiliateUrl(staySlot, park) : null;
+  const aboutParas = nps ? paragraphs(nps.description) : [];
+  const weatherParas = nps ? paragraphs(nps.weatherInfo, 2) : [];
+  const directionParas = nps ? paragraphs(nps.directionsInfo, 2) : [];
+  const fees = nps?.entranceFees?.filter((f) => f.title) ?? [];
+  const activities = nps?.activities ?? [];
 
-  const jsonLd = {
+  const faqs = [
+    { q: `How much does it cost to visit ${park.name} National Park?`, a: fees.length ? fees.slice(0, 3).map((f) => `${f.title}: ${Number(f.cost) > 0 ? `$${Number(f.cost).toFixed(0)}` : 'Free'}`).join('. ') + '.' : `Entry is ${d.entryFee}. An America the Beautiful annual pass covers entrance fees at every national park.` },
+    { q: `When is the best time to visit ${park.name}?`, a: `Peak season is ${d.peakSeason}. ${d.openYear ? 'The park is open year-round, with some roads and facilities on reduced winter schedules.' : 'Access is seasonal; check NPS.gov for opening dates.'}${weatherParas[0] ? ' ' + weatherParas[0] : ''}` },
+    { q: `Can you camp in ${park.name} National Park?`, a: d.camping ? (d.campsiteCount ? `Yes — about ${d.campsiteCount} campsites across the park's campgrounds. Reserve ahead in peak season.` : 'Yes — backcountry and primitive camping with a permit.') : 'There are no NPS campgrounds inside the park; lodging and private campgrounds are available nearby.' },
+    { q: `What is the closest city to ${park.name} National Park?`, a: `${d.nearestCity} is the nearest major city.${directionParas[0] ? ' ' + directionParas[0] : ''}` },
+    ...(topTrails.length ? [{ q: `What are the best hikes in ${park.name}?`, a: `Popular trails include ${topTrails.slice(0, 4).map((t) => `${t.name} (${t.miles.toFixed(1)} mi)`).join(', ')}. The park has roughly ${d.trailCount} named trails.` }] : []),
+  ];
+
+  const jsonLd = [{
     '@context': 'https://schema.org',
     '@type': 'TouristAttraction',
     name: `${park.name} National Park`,
-    description: d.description,
+    description: nps?.description || d.description,
     url,
     image: heroFor(park),
     geo: { '@type': 'GeoCoordinates', latitude: park.lat, longitude: park.lng },
     address: { '@type': 'PostalAddress', addressRegion: park.state, addressCountry: 'US' },
     isAccessibleForFree: d.entryFee.toLowerCase() === 'free',
     touristType: ['Hikers', 'Campers', 'Families'],
-  };
+    ...(nps?.url ? { sameAs: nps.url } : {}),
+  }, {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  }, {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'ParkAtlas', item: SITE },
+      { '@type': 'ListItem', position: 2, name: 'National parks', item: `${SITE}/parks` },
+      { '@type': 'ListItem', position: 3, name: `${park.name} National Park`, item: url },
+    ],
+  }];
 
   return `${head({ title, description, url, image: heroFor(park, 1200), jsonLd })}
   <main class="park">
     <section class="park-hero" style="background-image:url('${heroFor(park)}')">
       <div class="park-hero-inner">
-        <p class="eyebrow light">${esc(state)} · National Park</p>
-        <h1>${esc(park.name)}</h1>
+        <p class="eyebrow light"><a class="crumb" href="/parks">National parks</a> · ${esc(state)}</p>
+        <h1>${esc(park.name)} National Park</h1>
         <p class="lede light">${esc(d.description)}</p>
         <div class="facts">
           <span>🥾 ${d.trailCount}+ trails</span>
@@ -218,6 +265,13 @@ function parkPage(park) {
 
     <div class="park-body">
       <article class="park-main">
+        ${aboutParas.length ? `
+        <section>
+          <h2>About ${esc(park.name)}</h2>
+          ${aboutParas.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
+          ${activities.length ? `<p class="muted"><strong>Things to do:</strong> ${activities.slice(0, 14).map(esc).join(' · ')}</p>` : ''}
+        </section>` : ''}
+
         ${topTrails.length ? `
         <section>
           <h2>Popular trails</h2>
@@ -247,15 +301,31 @@ function parkPage(park) {
           <p><strong>Peak season: ${esc(d.peakSeason)}.</strong> ${d.openYear
             ? 'The park is open year-round, though some roads and facilities close or run reduced hours in winter.'
             : 'Access is seasonal — confirm opening and closing dates on NPS.gov before you go.'}</p>
+          ${weatherParas.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
         </section>
+
+        ${fees.length ? `
+        <section>
+          <h2>Entrance fees</h2>
+          <ul class="fee-list">
+            ${fees.map((f) => `<li><span><strong>${esc(f.title)}</strong>${f.description ? ` <span class="muted">— ${esc(f.description)}</span>` : ''}</span><strong>${Number(f.cost) > 0 ? `$${Number(f.cost).toFixed(0)}` : 'Free'}</strong></li>`).join('\n            ')}
+          </ul>
+          ${nps?.entrancePasses?.[0] ? `<p class="muted">${esc(nps.entrancePasses[0].title)}: $${Number(nps.entrancePasses[0].cost).toFixed(0)}. An America the Beautiful pass ($80/yr) covers every national park.</p>` : ''}
+        </section>` : ''}
 
         <section>
           <h2>Getting there</h2>
           <p>Nearest city: <strong>${esc(d.nearestCity)}</strong>. Park center: ${park.lat.toFixed(3)}°, ${park.lng.toFixed(3)}°.</p>
+          ${directionParas.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
           <p>
             <a class="text-link" href="${mapsUrl}" target="_blank" rel="noopener">Open in Google Maps →</a> &nbsp;·&nbsp;
-            <a class="text-link" href="https://www.nps.gov/${park.npsCode}/index.htm" target="_blank" rel="noopener">Official NPS page →</a>
+            <a class="text-link" href="${nps?.directionsUrl || `https://www.nps.gov/${park.npsCode}/index.htm`}" target="_blank" rel="noopener">Official NPS ${nps?.directionsUrl ? 'directions' : 'page'} →</a>
           </p>
+        </section>
+
+        <section class="faq">
+          <h2>Common questions</h2>
+          ${faqs.map((f) => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n          ')}
         </section>
 
         ${planTrip(park)}
@@ -278,7 +348,12 @@ function parkPage(park) {
           <dt>NPS code</dt><dd>${park.npsCode.toUpperCase()}</dd>
         </dl>
         <a class="side-cta" href="/parks">← All national parks</a>
+        <h3>More parks to explore</h3>
+        <ul class="more-list">
+          ${more.map((p) => `<li><a href="/parks/${p.slug}">${esc(p.name)}</a></li>`).join('\n          ')}
+        </ul>
         ${creditFor(park) ? `<p class="credit">Photo: <a href="${creditPageFor(park)}" rel="noopener nofollow" target="_blank">${esc(creditFor(park))}</a></p>` : ''}
+        ${nps ? `<p class="credit">Park descriptions, weather, and fee details courtesy of the <a href="${esc(nps.url)}" rel="noopener" target="_blank">National Park Service</a> (public domain).</p>` : ''}
       </aside>
     </div>
   </main>
