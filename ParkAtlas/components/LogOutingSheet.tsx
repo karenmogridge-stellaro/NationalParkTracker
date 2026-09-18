@@ -91,7 +91,7 @@ function ParkSelectInput({ value, onChangeText, onFocus, selectedPark, error }: 
         <Ionicons name="search" size={18} color={C.outline} />
         <TextInput
           style={styles.input}
-          placeholder="Search 500+ parks..."
+          placeholder="Search 4,000+ parks..."
           placeholderTextColor={C.outline}
           value={value}
           onFocus={onFocus}
@@ -217,6 +217,8 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
   const [dateValue, setDateValue] = useState<VisitDateValue>({ kind: 'unknown' });
   const [photoUris, setPhotoUris] = useState<string[]>([]);
+  // Step 1 is just the park picker; the full form is opt-in so a visit can be logged in two taps.
+  const [showDetails, setShowDetails] = useState(false);
 
   const allParkOptions = useMemo(() => {
     const national = PARKS.map((p) => ({ ...p, type: 'national' as const }));
@@ -325,6 +327,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
   useEffect(() => {
     if (!visible) return;
+    setShowDetails(!!editVisit);
 
     if (editVisit) {
       const park = allParkOptions.find((p) => p.id === editVisit.parkId) ?? null;
@@ -511,9 +514,16 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
                   <Ionicons name="close" size={22} color={C.onSurface} />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.description}>Save your adventure</Text>
+              <Text style={styles.description}>{showDetails ? (editVisit ? 'Update your adventure' : 'Add the details') : 'Which park?'}</Text>
             </View>
 
+            {showDetails && selectedPark && !editVisit ? (
+              <TouchableOpacity style={styles.parkSummary} activeOpacity={0.8} onPress={() => setShowDetails(false)}>
+                <Ionicons name="location" size={18} color={C.primary} />
+                <Text style={styles.parkSummaryName} numberOfLines={1}>{selectedPark.name}</Text>
+                <Text style={styles.parkSummaryChange}>Change</Text>
+              </TouchableOpacity>
+            ) : (
             <ParkSelectInput
               value={parkSearch}
               selectedPark={selectedPark}
@@ -526,6 +536,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
                 if (!text.trim()) setSelectedPark(null);
               }}
             />
+            )}
 
             {showParkResults ? (
               <View style={styles.resultsPanel}>
@@ -559,21 +570,30 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
               </View>
             ) : null}
 
-            <QuickSelectChips chips={quickChips} />
+            {!showDetails ? <QuickSelectChips chips={quickChips} /> : null}
 
-            {selectedPark && !editVisit ? (
-              <TouchableOpacity style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
-                <Ionicons name="checkmark-circle" size={20} color={C.onPrimary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.quickSaveTitle}>Log {selectedPark.name} now</Text>
-                  <Text style={styles.quickSaveSub}>Today’s date, no other details · add trails or photos later</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={18} color={C.onPrimary} />
-              </TouchableOpacity>
+            {selectedPark && !showDetails ? (
+              <>
+                <TouchableOpacity style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
+                  <Ionicons name="checkmark-circle" size={22} color={C.onPrimary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.quickSaveTitle}>Log {selectedPark.name} now</Text>
+                    <Text style={styles.quickSaveSub}>Today’s date · add trails or photos later</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={18} color={C.onPrimary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.detailsBtn} activeOpacity={0.85} onPress={() => { haptic.select(); setShowDetails(true); }} accessibilityRole="button">
+                  <Ionicons name="create-outline" size={20} color={C.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailsTitle}>Add trails, date & photos</Text>
+                    <Text style={styles.detailsSub}>Pick the trail you hiked, set the date, attach photos</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={C.primary} />
+                </TouchableOpacity>
+              </>
             ) : null}
 
-            {selectedPark && !editVisit ? <Text style={styles.orDetails}>or add details below</Text> : null}
-
+            {showDetails ? (<>
             {selectedPark && availableTrails.length > 0 ? (
               <>
                 <View>
@@ -691,14 +711,18 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
             </View>
 
             <GpsLoggingToggleRow enabled={gpsEnabled} onToggle={() => setGpsEnabled((v) => !v)} />
-
-            <PrimarySaveButton disabled={!selectedPark} onPress={handleSave} />
+            </>) : null}
 
             <TouchableOpacity style={styles.closeLink} activeOpacity={0.7} onPress={onClose}>
               <Text style={styles.closeLinkText}>Cancel</Text>
             </TouchableOpacity>
           </JournalEntryFormCard>
         </ScrollView>
+        {showDetails ? (
+          <View style={styles.footer}>
+            <PrimarySaveButton disabled={!selectedPark} onPress={handleSave} />
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1050,6 +1074,26 @@ const styles = StyleSheet.create({
   },
   quickSaveTitle: { color: C.onPrimary, fontSize: 16, fontWeight: '800' },
   quickSaveSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12.5, marginTop: 2 },
+  detailsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.primaryContainer,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  detailsTitle: { color: C.primary, fontSize: 16, fontWeight: '800' },
+  detailsSub: { color: C.onSurfaceVariant, fontSize: 12.5, marginTop: 2 },
+  parkSummary: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.surfaceContainerLow, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  parkSummaryName: { flex: 1, fontSize: 16, fontWeight: '700', color: C.onSurface },
+  parkSummaryChange: { fontSize: 13, fontWeight: '700', color: C.primary },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 6, backgroundColor: C.background, borderTopWidth: 1, borderTopColor: C.surfaceContainerHigh },
   orDetails: { textAlign: 'center', color: C.onSurfaceVariant, fontSize: 12.5, fontWeight: '600', marginTop: -4 },
   saveBtnDisabled: {
     opacity: 0.45,

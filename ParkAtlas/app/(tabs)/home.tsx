@@ -169,7 +169,7 @@ export default function HomeScreen() {
   const [communityMode, setCommunityMode] = useState<CommunityMode>('all');
   // Feed controls: narrow to one park (see every visit there) and collapse cards to compact rows.
   // Dev-only route params (?park=63&compact=1) preset them for screenshot tooling.
-  const devParams = useLocalSearchParams<{ park?: string; compact?: string; action?: string }>();
+  const devParams = useLocalSearchParams<{ park?: string; compact?: string; action?: string; log?: string }>();
   const [parkFilter, setParkFilter] = useState<string | null>(__DEV__ && devParams.park ? String(devParams.park) : null);
   const [compactFeed, setCompactFeed] = useState(__DEV__ && devParams.compact === '1');
   const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
@@ -434,6 +434,7 @@ export default function HomeScreen() {
   const [actionVisit, setActionVisit] = useState<ParkVisit | null>(null);
   React.useEffect(() => {
     if (__DEV__ && devParams.action === '1' && visits.length > 0 && !actionVisit) setActionVisit(visits[visits.length - 1]);
+    if (__DEV__ && devParams.log === '1' && !sheetVisible) setSheetVisible(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visits.length]);
   const onCardPress = useCallback((item: FeedItem) => {
