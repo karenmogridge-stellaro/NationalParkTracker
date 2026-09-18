@@ -315,6 +315,25 @@ export default function ExploreScreen() {
     });
   }, [activeFilter, mapFilter, parkTypeFilter, hasVisitedUI, allParks, nationalParkIds, nearMeParkIds]);
 
+  // Thousands of state-park pins would stall the map. National + visited pins always render; unvisited
+  // state parks only appear once zoomed to roughly a state, and only within the viewport (capped).
+  const STATE_PIN_ZOOM_DELTA = 7;
+  const MAX_STATE_PINS = 350;
+  const markerParks = useMemo(() => {
+    const zoomedIn = mapRegion.latitudeDelta <= STATE_PIN_ZOOM_DELTA;
+    const latPad = mapRegion.latitudeDelta * 0.6;
+    const lngPad = mapRegion.longitudeDelta * 0.6;
+    const inView = (p: NationalPark) =>
+      Math.abs(p.lat - mapRegion.latitude) <= latPad && Math.abs(p.lng - mapRegion.longitude) <= lngPad;
+    const always: NationalPark[] = [];
+    const statePins: NationalPark[] = [];
+    for (const p of mappedParks) {
+      if (nationalParkIds.has(p.id) || hasVisitedUI(p.id) || activeFilter === 'near') always.push(p);
+      else if (zoomedIn && inView(p)) statePins.push(p);
+    }
+    return { parks: [...always, ...statePins.slice(0, MAX_STATE_PINS)], hiddenStateParks: !zoomedIn && mappedParks.length > always.length };
+  }, [mappedParks, mapRegion, nationalParkIds, hasVisitedUI, activeFilter]);
+
   function zoomMap(multiplier: number) {
     const next: Region = {
       ...mapRegion,
@@ -348,7 +367,7 @@ export default function ExploreScreen() {
         showsUserLocation={fullscreen}
         onRegionChangeComplete={(region) => setMapRegion(region)}
       >
-        {mappedParks.map((park) => {
+        {markerParks.parks.map((park) => {
           const visited = hasVisitedUI(park.id);
           return (
             <Marker
@@ -395,6 +414,13 @@ export default function ExploreScreen() {
           <Ionicons name="remove" size={18} color={C.onSurface} />
         </TouchableOpacity>
       </View>
+
+      {markerParks.hiddenStateParks && !selectedMapPark ? (
+        <View style={[styles.mapHint, fullscreen && { bottom: insets.bottom + 14 }]} pointerEvents="none">
+          <Ionicons name="search" size={12} color={C.onSurfaceVariant} />
+          <Text style={styles.mapHintText}>Zoom in to see state parks</Text>
+        </View>
+      ) : null}
 
       {selectedMapPark ? (
         <View style={[styles.mapBottomSheet, fullscreen && styles.mapBottomSheetFull, fullscreen && { bottom: insets.bottom + 14 }]}>
@@ -1188,6 +1214,21 @@ const styles = StyleSheet.create({
       color: C.onSurface,
       letterSpacing: 0.4,
     },
+    mapHint: {
+      position: 'absolute',
+      bottom: 10,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 99,
+      backgroundColor: 'rgba(255,255,255,0.92)',
+      borderWidth: 1,
+      borderColor: C.outlineVariant,
+    },
+    mapHintText: { fontSize: 11, fontWeight: '600', color: C.onSurfaceVariant },
   mapZoomControls: {
     position: 'absolute',
     right: 10,
