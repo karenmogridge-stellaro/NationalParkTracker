@@ -23,12 +23,54 @@
       "title": "What I actually use",
       "blurb": "The short list. If I'm heading out for a weekend, these are already in the car.",
       "items": [
-        { "name": "Black Diamond daypack", "why": "My everyday pack. Sits close, carries a full day of water and layers, and doesn't look like luggage in town.", "url": "https://amzn.to/3SBJtH4", "pick": true },
-        { "name": "Anker portable charger", "why": "Enough juice for a weekend of photos and offline maps. Lives in the pack's top pocket.", "url": "https://amzn.to/4A1vwTp", "pick": true },
-        { "name": "YETI Rambler bottle", "why": "Ice at the trailhead is still ice back at the car.", "url": "https://amzn.to/4xHVA4F", "pick": true },
-        { "name": "Salomon Speedcross trail runners", "why": "Grippy on slickrock and mud, light enough to forget about. I hike in these more than boots.", "url": "https://amzn.to/3UJmZEA", "pick": true },
-        { "name": "Outdoor Research Echo sun hoodie", "why": "Sun protection without the sunscreen-on-your-arms routine. Dries in minutes.", "url": "https://amzn.to/4AiYI8T", "pick": true },
-        { "name": "Darn Tough ultralight socks", "why": "No blisters, no smell, and a lifetime guarantee they actually honor.", "url": "https://amzn.to/3SyGxel", "pick": true }
+        {
+          "name": "Black Diamond daypack",
+          "why": "My everyday pack. Sits close, carries a full day of water and layers, and doesn't look like luggage in town.",
+          "url": "https://amzn.to/3SBJtH4",
+          "pick": true,
+          "asin": "B0BR63TX2T",
+          "image": "https://m.media-amazon.com/images/I/71esS0yKLEL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Anker portable charger",
+          "why": "Enough juice for a weekend of photos and offline maps. Lives in the pack's top pocket.",
+          "url": "https://amzn.to/4A1vwTp",
+          "pick": true,
+          "asin": "B0CXDXP8VR",
+          "image": "https://m.media-amazon.com/images/I/61jWG2JyYNL._AC_SL800_.jpg"
+        },
+        {
+          "name": "YETI Rambler bottle",
+          "why": "Ice at the trailhead is still ice back at the car.",
+          "url": "https://amzn.to/4xHVA4F",
+          "pick": true,
+          "asin": "B0GZRVL8SP",
+          "image": "https://m.media-amazon.com/images/I/51KYP1XuwyL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Salomon Speedcross trail runners",
+          "why": "Grippy on slickrock and mud, light enough to forget about. I hike in these more than boots.",
+          "url": "https://amzn.to/3UJmZEA",
+          "pick": true,
+          "asin": "B0DLBF9HTD",
+          "image": "https://m.media-amazon.com/images/I/71inUJYH92L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Outdoor Research Echo sun hoodie",
+          "why": "Sun protection without the sunscreen-on-your-arms routine. Dries in minutes.",
+          "url": "https://amzn.to/4AiYI8T",
+          "pick": true,
+          "asin": "B0GM2X8G3N",
+          "image": "https://m.media-amazon.com/images/I/61Uyjnx5t6L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Darn Tough ultralight socks",
+          "why": "No blisters, no smell, and a lifetime guarantee they actually honor.",
+          "url": "https://amzn.to/3SyGxel",
+          "pick": true,
+          "asin": "B0DC4RPXN1",
+          "image": "https://m.media-amazon.com/images/I/81ohOtAIGQL._AC_SL800_.jpg"
+        }
       ]
     },
     {
@@ -37,15 +79,69 @@
       "title": "Day hiking essentials",
       "blurb": "The stuff that makes a five-mile loop pleasant instead of a slog.",
       "items": [
-        { "name": "Black Diamond daypack", "why": "Room for water, layers, snacks, and a first aid kit — nothing more.", "url": "https://amzn.to/3SBJtH4" },
-        { "name": "Anker portable charger", "why": "Offline maps and photos eat batteries faster than you'd think.", "url": "https://amzn.to/4A1vwTp" },
-        { "name": "Black Diamond trekking poles", "why": "Knees on the descent will thank you. These collapse small enough for a carry-on.", "url": "https://amzn.to/4cAfmGB" },
-        { "name": "Black Diamond rechargeable headlamp", "why": "Sunrise hikes and late finishes. Never rely on your phone flashlight.", "url": "https://amzn.to/4A1WiLx" },
-        { "name": "LMNT electrolytes", "why": "Water alone isn't enough on a hot day. One packet per bottle.", "url": "https://amzn.to/4r1pbmY" },
-        { "name": "EVERLIT mini first aid kit", "why": "Blister care and tweezers get used more than anything else.", "url": "https://amzn.to/4A5ozAY" },
-        { "name": "Sun Bum sunscreen", "why": "High elevation sun is not the sun you're used to. Reapply at lunch.", "url": "https://amzn.to/4r1dLj1" },
-        { "name": "Marmot PreCip rain shell", "why": "Afternoon thunderstorms are a feature of the mountain West, not a bug.", "url": "https://amzn.to/4xgPyXn" },
-        { "name": "prAna Halle hiking pants", "why": "Stretchy, tough, and they don't look like hiking pants at dinner.", "url": "https://amzn.to/4xe0Coj" }
+        {
+          "name": "Black Diamond daypack",
+          "why": "Room for water, layers, snacks, and a first aid kit — nothing more.",
+          "url": "https://amzn.to/3SBJtH4",
+          "asin": "B0BR63TX2T",
+          "image": "https://m.media-amazon.com/images/I/71esS0yKLEL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Anker portable charger",
+          "why": "Offline maps and photos eat batteries faster than you'd think.",
+          "url": "https://amzn.to/4A1vwTp",
+          "asin": "B0CXDXP8VR",
+          "image": "https://m.media-amazon.com/images/I/61jWG2JyYNL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Black Diamond trekking poles",
+          "why": "Knees on the descent will thank you. These collapse small enough for a carry-on.",
+          "url": "https://amzn.to/4cAfmGB",
+          "asin": "B0BNYTPFHP",
+          "image": "https://m.media-amazon.com/images/I/61G2VdYqBxL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Black Diamond rechargeable headlamp",
+          "why": "Sunrise hikes and late finishes. Never rely on your phone flashlight.",
+          "url": "https://amzn.to/4A1WiLx",
+          "asin": "B09NQKZ4BP",
+          "image": "https://m.media-amazon.com/images/I/61mV93E-XWL._AC_SL800_.jpg"
+        },
+        {
+          "name": "LMNT electrolytes",
+          "why": "Water alone isn't enough on a hot day. One packet per bottle.",
+          "url": "https://amzn.to/4r1pbmY",
+          "asin": "B0CQDFPMQW",
+          "image": "https://m.media-amazon.com/images/I/81qGH-6amTL._SL1500_.jpg"
+        },
+        {
+          "name": "EVERLIT mini first aid kit",
+          "why": "Blister care and tweezers get used more than anything else.",
+          "url": "https://amzn.to/4A5ozAY",
+          "asin": "B0FKDSG3L2",
+          "image": "https://m.media-amazon.com/images/I/71amFBgjBZL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Sun Bum sunscreen",
+          "why": "High elevation sun is not the sun you're used to. Reapply at lunch.",
+          "url": "https://amzn.to/4r1dLj1",
+          "asin": "B0DMHN59NR",
+          "image": "https://m.media-amazon.com/images/I/8106W-4EZ2L._SL1500_.jpg"
+        },
+        {
+          "name": "Marmot PreCip rain shell",
+          "why": "Afternoon thunderstorms are a feature of the mountain West, not a bug.",
+          "url": "https://amzn.to/4xgPyXn",
+          "asin": "B00DNO0DVG",
+          "image": "https://m.media-amazon.com/images/I/71Yl-zOSqwL._AC_SL800_.jpg"
+        },
+        {
+          "name": "prAna Halle hiking pants",
+          "why": "Stretchy, tough, and they don't look like hiking pants at dinner.",
+          "url": "https://amzn.to/4xe0Coj",
+          "asin": "B0CTVWJHB4",
+          "image": "https://m.media-amazon.com/images/I/71+uCMt2QzL._AC_SL800_.jpg"
+        }
       ]
     },
     {
@@ -54,9 +150,27 @@
       "title": "National park road trip gear",
       "blurb": "Parks are far apart. The drive is part of the trip — make the car work for you.",
       "items": [
-        { "name": "YETI Tundra 45 cooler", "why": "Holds ice for days between towns with grocery stores.", "url": "https://amzn.to/3SBz1zj" },
-        { "name": "Syncwire MagSafe phone mount", "why": "Snap the phone on, navigate hands-free, snap it off at the trailhead.", "url": "https://amzn.to/4gOOBiV" },
-        { "name": "WeatherTech windshield sunshade", "why": "Desert parking lots are brutal. The car is bearable when you get back.", "url": "https://amzn.to/4cw7FRM" }
+        {
+          "name": "YETI Tundra 45 cooler",
+          "why": "Holds ice for days between towns with grocery stores.",
+          "url": "https://amzn.to/3SBz1zj",
+          "asin": "B0842CNQ94",
+          "image": "https://m.media-amazon.com/images/I/61wxmTYPNRL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Syncwire MagSafe phone mount",
+          "why": "Snap the phone on, navigate hands-free, snap it off at the trailhead.",
+          "url": "https://amzn.to/4gOOBiV",
+          "asin": "B0CTGXQJJX",
+          "image": "https://m.media-amazon.com/images/I/71Dp-dXuOBL._AC_SL800_.jpg"
+        },
+        {
+          "name": "WeatherTech windshield sunshade",
+          "why": "Desert parking lots are brutal. The car is bearable when you get back.",
+          "url": "https://amzn.to/4cw7FRM",
+          "asin": "B08DDK5Y1L",
+          "image": "https://m.media-amazon.com/images/I/71U4OrNV47L._AC_SL800_.jpg"
+        }
       ]
     },
     {
@@ -65,14 +179,62 @@
       "title": "Camping favorites",
       "blurb": "Car-camping comfort, and a coffee setup I'll admit is a little serious.",
       "items": [
-        { "name": "KEIWRLIGHT lantern + string lights", "why": "Lantern for the table, 30 feet of string lights for the tent. One battery, USB-C.", "url": "https://amzn.to/46P2poU" },
-        { "name": "Klymit insulated sleeping pad", "why": "The single biggest upgrade to sleeping outside.", "url": "https://amzn.to/4ynKvW6" },
-        { "name": "Kelty Deluxe Lounge chair", "why": "Wide, low, two cupholders. The chair everyone else ends up sitting in.", "url": "https://amzn.to/3UFDm59" },
-        { "name": "Jetboil Stash", "why": "Boils water for coffee in about two minutes and nests into itself. Morning solved.", "url": "https://amzn.to/4h1zjYu" },
-        { "name": "YETI stackable mugs", "why": "Coffee stays hot through a slow sunrise. They stack, so two take the space of one.", "url": "https://amzn.to/4qYtsaN" },
-        { "name": "Comandante hand grinder", "why": "Pricey, I know. I travel with a coffee nerd, and this is the one thing that's non-negotiable.", "url": "https://amzn.to/4iSc3hP" },
-        { "name": "AeroPress", "why": "Genuinely good coffee, nothing to break, rinses clean in seconds.", "url": "https://amzn.to/4xcV2Ti" },
-        { "name": "Coleman 2-in-1 grill & stove", "why": "Grill on one side, burner on the other. Dinner for a group without hauling the kitchen.", "url": "https://amzn.to/4xKAqTr" }
+        {
+          "name": "KEIWRLIGHT lantern + string lights",
+          "why": "Lantern for the table, 30 feet of string lights for the tent. One battery, USB-C.",
+          "url": "https://amzn.to/46P2poU",
+          "asin": "B0F2F6WLLN",
+          "image": "https://m.media-amazon.com/images/I/71zzqDM3kOL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Klymit insulated sleeping pad",
+          "why": "The single biggest upgrade to sleeping outside.",
+          "url": "https://amzn.to/4ynKvW6",
+          "asin": "B07YP8TPX9",
+          "image": "https://m.media-amazon.com/images/I/51UimN6lm7L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Kelty Deluxe Lounge chair",
+          "why": "Wide, low, two cupholders. The chair everyone else ends up sitting in.",
+          "url": "https://amzn.to/3UFDm59",
+          "asin": "B0DNKKR1MF",
+          "image": "https://m.media-amazon.com/images/I/71pLwS0B08L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Jetboil Stash",
+          "why": "Boils water for coffee in about two minutes and nests into itself. Morning solved.",
+          "url": "https://amzn.to/4h1zjYu",
+          "asin": "B08QRLT8QH",
+          "image": "https://m.media-amazon.com/images/I/71552khP7CL._AC_SL800_.jpg"
+        },
+        {
+          "name": "YETI stackable mugs",
+          "why": "Coffee stays hot through a slow sunrise. They stack, so two take the space of one.",
+          "url": "https://amzn.to/4qYtsaN",
+          "asin": "B0CVSBZ216",
+          "image": "https://m.media-amazon.com/images/I/6193PYZ9n1L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Comandante hand grinder",
+          "why": "Pricey, I know. I travel with a coffee nerd, and this is the one thing that's non-negotiable.",
+          "url": "https://amzn.to/4iSc3hP",
+          "asin": "B0BXM2VQP7",
+          "image": "https://m.media-amazon.com/images/I/71tqGAzwpjL._AC_SL800_.jpg"
+        },
+        {
+          "name": "AeroPress",
+          "why": "Genuinely good coffee, nothing to break, rinses clean in seconds.",
+          "url": "https://amzn.to/4xcV2Ti",
+          "asin": "B0047BIWSK",
+          "image": "https://m.media-amazon.com/images/I/61u3sW4Vx4L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Coleman 2-in-1 grill & stove",
+          "why": "Grill on one side, burner on the other. Dinner for a group without hauling the kitchen.",
+          "url": "https://amzn.to/4xKAqTr",
+          "asin": "B0D6GYKGCL",
+          "image": "https://m.media-amazon.com/images/I/61IX8jiZDbL._AC_SL800_.jpg"
+        }
       ]
     },
     {
@@ -81,12 +243,48 @@
       "title": "Cold weather",
       "blurb": "Sunrise at 9,000 feet is cold in July. These are the layers that make it fine.",
       "items": [
-        { "name": "Smartwool merino gloves", "why": "Warm, thin, and touchscreen-friendly so the photos still happen.", "url": "https://amzn.to/4hbhrvj" },
-        { "name": "Smartwool Smartloft vest", "why": "Core warmth without the arm bulk. Lives in the car from October to May.", "url": "https://amzn.to/4ihoP9E" },
-        { "name": "Smartwool merino base layer top", "why": "Wear it three days; nobody will know.", "url": "https://amzn.to/4yuQ9pL" },
-        { "name": "Smartwool merino base layer bottoms", "why": "Under hiking pants on cold mornings, as pajamas at camp.", "url": "https://amzn.to/4qXQSgz" },
-        { "name": "Smartwool light cushion socks", "why": "Warm feet change your whole mood. These do it without bulk in the boot.", "url": "https://amzn.to/3V0GMzo" },
-        { "name": "Turtle Fur beanie", "why": "Soft, fleece-lined, and it stays put in wind.", "url": "https://amzn.to/4iOkpqL" }
+        {
+          "name": "Smartwool merino gloves",
+          "why": "Warm, thin, and touchscreen-friendly so the photos still happen.",
+          "url": "https://amzn.to/4hbhrvj",
+          "asin": "B0BXTXR5LL",
+          "image": "https://m.media-amazon.com/images/I/81pA+EiSivL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Smartwool Smartloft vest",
+          "why": "Core warmth without the arm bulk. Lives in the car from October to May.",
+          "url": "https://amzn.to/4ihoP9E",
+          "asin": "B0G1PXQCGV",
+          "image": "https://m.media-amazon.com/images/I/51PiZ5PD4ML._AC_SL800_.jpg"
+        },
+        {
+          "name": "Smartwool merino base layer top",
+          "why": "Wear it three days; nobody will know.",
+          "url": "https://amzn.to/4yuQ9pL",
+          "asin": "B09842HS24",
+          "image": "https://m.media-amazon.com/images/I/61bvWzh3Q2L._AC_SL800_.jpg"
+        },
+        {
+          "name": "Smartwool merino base layer bottoms",
+          "why": "Under hiking pants on cold mornings, as pajamas at camp.",
+          "url": "https://amzn.to/4qXQSgz",
+          "asin": "B0984JMC49",
+          "image": "https://m.media-amazon.com/images/I/51Mgwz+AuZL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Smartwool light cushion socks",
+          "why": "Warm feet change your whole mood. These do it without bulk in the boot.",
+          "url": "https://amzn.to/3V0GMzo",
+          "asin": "B0BV92CLQ1",
+          "image": "https://m.media-amazon.com/images/I/81jgSN7-NiL._AC_SL800_.jpg"
+        },
+        {
+          "name": "Turtle Fur beanie",
+          "why": "Soft, fleece-lined, and it stays put in wind.",
+          "url": "https://amzn.to/4iOkpqL",
+          "asin": "B009AWF9N2",
+          "image": "https://m.media-amazon.com/images/I/81o1aUPBVAL._AC_SL800_.jpg"
+        }
       ]
     }
   ]

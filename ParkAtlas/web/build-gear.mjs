@@ -28,7 +28,7 @@ const sections = G.sections.filter((s) => s.enabled !== false).map((s) => ({ ...
 
 const card = (item) => `
         <article class="gear-card${item.pick ? ' is-pick' : ''}">
-          ${item.image ? `<img class="gear-img" src="${esc(item.image)}" alt="" loading="lazy" />` : ''}
+          ${item.image ? `<a class="gear-img-wrap" href="${esc(amazonUrl(item))}" target="_blank" rel="sponsored noopener" tabindex="-1" aria-hidden="true"><img class="gear-img" src="${esc(item.image)}" alt="" loading="lazy" width="400" height="300" /></a>` : ''}
           <div class="gear-body">
             ${item.pick ? `<span class="pick-badge">★ ${esc(G.pickLabel)}</span>` : ''}
             <h3>${esc(item.name)}</h3>
