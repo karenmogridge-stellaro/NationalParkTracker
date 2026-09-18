@@ -3,7 +3,7 @@
     "name": "ParkAtlas",
     "slug": "ParkAtlas",
     "description": "Track visits, hikes, camps, and memorable stops across all 63 U.S. National Parks.",
-    "version": "2.2",
+    "version": "2.3",
     "sdkVersion": "55.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon-square.png",
@@ -14,11 +14,18 @@
       "bundleIdentifier": "com.parkatlas.mobile",
       "associatedDomains": [
         "applinks:parkatlas.io",
+        "webcredentials:parkatlas.io",
+        "applinks:parkatlas.io",
         "webcredentials:parkatlas.io"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "LSApplicationQueriesSchemes": ["instagram", "instagram-stories"]
+        "LSApplicationQueriesSchemes": [
+          "instagram",
+          "instagram-stories",
+          "instagram",
+          "instagram-stories"
+        ]
       }
     },
     "android": {
@@ -33,9 +40,35 @@
       "permissions": [
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "parkatlas.io",
+              "pathPrefix": "/invite/"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        },
         {
           "action": "VIEW",
           "autoVerify": true,
@@ -119,6 +152,12 @@
       "eas": {
         "projectId": "f1f521a3-ce2d-48c9-9e7f-95036a010415"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f1f521a3-ce2d-48c9-9e7f-95036a010415"
     }
   }
 }
