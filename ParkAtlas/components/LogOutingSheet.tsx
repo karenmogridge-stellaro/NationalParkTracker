@@ -22,6 +22,7 @@ import { STATE_PARKS } from '../data/stateParksData';
 import { PARK_TRAILS, Trail, joinTrailNames, splitTrailNames } from '../data/trailsData';
 import { useVisitedParks, LogVisitOptions, ParkVisit } from '../hooks/useVisitedParks';
 import { stateNameFromCode } from '@/utils/search';
+import { haptic } from '@/utils/haptics';
 
 const DEFAULT_HIKE_IMAGE_URL = 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?auto=format&fit=crop&w=1400&q=80';
 const MAX_PHOTOS = 6;
@@ -483,6 +484,16 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     onClose();
   }
 
+  // One tap: today's date, nothing else. Details can be added later from the feed.
+  async function handleQuickSave() {
+    if (!selectedPark || editVisit) return;
+    haptic.medium();
+    const newPark = !visits.some((v) => v.parkId === selectedPark.id);
+    await logVisit(selectedPark.id, selectedPark.name, '', { dateVisited: new Date().toISOString(), dateUnknown: false, datePrecision: 'day' });
+    onSaved?.({ edited: false, newPark });
+    onClose();
+  }
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -549,6 +560,19 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
             ) : null}
 
             <QuickSelectChips chips={quickChips} />
+
+            {selectedPark && !editVisit ? (
+              <TouchableOpacity style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
+                <Ionicons name="checkmark-circle" size={20} color={C.onPrimary} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.quickSaveTitle}>Log {selectedPark.name} now</Text>
+                  <Text style={styles.quickSaveSub}>Today’s date, no other details · add trails or photos later</Text>
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={C.onPrimary} />
+              </TouchableOpacity>
+            ) : null}
+
+            {selectedPark && !editVisit ? <Text style={styles.orDetails}>or add details below</Text> : null}
 
             {selectedPark && availableTrails.length > 0 ? (
               <>
@@ -1014,6 +1038,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  quickSaveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.primary,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  quickSaveTitle: { color: C.onPrimary, fontSize: 16, fontWeight: '800' },
+  quickSaveSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12.5, marginTop: 2 },
+  orDetails: { textAlign: 'center', color: C.onSurfaceVariant, fontSize: 12.5, fontWeight: '600', marginTop: -4 },
   saveBtnDisabled: {
     opacity: 0.45,
   },

@@ -131,6 +131,8 @@ interface VisitedParksState {
   /** Most recent first-time national park visit this session; consumed by the celebration host. */
   lastNewParkEvent: NewParkEvent | null;
   clearNewParkEvent: () => void;
+  /** Set once when visits logged as a guest were folded into the account after sign-in. */
+  lastGuestImport: { id: number; count: number } | null;
 }
 
 type FirestoreParkVisitDoc = {
@@ -185,6 +187,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
   const [reviewPrompted, setReviewPrompted] = useState(false);
   const [reviewPromptLoaded, setReviewPromptLoaded] = useState(false);
   const [lastNewParkEvent, setLastNewParkEvent] = useState<NewParkEvent | null>(null);
+  const [lastGuestImport, setLastGuestImport] = useState<{ id: number; count: number } | null>(null);
   const eventIdRef = useRef(0);
   // Visits we've already tried to re-upload this session; stops retry loops when the file is gone or upload fails.
   const backfillTriedRef = useRef(new Set<string>());
@@ -293,6 +296,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
       });
 
       void migrateLocalVisitsToFirestore(uid, uname);
+      void importGuestVisits(uid, uname).then((n) => { if (n > 0) setLastGuestImport({ id: Date.now(), count: n }); });
 
       return () => unsubscribe();
     }
@@ -617,6 +621,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
         nationalParkCount,
         lastNewParkEvent,
         clearNewParkEvent,
+        lastGuestImport,
       }}
     >
       {children}
@@ -697,6 +702,39 @@ async function migrateLocalVisitsToFirestore(userId: string, userName: string): 
 
 async function loadFromDiskForUser(userId: string): Promise<ParkVisit[]> {
   return loadFromDiskFile(visitsFileForUser(userId));
+}
+
+/**
+ * Visits logged before signing in live in the guest file. Once there's an account, move them in
+ * (skipping any park+day already present) and clear the file so they don't reappear after sign-out.
+ */
+async function importGuestVisits(userId: string, userName: string): Promise<number> {
+  try {
+    const guestFile = visitsFileForUser(GUEST_USER_ID);
+    const guestVisits = await loadFromDiskFile(guestFile);
+    if (guestVisits.length === 0) return 0;
+
+    const cloud = await getDocs(query(collection(db, 'park_visits'), where('userId', '==', userId)));
+    const dayKey = (parkId: string, iso?: string) => `${parkId}|${(iso || '').slice(0, 10)}`;
+    const have = new Set(cloud.docs.map((s) => { const d = s.data(); return dayKey(String(d.parkId), d.dateVisited); }));
+
+    let imported = 0;
+    for (const v of guestVisits) {
+      if (!v?.parkId || have.has(dayKey(v.parkId, v.dateVisited))) continue;
+      await upsertParkVisitActivity({
+        visitId: v.visitId || `${v.parkId}_${Date.now()}`,
+        userId, userName,
+        parkId: v.parkId, parkName: v.parkName, trailName: v.trailName,
+        dateVisited: v.dateVisited, datePrecision: v.datePrecision, distanceMiles: v.distanceMiles,
+        photoUri: v.photoUri, photoUris: v.photoUris,
+      });
+      imported++;
+    }
+    await FileSystem.deleteAsync(guestFile, { idempotent: true });
+    return imported;
+  } catch {
+    return 0;
+  }
 }
 
 async function loadFromDiskFile(filePath: string): Promise<ParkVisit[]> {

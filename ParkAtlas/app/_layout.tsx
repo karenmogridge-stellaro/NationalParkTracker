@@ -50,10 +50,18 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 /** Shows the confetti card whenever a first-time national park visit is logged anywhere in the app. */
 function CelebrationHost() {
-  const { lastNewParkEvent, clearNewParkEvent } = useVisitedParks();
+  const { lastNewParkEvent, clearNewParkEvent, lastGuestImport } = useVisitedParks();
   const { user } = useAuth();
   const firstName = (user?.firstName || user?.name?.split(/\s+/)[0] || '').trim();
   const [demo, setDemo] = useState<CelebrationPayload | null>(null);
+  const toast = useToast();
+
+  // Visits logged before signing in were just folded into the account.
+  useEffect(() => {
+    if (!lastGuestImport) return;
+    const n = lastGuestImport.count;
+    toast.success(`Added ${n} ${n === 1 ? 'visit' : 'visits'} you logged before signing in`, { icon: 'cloud-done', durationMs: 3600 });
+  }, [lastGuestImport]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Dev-only: screenshot tooling drops screenshot_celebrate.json to preview the overlay.
   useEffect(() => {
@@ -68,7 +76,6 @@ function CelebrationHost() {
   }, []);
 
   const payload = demo ?? lastNewParkEvent;
-  const toast = useToast();
   const rankLabel = payload?.newRank ? `New rank: ${payload.newRank.title}` : payload ? `${payload.uniqueParks} parks` : '';
   const { ref: shareRef, shareToInstagram, sharing } = useShareCard({
     format: 'story',

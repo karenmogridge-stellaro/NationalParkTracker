@@ -17,6 +17,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as MailComposer from 'expo-mail-composer';
 import { openFeedback } from '@/utils/feedbackTrigger';
+import { GOOGLE_SIGN_IN_ENABLED, GoogleSignInCancelled, promptGoogleSignIn } from '@/utils/googleSignIn';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ParkAtlas as C } from '@/constants/theme';
@@ -60,7 +61,28 @@ type ActivityRow = {
 export default function SettingsScreen() {
   const router = useRouter();
   const toast = useToast();
-  const { signOut, deleteAccount, user, biometricAvailable, biometricEnabled, setBiometricEnabled, changePassword } = useAuth();
+  const { signOut, deleteAccount, user, biometricAvailable, biometricEnabled, setBiometricEnabled, changePassword, linkedProviders, linkGoogle, linkApple } = useAuth();
+  const [linking, setLinking] = useState<'google' | 'apple' | null>(null);
+
+  async function handleLink(provider: 'google' | 'apple') {
+    if (linking) return;
+    setLinking(provider);
+    try {
+      if (provider === 'google') {
+        const profile = await promptGoogleSignIn();
+        await linkGoogle(profile);
+        toast.success('Google linked — sign in either way from now on', { icon: 'link' });
+      } else {
+        const ok = await linkApple();
+        if (ok) toast.success('Apple linked — sign in either way from now on', { icon: 'link' });
+      }
+    } catch (e: any) {
+      if (e instanceof GoogleSignInCancelled) return;
+      toast.error(e?.message ?? "Couldn't link that account.", { durationMs: 5000 });
+    } finally {
+      setLinking(null);
+    }
+  }
   const { deleteAllDataForCurrentUser } = useVisitedParks();
   const { incomingRequests, sentInvites, requestedIds, directoryUsers, myFriends, acceptRequest, ignoreRequest } = useFriends();
   const [biometricSaving, setBiometricSaving] = useState(false);
@@ -491,6 +513,35 @@ export default function SettingsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={C.onSurfaceVariant} />
               </TouchableOpacity>
+              <View style={styles.divider} />
+              <View style={styles.rowItem}>
+                <View style={styles.rowTextWrap}>
+                  <Text style={styles.rowTitle}>Sign-in methods</Text>
+                  <Text style={styles.rowSubtitle}>Link another way to sign in so you always land on this account</Text>
+                  <View style={styles.linkRow}>
+                    {[
+                      { id: 'apple.com', label: 'Apple', icon: 'logo-apple' as const, key: 'apple' as const },
+                      ...(GOOGLE_SIGN_IN_ENABLED ? [{ id: 'google.com', label: 'Google', icon: 'logo-google' as const, key: 'google' as const }] : []),
+                      { id: 'password', label: 'Email', icon: 'mail' as const, key: null },
+                    ].map((p) => {
+                      const linked = linkedProviders.includes(p.id);
+                      const busy = linking === p.key;
+                      return (
+                        <TouchableOpacity
+                          key={p.id}
+                          style={[styles.linkChip, linked && styles.linkChipLinked]}
+                          disabled={linked || !p.key || !!linking}
+                          onPress={() => { if (p.key) void handleLink(p.key); }}
+                          activeOpacity={0.8}
+                        >
+                          {busy ? <ActivityIndicator size="small" color={C.primary} /> : <Ionicons name={linked ? 'checkmark-circle' : p.icon} size={15} color={linked ? C.onPrimary : C.primary} />}
+                          <Text style={[styles.linkChipText, linked && styles.linkChipTextLinked]}>{linked ? p.label : p.key ? `Link ${p.label}` : p.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
               <View style={styles.divider} />
               <TouchableOpacity
                 style={[styles.rowItem, !canChangePassword && styles.rowItemDisabled]}
@@ -1018,6 +1069,15 @@ const styles = StyleSheet.create({
   rowItemDisabled: {
     opacity: 0.5,
   },
+  linkRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  linkChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+    borderWidth: 1.5, borderColor: C.primary, backgroundColor: C.surface,
+  },
+  linkChipLinked: { backgroundColor: C.primary, borderColor: C.primary },
+  linkChipText: { fontSize: 13, fontWeight: '700', color: C.primary },
+  linkChipTextLinked: { color: C.onPrimary },
   accountIdentityCard: {
     paddingVertical: 2,
     gap: 3,

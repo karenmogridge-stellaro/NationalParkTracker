@@ -10,6 +10,7 @@ import {
   OAuthProvider,
   createUserWithEmailAndPassword,
   deleteUser,
+  linkWithCredential,
   onAuthStateChanged,
   reauthenticateWithCredential,
   sendPasswordResetEmail,
@@ -107,7 +108,9 @@ export type AuthErrorCode =
   | 'GOOGLE_SIGN_IN_REQUIRED'
   | 'PASSWORD_NOT_SET'
   | 'REAUTH_REQUIRED'
-  | 'TOO_MANY_ATTEMPTS';
+  | 'TOO_MANY_ATTEMPTS'
+  | 'ALREADY_LINKED'
+  | 'CREDENTIAL_IN_USE';
 
 export class AuthError extends Error {
   constructor(public code: AuthErrorCode, message: string) {
@@ -142,6 +145,10 @@ function toAuthError(e: unknown, fallback = 'Something went wrong. Please try ag
       return new AuthError('SERVICE_UNAVAILABLE', 'Cloud sign-in is temporarily unavailable. Please try again.');
     case 'auth/account-exists-with-different-credential':
       return new AuthError('EMAIL_EXISTS', 'This email is already linked to another sign-in method.');
+    case 'auth/provider-already-linked':
+      return new AuthError('ALREADY_LINKED', 'That sign-in method is already linked to this account.');
+    case 'auth/credential-already-in-use':
+      return new AuthError('CREDENTIAL_IN_USE', 'That account is already its own ParkAtlas account. Email hello@parkatlas.io and we’ll merge them for you.');
     default:
       return new AuthError('SERVICE_UNAVAILABLE', fallback);
   }
@@ -180,6 +187,12 @@ interface AuthContextValue {
   deleteAccount: () => Promise<void>;
   updateProfile: (name: string, avatarUrl?: string, phone?: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Sign-in methods attached to the current account: 'apple.com' | 'google.com' | 'password'. */
+  linkedProviders: string[];
+  /** Attach Google to the current account (so signing in with Google later lands here, not on a new account). */
+  linkGoogle: (profile: GoogleProfile) => Promise<void>;
+  /** Attach Apple to the current account. Resolves false if the user cancels the Apple sheet. */
+  linkApple: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -202,6 +215,9 @@ const AuthContext = createContext<AuthContextValue>({
   deleteAccount: async () => {},
   updateProfile: async () => {},
   changePassword: async () => {},
+  linkedProviders: [],
+  linkGoogle: async () => {},
+  linkApple: async () => false,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -621,6 +637,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // ── Link additional sign-in methods ──────────────────────────────────────────────
+  const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
+  useEffect(() => {
+    setLinkedProviders(auth.currentUser?.providerData.map((p) => p.providerId) ?? []);
+  }, [user?.id]);
+
+  const linkGoogle = useCallback(async (profile: GoogleProfile) => {
+    const fbUser = auth.currentUser;
+    if (!fbUser || fbUser.isAnonymous) throw new AuthError('SERVICE_UNAVAILABLE', 'Sign in first, then link Google.');
+    if (!profile?.idToken) throw new AuthError('SERVICE_UNAVAILABLE', 'Google did not return a sign-in token.');
+    try {
+      await linkWithCredential(fbUser, GoogleAuthProvider.credential(profile.idToken));
+      setLinkedProviders(fbUser.providerData.map((p) => p.providerId));
+      // Backfill an email/avatar if the primary provider (Apple, hidden email) never gave us one.
+      if (user && (!user.email || !user.avatarUrl)) {
+        await persistUser({ ...user, email: user.email || normalizeEmail(profile.email || ''), ...(profile.picture && !user.avatarUrl ? { avatarUrl: profile.picture } : {}) });
+      }
+    } catch (e) {
+      throw toAuthError(e, "Couldn't link Google. Please try again.");
+    }
+  }, [user]);
+
+  const linkApple = useCallback(async (): Promise<boolean> => {
+    const fbUser = auth.currentUser;
+    if (!fbUser || fbUser.isAnonymous) throw new AuthError('SERVICE_UNAVAILABLE', 'Sign in first, then link Apple.');
+    const rawNonce = randomNonce();
+    let credential: AppleAuthentication.AppleAuthenticationCredential;
+    try {
+      credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL],
+        nonce: await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce),
+      });
+    } catch (e: any) {
+      if (e?.code === 'ERR_REQUEST_CANCELED') return false;
+      throw new AuthError('SERVICE_UNAVAILABLE', "Apple Sign-In isn't available right now.");
+    }
+    if (!credential.identityToken) throw new AuthError('SERVICE_UNAVAILABLE', 'Apple did not return an identity token.');
+    try {
+      await linkWithCredential(fbUser, new OAuthProvider('apple.com').credential({ idToken: credential.identityToken, rawNonce }));
+      setLinkedProviders(fbUser.providerData.map((p) => p.providerId));
+      return true;
+    } catch (e) {
+      throw toAuthError(e, "Couldn't link Apple. Please try again.");
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -643,6 +705,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deleteAccount,
         updateProfile,
         changePassword,
+        linkedProviders,
+        linkGoogle,
+        linkApple,
       }}
     >
       {children}

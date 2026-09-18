@@ -21,8 +21,7 @@ service cloud.firestore {
     // Reviewer UIDs for the feedback inbox. Add yours here (Authentication → Users → User UID).
     function isAdmin() {
       return signedIn() && request.auth.uid in [
-        'apple_000942.b249fe449fae439bad37e6fec3b6fedf.0118',
-        'email_karenmogridge@gmail.com'
+        'apple_000942.b249fe449fae439bad37e6fec3b6fedf.0118'
       ];
     }
 
