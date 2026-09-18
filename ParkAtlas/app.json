@@ -14,8 +14,6 @@
       "bundleIdentifier": "com.parkatlas.mobile",
       "associatedDomains": [
         "applinks:parkatlas.io",
-        "webcredentials:parkatlas.io",
-        "applinks:parkatlas.io",
         "webcredentials:parkatlas.io"
       ],
       "infoPlist": {
@@ -54,21 +52,6 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "parkatlas.io",
-              "pathPrefix": "/invite/"
-            }
-          ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
-        },
         {
           "action": "VIEW",
           "autoVerify": true,
