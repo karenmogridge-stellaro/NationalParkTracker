@@ -128,7 +128,9 @@ function FeedbackHost() {
     if (visible) return;
     setRoute(pathname);
     // Capture before the sheet animates in so the screenshot shows what the user was looking at.
-    const uri = await captureScreen({ format: 'jpg', quality: 0.8, result: 'tmpfile' }).catch(() => null);
+    // view-shot returns a bare path on iOS; fetch() needs a real file:// URI or it resolves relative to Metro.
+    const raw = await captureScreen({ format: 'jpg', quality: 0.8, result: 'tmpfile' }).catch(() => null);
+    const uri = raw ? (raw.startsWith('/') ? `file://${raw}` : raw) : null;
     setShot(uri);
     setVisible(true);
   };

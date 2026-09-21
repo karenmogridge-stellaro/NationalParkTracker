@@ -39,7 +39,10 @@ export type FeedbackRecord = {
 // Rules make feedback/ screenshots admin-read-only, so the submitter only records the path.
 async function uploadScreenshot(uri: string, id: string): Promise<string | null> {
   try {
-    const blob = await (await fetch(uri)).blob();
+    const fileUri = uri.startsWith('/') ? `file://${uri}` : uri;
+    const blob = await (await fetch(fileUri)).blob();
+    // A tiny or text blob means we fetched an error page, not the image.
+    if (blob.size < 1024 || /^text\//.test(blob.type)) return null;
     const path = `feedback/${id}.jpg`;
     await uploadBytes(ref(storage, path), blob, { contentType: 'image/jpeg' });
     return path;
