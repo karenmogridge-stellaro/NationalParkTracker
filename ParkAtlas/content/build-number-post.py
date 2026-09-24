@@ -166,14 +166,14 @@ def slide_cta() -> Image.Image:
     for ln in wrap(d, "Track the parks you've visited, save the ones you want to see, and keep every adventure in one place.", font("Regular", 34), W - 144):
         d.text((72, y), ln, font=font("Regular", 34), fill=(255, 255, 255, 215))
         y += 46
-    # Pill CTA
-    py = H - 330
-    label = "Free on the App Store"
-    lf = font("Bold", 34)
-    pw = int(d.textlength(label, font=lf)) + 96
-    d.rounded_rectangle((72, py, 72 + pw, py + 92), 46, fill=(255, 255, 255))
-    d.text((72 + 48, py + 26), label, font=lf, fill=GREEN)
-    d.text((72, py + 128), "parkatlas.io", font=font("Medium", 30), fill=MINT)
+    # Apple's official badge — carousel images aren't tappable, so avoid anything that looks like a custom button.
+    badge = Image.open(FONTS / "app-store-badge.png").convert("RGBA")
+    bw = 420
+    badge = badge.resize((bw, int(badge.height * bw / badge.width)), Image.LANCZOS)
+    py = H - 340
+    img.alpha_composite(badge, (72, py))
+    d.text((72 + bw + 28, py + badge.height // 2 - 20), "Free · iPhone", font=font("Medium", 30), fill=MINT)
+    d.text((72, py + badge.height + 24), "parkatlas.io", font=font("Medium", 30), fill=MINT)
     hint = "Drop your number in the comments"
     d.text((72, H - 96), hint, font=font("Medium", 26), fill=(255, 255, 255, 200))
     chevron(d, 72 + int(d.textlength(hint + "  ", font=font("Medium", 26))), H - 92, 16, (255, 255, 255, 200), direction="down")
