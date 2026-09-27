@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, limit, query, where } from 'firebase/firestore';
-import { useAuth, AuthError } from '@/hooks/useAuth';
+import { useAuth, AuthError, type PriorAccount, type SignInOptions } from '@/hooks/useAuth';
 import { ParkAtlas as C } from '@/constants/theme';
 import { GOOGLE_SIGN_IN_ENABLED, GoogleSignInCancelled, promptGoogleSignIn } from '@/utils/googleSignIn';
 import { consumePendingInviteCode, peekPendingInviteCode } from '@/utils/pendingInvite';
@@ -54,6 +54,8 @@ export default function LoginScreen() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  // Set when a sign-in would have created a second account on this phone; holds the retry closure.
+  const [existingAccount, setExistingAccount] = useState<{ prior: PriorAccount; retryNew: () => Promise<void> } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     firstName?: string;
     lastName?: string;
@@ -165,8 +167,9 @@ export default function LoginScreen() {
     }
   }
   // ── Email / Password ───────────────────────────────────────────────────────
-  async function handleEmailSubmit() {
+  async function handleEmailSubmit(opts: SignInOptions = {}) {
     setFieldErrors({});
+    setExistingAccount(null);
     const errors: typeof fieldErrors = {};
 
     if (mode === 'signup' && !firstName.trim()) {
@@ -192,12 +195,16 @@ export default function LoginScreen() {
     setEmailLoading(true);
     try {
       if (mode === 'signup') {
-        await signUpWithEmail(email, password, firstName, lastName);
+        await signUpWithEmail(email, password, firstName, lastName, opts);
       } else {
         await signInWithEmail(email, password);
       }
       await routeAfterAuthSuccess(email, auth.currentUser?.uid);
     } catch (e) {
+      if (e instanceof AuthError && e.code === 'EXISTING_ACCOUNT_ON_DEVICE' && e.prior) {
+        setExistingAccount({ prior: e.prior, retryNew: () => handleEmailSubmit({ allowNewAccount: true }) });
+        return;
+      }
       if (e instanceof AuthError) {
         switch (e.code) {
           case 'INVALID_EMAIL':    setFieldErrors({ email: e.message });    break;
@@ -368,6 +375,36 @@ export default function LoginScreen() {
         )}
 
         {/* General error */}
+        {existingAccount ? (
+          <View style={styles.existingCard}>
+            <View style={styles.existingIcon}><Ionicons name="person-circle" size={30} color={C.primary} /></View>
+            <Text style={styles.existingTitle}>You already have an account on this phone</Text>
+            <Text style={styles.existingBody}>
+              <Text style={{ fontWeight: '800' }}>{existingAccount.prior.name}</Text> signed in with{' '}
+              {existingAccount.prior.provider === 'apple' ? 'Apple' : existingAccount.prior.provider === 'google' ? 'Google' : 'email'}
+              {existingAccount.prior.email ? ` (${existingAccount.prior.email})` : ''}. Your parks are on that account.
+            </Text>
+            <TouchableOpacity
+              style={styles.existingPrimary}
+              activeOpacity={0.85}
+              onPress={() => {
+                const p = existingAccount.prior.provider;
+                setExistingAccount(null);
+                if (p === 'apple') void handleAppleSignIn();
+                else if (p === 'google') void handleGoogleSignIn();
+                else { setMode('signin'); if (existingAccount.prior.email) setEmail(existingAccount.prior.email); passwordRef.current?.focus(); }
+              }}
+            >
+              <Ionicons name={existingAccount.prior.provider === 'apple' ? 'logo-apple' : existingAccount.prior.provider === 'google' ? 'logo-google' : 'mail'} size={18} color={C.onPrimary} />
+              <Text style={styles.existingPrimaryText}>
+                {existingAccount.prior.provider === 'email' ? 'Sign in with that email' : `Continue with ${existingAccount.prior.provider === 'apple' ? 'Apple' : 'Google'}`}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.existingSecondary} activeOpacity={0.7} onPress={() => { void existingAccount.retryNew(); }}>
+              <Text style={styles.existingSecondaryText}>No, create a separate new account</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
         {!!fieldErrors.general && (
           <View style={styles.generalError}>
             <Ionicons name="alert-circle-outline" size={16} color="#c0392b" style={{ marginTop: 1 }} />
@@ -475,7 +512,7 @@ export default function LoginScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="done"
-              onSubmitEditing={handleEmailSubmit}
+              onSubmitEditing={() => { void handleEmailSubmit(); }}
             />
             <TouchableOpacity
               onPress={() => setShowPassword(s => !s)}
@@ -506,7 +543,7 @@ export default function LoginScreen() {
         {/* ── Submit button ─────────────────────────────────────────────── */}
         <TouchableOpacity
           style={styles.submitBtn}
-          onPress={handleEmailSubmit}
+          onPress={() => { void handleEmailSubmit(); }}
           activeOpacity={0.85}
           disabled={emailLoading}
         >
@@ -529,7 +566,7 @@ export default function LoginScreen() {
         {/* ── Apple ─────────────────────────────────────────────────────── */}
         <TouchableOpacity
           style={styles.appleBtn}
-          onPress={handleAppleSignIn}
+          onPress={() => { void handleAppleSignIn(); }}
           activeOpacity={0.8}
           disabled={appleLoading}
         >
@@ -547,7 +584,7 @@ export default function LoginScreen() {
         {GOOGLE_SIGN_IN_ENABLED ? (
           <TouchableOpacity
             style={styles.googleBtn}
-            onPress={handleGoogleSignIn}
+            onPress={() => { void handleGoogleSignIn(); }}
             activeOpacity={0.8}
             disabled={googleLoading}
             accessibilityRole="button"
@@ -793,6 +830,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   forgotLink: { alignSelf: 'flex-end', marginTop: 4, padding: 2 },
+  existingCard: { backgroundColor: C.primaryContainer, borderRadius: 18, padding: 18, gap: 10, borderWidth: 1, borderColor: C.primary },
+  existingIcon: { alignSelf: 'flex-start' },
+  existingTitle: { fontSize: 17, fontWeight: '800', color: C.onSurface },
+  existingBody: { fontSize: 14, color: C.onSurfaceVariant, lineHeight: 20 },
+  existingPrimary: { marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: C.primary, borderRadius: 999, paddingVertical: 13 },
+  existingPrimaryText: { color: C.onPrimary, fontSize: 15, fontWeight: '800' },
+  existingSecondary: { alignSelf: 'center', padding: 6 },
+  existingSecondaryText: { fontSize: 13.5, fontWeight: '600', color: C.onSurfaceVariant, textDecorationLine: 'underline' },
   forgotText: { fontSize: 13, color: C.primary, fontWeight: '600' },
   resetSentText: { fontSize: 12.5, color: C.primary, marginTop: 4, lineHeight: 17 },
   generalError: {

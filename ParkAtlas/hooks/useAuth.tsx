@@ -10,6 +10,7 @@ import {
   OAuthProvider,
   createUserWithEmailAndPassword,
   deleteUser,
+  getAdditionalUserInfo,
   linkWithCredential,
   onAuthStateChanged,
   reauthenticateWithCredential,
@@ -20,6 +21,7 @@ import {
   signOut as firebaseSignOut,
   updatePassword,
   type User as FirebaseUser,
+  type UserCredential,
 } from 'firebase/auth';
 import { deleteDoc, doc } from 'firebase/firestore';
 import { AUTH_USER_KEY, BIOMETRIC_ENABLED_KEY } from '@/constants/authConfig';
@@ -60,6 +62,8 @@ const STRAVA_ACCESS_TOKEN_KEY = 'strava_access_token';
 const STRAVA_REFRESH_TOKEN_KEY = 'strava_refresh_token';
 const STRAVA_TOKEN_EXPIRY_KEY = 'strava_token_expiry';
 const STRAVA_CACHE_FILE = `${FileSystem.documentDirectory}strava_data.json`;
+// Survives sign-out (unlike AUTH_USER_KEY) so we can recognise a returning user who picks a different provider.
+const LAST_ACCOUNT_KEY = 'parkatlaslastaccount';
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -110,10 +114,14 @@ export type AuthErrorCode =
   | 'REAUTH_REQUIRED'
   | 'TOO_MANY_ATTEMPTS'
   | 'ALREADY_LINKED'
-  | 'CREDENTIAL_IN_USE';
+  | 'CREDENTIAL_IN_USE'
+  | 'EXISTING_ACCOUNT_ON_DEVICE';
+
+/** Minimal snapshot of the account previously used on this device. */
+export type PriorAccount = { id: string; name: string; provider: AuthProvider; email?: string };
 
 export class AuthError extends Error {
-  constructor(public code: AuthErrorCode, message: string) {
+  constructor(public code: AuthErrorCode, message: string, public prior?: PriorAccount) {
     super(message);
     this.name = 'AuthError';
   }
@@ -156,6 +164,11 @@ function toAuthError(e: unknown, fallback = 'Something went wrong. Please try ag
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
+export type SignInOptions = {
+  /** Skip the "you already have an account on this phone" guard and really create a new account. */
+  allowNewAccount?: boolean;
+};
+
 interface AuthContextValue {
   user: AuthUser | null;
   /** True while the persisted session is being loaded */
@@ -169,9 +182,9 @@ interface AuthContextValue {
   /** Signed in but we never learned a real name (e.g. Apple on a new device) — prompt for one. */
   needsProfileName: boolean;
   /** Resolves false when the user cancels the Apple sheet. */
-  signInWithApple: () => Promise<boolean>;
-  signInWithGoogle: (profile: GoogleProfile) => Promise<void>;
-  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signInWithApple: (opts?: SignInOptions) => Promise<boolean>;
+  signInWithGoogle: (profile: GoogleProfile, opts?: SignInOptions) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, firstName: string, lastName: string, opts?: SignInOptions) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   /** Sends Firebase's password-reset email. Resolves silently for unknown emails (no enumeration). */
   sendPasswordReset: (email: string) => Promise<void>;
@@ -344,6 +357,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const cachedRaw = await safeSecureStoreGetItemAsync(AUTH_USER_KEY);
           const cached: AuthUser | null = cachedRaw ? JSON.parse(cachedRaw) : null;
           const resolved = cached?.id === fbUser.uid ? cached : await buildAuthUser(fbUser);
+          // Already-signed-in users never pass through persistUser, so record the device's account here too.
+          void safeSecureStoreSetItemAsync(LAST_ACCOUNT_KEY, JSON.stringify({ id: resolved.id, name: resolved.name, provider: resolved.provider, ...(resolved.email ? { email: resolved.email } : {}) } satisfies PriorAccount));
           if (bioEnabled && deviceSupports && !secureStoreFailedRef.current) {
             setPendingBiometricUser(resolved);
           } else {
@@ -368,19 +383,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Helper: persist & unlock ──────────────────────────────────────────────────
   async function persistUser(authUser: AuthUser) {
     await safeSecureStoreSetItemAsync(AUTH_USER_KEY, JSON.stringify(authUser));
+    const prior: PriorAccount = { id: authUser.id, name: authUser.name, provider: authUser.provider, ...(authUser.email ? { email: authUser.email } : {}) };
+    await safeSecureStoreSetItemAsync(LAST_ACCOUNT_KEY, JSON.stringify(prior));
     setPendingBiometricUser(null);
     setUser(authUser);
     void upsertProductionUserProfile(authUser);
   }
 
-  /** Runs a Firebase credential sign-in and resolves the app user from it. */
+  /**
+   * Runs a Firebase credential sign-in and resolves the app user from it. If this just minted a brand-new
+   * account on a phone that previously held a different one (Apple's hidden email makes the same person look
+   * new to Google/email), undo it and tell the caller which account they should be using instead.
+   */
   async function completeSignIn(
-    run: () => Promise<FirebaseUser>,
+    run: () => Promise<UserCredential>,
     fresh: Parameters<typeof buildAuthUser>[1] = {},
+    opts: SignInOptions = {},
   ): Promise<AuthUser> {
     signingInRef.current = true;
     try {
-      const fbUser = await run();
+      const cred = await run();
+      const fbUser = cred.user;
+      if (getAdditionalUserInfo(cred)?.isNewUser && !opts.allowNewAccount) {
+        const priorRaw = await safeSecureStoreGetItemAsync(LAST_ACCOUNT_KEY);
+        const prior: PriorAccount | null = priorRaw ? JSON.parse(priorRaw) : null;
+        if (prior && prior.id !== fbUser.uid) {
+          await deleteUser(fbUser).catch(() => {});
+          await firebaseSignOut(auth).catch(() => {});
+          const via = prior.provider === 'apple' ? 'Apple' : prior.provider === 'google' ? 'Google' : 'email';
+          throw new AuthError(
+            'EXISTING_ACCOUNT_ON_DEVICE',
+            `This phone already has a ParkAtlas account for ${prior.name} (signed in with ${via}). Use that to get your parks back, or create a separate account.`,
+            prior,
+          );
+        }
+      }
       const authUser = await buildAuthUser(fbUser, fresh);
       await persistUser(authUser);
       return authUser;
@@ -405,7 +442,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // ── Apple Sign In ─────────────────────────────────────────────────────────────
-  const signInWithApple = useCallback(async (): Promise<boolean> => {
+  const signInWithApple = useCallback(async (opts: SignInOptions = {}): Promise<boolean> => {
     let credential: AppleAuthentication.AppleAuthenticationCredential;
     const rawNonce = randomNonce();
     try {
@@ -431,12 +468,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const oauth = new OAuthProvider('apple.com').credential({ idToken: credential.identityToken, rawNonce });
       await completeSignIn(
-        async () => (await signInWithCredential(auth, oauth)).user,
+        () => signInWithCredential(auth, oauth),
         {
           firstName: credential.fullName?.givenName ?? undefined,
           lastName: credential.fullName?.familyName ?? undefined,
           email: credential.email ?? undefined,
         },
+        opts,
       );
       return true;
     } catch (e) {
@@ -450,12 +488,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Google Sign In ────────────────────────────────────────────────────────────
-  const signInWithGoogle = useCallback(async (profile: GoogleProfile) => {
+  const signInWithGoogle = useCallback(async (profile: GoogleProfile, opts: SignInOptions = {}) => {
     if (!profile?.idToken) throw new AuthError('SERVICE_UNAVAILABLE', 'Google did not return a sign-in token.');
     try {
       const cred = GoogleAuthProvider.credential(profile.idToken);
       await completeSignIn(
-        async () => (await signInWithCredential(auth, cred)).user,
+        () => signInWithCredential(auth, cred),
         {
           firstName: profile.givenName,
           lastName: profile.familyName,
@@ -463,6 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: profile.email,
           avatarUrl: profile.picture,
         },
+        opts,
       );
     } catch (e) {
       throw toAuthError(e, "Couldn't sign in with Google. Please try again.");
@@ -475,6 +514,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     firstName: string,
     lastName: string,
+    opts: SignInOptions = {},
   ) => {
     const normalizedEmail = normalizeEmail(email);
     const cleanFirstName = firstName.trim();
@@ -492,8 +532,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await completeSignIn(
-        async () => (await createUserWithEmailAndPassword(auth, normalizedEmail, password)).user,
+        () => createUserWithEmailAndPassword(auth, normalizedEmail, password),
         { firstName: cleanFirstName, lastName: cleanLastName, email: normalizedEmail },
+        opts,
       );
     } catch (e) {
       throw toAuthError(e);
@@ -504,7 +545,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const normalizedEmail = normalizeEmail(email);
     try {
-      await completeSignIn(async () => (await signInWithEmailAndPassword(auth, normalizedEmail, password)).user);
+      await completeSignIn(() => signInWithEmailAndPassword(auth, normalizedEmail, password));
     } catch (e) {
       throw toAuthError(e);
     }
@@ -564,12 +605,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await completeSignIn(
         async () => {
           try {
-            return (await signInWithEmailAndPassword(auth, email, password)).user;
+            return await signInWithEmailAndPassword(auth, email, password);
           } catch {
-            return (await createUserWithEmailAndPassword(auth, email, password)).user;
+            return await createUserWithEmailAndPassword(auth, email, password);
           }
         },
         { firstName: 'Dev', lastName: 'User', email },
+        { allowNewAccount: true },
       );
     } catch (e) {
       throw toAuthError(e);
@@ -602,6 +644,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (currentUser?.provider === 'google') await signOutOfGoogle();
     await Promise.all([
       safeSecureStoreDeleteItemAsync(AUTH_USER_KEY),
+      safeSecureStoreDeleteItemAsync(LAST_ACCOUNT_KEY),
       safeSecureStoreDeleteItemAsync(BIOMETRIC_ENABLED_KEY),
       safeSecureStoreDeleteItemAsync(STRAVA_ACCESS_TOKEN_KEY),
       safeSecureStoreDeleteItemAsync(STRAVA_REFRESH_TOKEN_KEY),
