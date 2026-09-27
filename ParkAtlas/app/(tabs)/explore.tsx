@@ -42,7 +42,6 @@ export default function ExploreScreen() {
   const [searchText, setSearchText] = useState('');
   const [visitView, setVisitView] = useState<'visited' | 'unvisited'>('unvisited');
   const [mapFilter, setMapFilter] = useState<'all' | 'visited' | 'unvisited'>('all');
-  const [parkTypeFilter, setParkTypeFilter] = useState<'all' | 'national' | 'state'>('all');
   const [selectedMapPark, setSelectedMapPark] = useState<NationalPark | null>(null);
   const { wishlistIds: checklistIds, setAll: persistChecklist, toggle: toggleWishlist } = useWishlist();
   const [checklistModalVisible, setChecklistModalVisible] = useState(false);
@@ -64,8 +63,11 @@ export default function ExploreScreen() {
   const fullMapRef = React.useRef<MapView | null>(null);
   const insets = useSafeAreaInsets();
   // Dev-only ?fullscreen=1 opens the map modal for screenshot tooling.
-  const devParams = useLocalSearchParams<{ fullscreen?: string }>();
+  const devParams = useLocalSearchParams<{ fullscreen?: string; type?: string }>();
   const [mapFullscreen, setMapFullscreen] = useState(__DEV__ && devParams.fullscreen === '1');
+  const [parkTypeFilter, setParkTypeFilter] = useState<'all' | 'national' | 'state'>(
+    __DEV__ && (devParams.type === 'state' || devParams.type === 'national') ? devParams.type : 'all',
+  );
   const { hasVisited, logVisit } = useVisitedParks();
   const toast = useToast();
 
@@ -302,7 +304,8 @@ export default function ExploreScreen() {
 
       if (activeFilter === 'near' && nearMeParkIds && !nearMeParkIds.has(park.id)) return false;
 
-      if (activeFilter === 'national' && !isNational) return false;
+      // The tab's default "National Parks" chip must not veto an explicit State/All choice on the map toggle.
+      if (activeFilter === 'national' && !isNational && parkTypeFilter === 'all') return false;
       if (activeFilter === 'to-visit' && hasVisitedUI(park.id)) return false;
       if (activeFilter === 'visited' && !hasVisitedUI(park.id)) return false;
 
@@ -315,12 +318,14 @@ export default function ExploreScreen() {
     });
   }, [activeFilter, mapFilter, parkTypeFilter, hasVisitedUI, allParks, nationalParkIds, nearMeParkIds]);
 
-  // Thousands of state-park pins would stall the map. National + visited pins always render; unvisited
-  // state parks only appear once zoomed to roughly a state, and only within the viewport (capped).
+  // Thousands of state-park pins would stall the map. National + visited pins always render. Unvisited state
+  // parks render within the viewport once zoomed to roughly a state — or, when the user explicitly asks for
+  // state parks, the largest ones nationwide so the filter never shows an empty map.
   const STATE_PIN_ZOOM_DELTA = 7;
   const MAX_STATE_PINS = 350;
   const markerParks = useMemo(() => {
     const zoomedIn = mapRegion.latitudeDelta <= STATE_PIN_ZOOM_DELTA;
+    const wantsState = parkTypeFilter === 'state' || activeFilter === 'near';
     const latPad = mapRegion.latitudeDelta * 0.6;
     const lngPad = mapRegion.longitudeDelta * 0.6;
     const inView = (p: NationalPark) =>
@@ -329,10 +334,17 @@ export default function ExploreScreen() {
     const statePins: NationalPark[] = [];
     for (const p of mappedParks) {
       if (nationalParkIds.has(p.id) || hasVisitedUI(p.id) || activeFilter === 'near') always.push(p);
-      else if (zoomedIn && inView(p)) statePins.push(p);
+      else if ((zoomedIn || wantsState) && inView(p)) statePins.push(p);
     }
-    return { parks: [...always, ...statePins.slice(0, MAX_STATE_PINS)], hiddenStateParks: !zoomedIn && mappedParks.length > always.length };
-  }, [mappedParks, mapRegion, nationalParkIds, hasVisitedUI, activeFilter]);
+    // Bigger parks first when we have to cut — radiusKm tracks acreage.
+    if (statePins.length > MAX_STATE_PINS) statePins.sort((a, b) => (b.radiusKm ?? 0) - (a.radiusKm ?? 0));
+    const shown = statePins.slice(0, MAX_STATE_PINS);
+    return {
+      parks: [...always, ...shown],
+      hiddenStateParks: !zoomedIn && !wantsState && mappedParks.length > always.length,
+      truncated: statePins.length > shown.length,
+    };
+  }, [mappedParks, mapRegion, nationalParkIds, hasVisitedUI, activeFilter, parkTypeFilter]);
 
   function zoomMap(multiplier: number) {
     const next: Region = {
@@ -415,10 +427,12 @@ export default function ExploreScreen() {
         </TouchableOpacity>
       </View>
 
-      {markerParks.hiddenStateParks && !selectedMapPark ? (
+      {(markerParks.hiddenStateParks || markerParks.truncated) && !selectedMapPark ? (
         <View style={[styles.mapHint, fullscreen && { bottom: insets.bottom + 14 }]} pointerEvents="none">
           <Ionicons name="search" size={12} color={C.onSurfaceVariant} />
-          <Text style={styles.mapHintText}>Zoom in to see state parks</Text>
+          <Text style={styles.mapHintText}>
+            {markerParks.hiddenStateParks ? 'Zoom in to see state parks' : `Showing the ${MAX_STATE_PINS} largest · zoom in for all`}
+          </Text>
         </View>
       ) : null}
 
