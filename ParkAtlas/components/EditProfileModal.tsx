@@ -197,7 +197,7 @@ export function EditProfileModal({ visible, onClose }: Props) {
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <Text style={styles.hintText}>Used to improve friend contact matching.</Text>
+          <Text style={styles.hintText}>How friends who sync their contacts find you. Never shown publicly.</Text>
 
           {/* Save button */}
           <TouchableOpacity

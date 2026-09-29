@@ -81,7 +81,10 @@ function normalizeEmail(value?: string | null): string {
 }
 
 function normalizePhone(value?: string | null): string {
-  return (value || '').replace(/\D+/g, '');
+  // Contacts give "+1 (801) 555-1234"; users type "801-555-1234". Compare on the 10-digit national number.
+  const digits = (value || '').replace(/\D+/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
+  return digits;
 }
 
 type FirestoreUserDoc = {

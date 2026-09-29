@@ -22,8 +22,9 @@ import { AppDrawer } from '@/components/AppDrawer';
 import { FriendProfile, useFriends } from '@/hooks/useFriends';
 import { useAuth } from '@/hooks/useAuth';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from '@/utils/firebase';
-import { matchContactsToUsers, searchDirectoryUsersByUsername } from '@/utils/userDirectoryApi';
+import { isPrivateRelayEmail, matchContactsToUsers, searchDirectoryUsersByUsername } from '@/utils/userDirectoryApi';
 import { readDeviceContacts, ContactsPermissionDeniedError } from '@/utils/contactsSync';
+import { EditProfileModal } from '@/components/EditProfileModal';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LoginGateSheet } from '@/components/LoginGateSheet';
 import { setPendingAction, peekPendingAction, consumePendingAction, type PendingAction } from '@/utils/pendingAction';
@@ -39,6 +40,7 @@ export default function FriendsPage() {
   const router = useRouter();
   const params = useLocalSearchParams<{ pendingIncoming?: string }>();
   const { user } = useAuth();
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
   const {
     directoryUsers,
     myFriends,
@@ -526,6 +528,20 @@ export default function FriendsPage() {
               <View style={styles.sectionBlock}>
                 <Text style={styles.sectionTitle}>From your contacts</Text>
                 {__DEV__ && directoryWarning ? <Text style={styles.warningText}>{directoryWarning}</Text> : null}
+                {user && !user.phone ? (
+                  <TouchableOpacity style={styles.findMeCard} activeOpacity={0.85} onPress={() => setEditProfileVisible(true)}>
+                    <Ionicons name="call-outline" size={20} color={C.primary} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.findMeTitle}>Let friends find you</Text>
+                      <Text style={styles.findMeText}>
+                        {isPrivateRelayEmail(user.email)
+                          ? 'You signed in with Apple and hid your email, so friends can’t match you from their contacts yet. Add your phone number.'
+                          : 'Add your phone number so friends who sync their contacts see you here.'}
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={C.primary} />
+                  </TouchableOpacity>
+                ) : null}
                 {!contactsSynced ? (
                   <View style={styles.contactsPromptCard}>
                     <Ionicons name="people-outline" size={22} color={C.primary} />
@@ -544,7 +560,7 @@ export default function FriendsPage() {
                 ) : contactMatches.length > 0 ? (
                   contactMatches.map(renderSuggestedRow)
                 ) : (
-                  <Text style={styles.emptyText}>None of your contacts are on ParkAtlas yet — invite them!</Text>
+                  <Text style={styles.emptyText}>None of your contacts are on ParkAtlas yet — invite them! (Friends who signed in with Apple and hid their email only match once they add a phone number.)</Text>
                 )}
               </View>
 
@@ -582,6 +598,7 @@ export default function FriendsPage() {
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       {/* Login gate bottom sheet */}
+      <EditProfileModal visible={editProfileVisible} onClose={() => setEditProfileVisible(false)} />
       <LoginGateSheet
         visible={gateVisible}
         action={gateAction}
@@ -662,6 +679,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: C.onSurfaceVariant,
   },
+  findMeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    backgroundColor: C.primaryContainer,
+    borderWidth: 1,
+    borderColor: C.primary,
+    padding: 14,
+  },
+  findMeTitle: { fontSize: 15, fontWeight: '800', color: C.onSurface },
+  findMeText: { fontSize: 13, lineHeight: 18, color: C.onSurfaceVariant, marginTop: 2 },
   personRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
