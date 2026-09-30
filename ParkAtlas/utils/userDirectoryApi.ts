@@ -361,6 +361,56 @@ export async function matchRegisteredUsersByContacts(input: {
   }
 }
 
+const normalizeName = (s?: string | null) =>
+  (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f'’\-]/g, '') // accents, apostrophes, hyphens: O'Brien → obrien
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * "People you may know": profiles whose display name matches a name in the user's contacts.
+ * Apple's hidden-email users can't be matched by email/phone, so this is the fallback. Contact names
+ * are compared here on-device and never uploaded. Exact full-name match, or first name + last initial
+ * when the contact has a last name — anything looser produces junk.
+ */
+export async function matchContactsByName(input: {
+  names: string[];
+  excludeIds?: Iterable<string>;
+  limit?: number;
+}): Promise<DirectoryUser[]> {
+  const contactNames = new Set<string>();
+  const firstLast = new Set<string>();
+  for (const raw of input.names) {
+    const n = normalizeName(raw);
+    if (!n || n.split(' ').length < 2) continue; // single-word contacts ("Mom") are too ambiguous
+    contactNames.add(n);
+    const parts = n.split(' ');
+    firstLast.add(`${parts[0]} ${parts[parts.length - 1][0]}`);
+  }
+  if (contactNames.size === 0) return [];
+  const exclude = new Set(input.excludeIds ?? []);
+
+  try {
+    const snapshot = await getDocs(query(collection(db, 'users'), limit(1000)));
+    const out: DirectoryUser[] = [];
+    for (const snap of snapshot.docs) {
+      if (exclude.has(snap.id)) continue;
+      const data = snap.data() as FirestoreUserDoc;
+      const full = normalizeName(data.name || [data.first_name, data.last_name].filter(Boolean).join(' '));
+      if (!full || full.split(' ').length < 2) continue;
+      const parts = full.split(' ');
+      const key = `${parts[0]} ${parts[parts.length - 1][0]}`;
+      if (contactNames.has(full) || firstLast.has(key)) out.push(mapDocToDirectoryUser(snap.id, data));
+    }
+    return out.slice(0, input.limit ?? 50);
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchFriendActivities(friendIds: string[]): Promise<FriendActivity[]> {
   if (friendIds.length === 0) return [];
 

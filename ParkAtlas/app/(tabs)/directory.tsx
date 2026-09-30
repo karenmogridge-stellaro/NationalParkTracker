@@ -22,7 +22,7 @@ import { AppDrawer } from '@/components/AppDrawer';
 import { FriendProfile, useFriends } from '@/hooks/useFriends';
 import { useAuth } from '@/hooks/useAuth';
 import { isFirebaseConfigured, missingFirebaseConfigKeys } from '@/utils/firebase';
-import { isPrivateRelayEmail, matchContactsToUsers, searchDirectoryUsersByUsername } from '@/utils/userDirectoryApi';
+import { isPrivateRelayEmail, matchContactsByName, matchContactsToUsers, searchDirectoryUsersByUsername } from '@/utils/userDirectoryApi';
 import { readDeviceContacts, ContactsPermissionDeniedError } from '@/utils/contactsSync';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -65,6 +65,8 @@ export default function FriendsPage() {
   const toast = useToast();
   const [requestedExpanded, setRequestedExpanded] = useState(false);
   const [syncingContacts, setSyncingContacts] = useState(false);
+  // Name-only guesses from the last contacts sync (session-only; contact names never leave the device).
+  const [nameSuggestions, setNameSuggestions] = useState<FriendProfile[]>([]);
   const [directoryWarning, setDirectoryWarning] = useState<string | null>(null);
   // Login gate
   const [gateVisible, setGateVisible] = useState(false);
@@ -105,6 +107,13 @@ export default function FriendsPage() {
         !incomingIds.has(u.id)
       ),
     [directoryUsers, matchedContactIds, user?.id, myFriendIds, requestedIds, incomingIds]
+  );
+
+  // ── PEOPLE YOU MAY KNOW: name-only guesses, minus anyone already connected ─
+  const maybeKnown = useMemo(
+    () => nameSuggestions.filter((u) =>
+      u.id !== user?.id && !myFriendIds.has(u.id) && !requestedIds.has(u.id) && !incomingIds.has(u.id) && !matchedContactIds.has(u.id)),
+    [nameSuggestions, user?.id, myFriendIds, requestedIds, incomingIds, matchedContactIds]
   );
 
   // ── REQUESTED (outgoing): pending requests that aren't already friends ─
@@ -181,25 +190,31 @@ export default function FriendsPage() {
         return;
       }
 
-      const { phones, emails } = await readDeviceContacts();
+      const { phones, emails, names } = await readDeviceContacts();
       const matches = await matchContactsToUsers({ phones, emails, excludeUserId: user.id });
       setDirectoryWarning(null);
 
-      const profiles: FriendProfile[] = matches.map((u) => ({
+      const toProfile = (u: { id: string; name: string; username: string; avatarUrl?: string }): FriendProfile => ({
         id: u.id,
         name: u.name,
         username: u.username,
         avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?auto=format&fit=crop&w=160&q=80',
         meta: '@' + u.username,
-      }));
+      });
+      const profiles: FriendProfile[] = matches.map(toProfile);
 
-      await setDirectoryUsers(profiles);
+      // Fallback for hidden-email / no-phone friends: same display name as someone in your contacts.
+      const byName = await matchContactsByName({ names, excludeIds: [user.id, ...profiles.map((p) => p.id)] });
+      setNameSuggestions(byName.map(toProfile));
+
+      await setDirectoryUsers([...profiles, ...byName.map(toProfile)]);
       await setMatchedContactIds(profiles.map((p) => p.id));
       await markContactsSynced(true);
+      const total = profiles.length + byName.length;
       toast.success(
-        profiles.length === 0
+        total === 0
           ? 'Contacts synced — no matches yet'
-          : `Found ${profiles.length} ${profiles.length === 1 ? 'friend' : 'friends'} from your contacts`,
+          : `Found ${profiles.length} from your contacts${byName.length ? ` and ${byName.length} you may know` : ''}`,
         { icon: 'people' },
       );
     } catch (e) {
@@ -564,6 +579,14 @@ export default function FriendsPage() {
                 )}
               </View>
 
+              {contactsSynced && maybeKnown.length > 0 ? (
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionTitle}>People you may know</Text>
+                  <Text style={styles.sectionHint}>Same name as someone in your contacts — a guess, so double-check before you follow.</Text>
+                  {maybeKnown.map(renderSuggestedRow)}
+                </View>
+              ) : null}
+
               {requestedUsers.length > 0 ? (
                 <View style={styles.sectionBlock}>
                   <TouchableOpacity
@@ -691,6 +714,7 @@ const styles = StyleSheet.create({
   },
   findMeTitle: { fontSize: 15, fontWeight: '800', color: C.onSurface },
   findMeText: { fontSize: 13, lineHeight: 18, color: C.onSurfaceVariant, marginTop: 2 },
+  sectionHint: { fontSize: 12.5, color: C.onSurfaceVariant, marginTop: -4, marginBottom: 2 },
   personRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
