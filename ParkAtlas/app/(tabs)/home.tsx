@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -21,7 +21,7 @@ import { fallbackImageForPark } from '@/utils/parkImagery';
 import { useStravaData } from '@/hooks/useStravaData';
 import { useVisitedParks, ParkVisit } from '@/hooks/useVisitedParks';
 import { useFriends } from '@/hooks/useFriends';
-import { LogOutingSheet } from '../../components/LogOutingSheet';
+import { LogOutingSheet, TapRipple } from '../../components/LogOutingSheet';
 import { VisitActionSheet } from '@/components/VisitActionSheet';
 import { ActivityFeedCard } from '@/components/ActivityFeedCard';
 import { LoginGateSheet } from '@/components/LoginGateSheet';
@@ -169,7 +169,12 @@ export default function HomeScreen() {
   const [communityMode, setCommunityMode] = useState<CommunityMode>('all');
   // Feed controls: narrow to one park (see every visit there) and collapse cards to compact rows.
   // Dev-only route params (?park=63&compact=1) preset them for screenshot tooling.
-  const devParams = useLocalSearchParams<{ park?: string; compact?: string; action?: string; log?: string }>();
+  const devParams = useLocalSearchParams<{ park?: string; compact?: string; action?: string; log?: string; demo?: string; q?: string }>();
+  // Dev-only Reel recording: ?demo=<parkId>&q=<typed query> taps the FAB, types, picks, quick-saves.
+  const demoConfig = __DEV__ && devParams.demo ? { parkId: String(devParams.demo), query: String(devParams.q ?? '') } : undefined;
+  const [demoTap, setDemoTap] = useState<{ x: number; y: number } | null>(null);
+  const fabRef = useRef<View>(null);
+  const demoRan = useRef(false);
   const [parkFilter, setParkFilter] = useState<string | null>(__DEV__ && devParams.park ? String(devParams.park) : null);
   const [compactFeed, setCompactFeed] = useState(__DEV__ && devParams.compact === '1');
   const [friendActivities, setFriendActivities] = useState<(FriendActivity & { userName: string })[]>([]);
@@ -435,6 +440,16 @@ export default function HomeScreen() {
   React.useEffect(() => {
     if (__DEV__ && devParams.action === '1' && visits.length > 0 && !actionVisit) setActionVisit(visits[visits.length - 1]);
     if (__DEV__ && devParams.log === '1' && !sheetVisible) setSheetVisible(true);
+    if (demoConfig && !sheetVisible && !demoRan.current) {
+      demoRan.current = true;
+      const t = setTimeout(() => {
+        fabRef.current?.measureInWindow((x, y, w, h) => {
+          setDemoTap({ x: x + w / 2, y: y + h / 2 });
+          setTimeout(() => { haptic.medium(); setSheetVisible(true); }, 280);
+        });
+      }, 1600);
+      return () => clearTimeout(t);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visits.length]);
   const onCardPress = useCallback((item: FeedItem) => {
@@ -929,6 +944,7 @@ export default function HomeScreen() {
 
       {!isFirstTimeEmpty ? (
         <TouchableOpacity
+          ref={fabRef}
           style={styles.fab}
           activeOpacity={0.85}
           onPress={() => { haptic.medium(); setSheetVisible(true); }}
@@ -938,6 +954,7 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
         </TouchableOpacity>
       ) : null}
+      {demoTap && !sheetVisible ? <TapRipple x={demoTap.x} y={demoTap.y} /> : null}
 
       <VisitActionSheet
         visit={actionVisit}
@@ -960,6 +977,7 @@ export default function HomeScreen() {
           if (!newPark) toast.success(edited ? 'Visit updated' : 'Visit logged', { icon: 'leaf' });
         }}
         editVisit={editingVisit ?? undefined}
+        demo={demoConfig}
       />
       <AppDrawer visible={drawerOpen} onClose={() => setDrawerOpen(false)} />
 

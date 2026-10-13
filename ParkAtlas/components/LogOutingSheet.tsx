@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Image,
   ActionSheetIOS,
   Alert,
+  Animated,
 } from 'react-native';
 import { VisitDatePicker, toVisitDateValue, type VisitDateValue } from '@/components/VisitDatePicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +40,25 @@ interface Props {
   onClose: () => void;
   onSaved?: (result: { edited: boolean; newPark: boolean }) => void;
   editVisit?: ParkVisit;
+  /** Dev-only: auto-type `query`, pick `parkId`, quick-save — for recording Reels. */
+  demo?: { query: string; parkId: string };
+}
+
+/** Dev-only visual "finger tap" used by the recording demo. */
+export function TapRipple({ x, y }: { x: number; y: number }) {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    anim.setValue(0);
+    Animated.timing(anim, { toValue: 1, duration: 520, useNativeDriver: true }).start();
+  }, [anim, x, y]);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1.6] });
+  const opacity = anim.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 0.85, 0] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{ position: 'absolute', left: x - 28, top: y - 28, width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 3, borderColor: C.primary, transform: [{ scale }], opacity, zIndex: 999 }}
+    />
+  );
 }
 
 interface ParkSelectInputProps {
@@ -199,13 +219,17 @@ function PrimarySaveButton({ disabled, onPress }: PrimarySaveButtonProps) {
   );
 }
 
-export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) {
+export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: Props) {
   const { logVisit, updateVisit, visits } = useVisitedParks();
 
   const [parkSearch, setParkSearch] = useState('');
   const [selectedPark, setSelectedPark] = useState<NationalPark | null>(null);
   const [showParkResults, setShowParkResults] = useState(false);
   const [parkError, setParkError] = useState('');
+  const [tap, setTap] = useState<{ x: number; y: number; k: number } | null>(null);
+  const quickSaveRef = useRef<View>(null);
+  const firstResultRef = useRef<View>(null);
+  const demoFire = useRef<(() => void) | null>(null);
 
   const [trailSearch, setTrailSearch] = useState('');
   const [selectedTrails, setSelectedTrails] = useState<Trail[]>([]);
@@ -368,6 +392,37 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     setShowTrailResults(false);
   }, [visible, editVisit?.visitId, allParkOptions]);
 
+  // Dev-only recording choreography: type → tap result → tap "Log now".
+  useEffect(() => {
+    if (!__DEV__ || !visible || !demo) return;
+    const park = allParkOptions.find((p) => p.id === demo.parkId);
+    if (!park) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const at = (ms: number, fn: () => void) => timers.push(setTimeout(fn, ms));
+    const tapOn = (ref: React.RefObject<View | null>, then: () => void) => {
+      ref.current?.measureInWindow((x, y, w, h) => {
+        setTap({ x: x + w * 0.5, y: y + h * 0.5, k: Date.now() });
+        setTimeout(then, 260);
+      });
+    };
+    let t = 700;
+    at(t, () => setShowParkResults(true));
+    for (let i = 1; i <= demo.query.length; i++) {
+      t += 110;
+      const slice = demo.query.slice(0, i);
+      at(t, () => setParkSearch(slice));
+    }
+    t += 800;
+    at(t, () => tapOn(firstResultRef, () => {
+      setSelectedPark(park);
+      setParkSearch(park.name);
+      setShowParkResults(false);
+    }));
+    t += 1500;
+    at(t, () => tapOn(quickSaveRef, () => demoFire.current?.()));
+    return () => timers.forEach(clearTimeout);
+  }, [visible, demo, allParkOptions]);
+
   if (!visible) return null;
 
   async function pickPhotos() {
@@ -496,9 +551,11 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
     onSaved?.({ edited: false, newPark });
     onClose();
   }
+  demoFire.current = () => { void handleQuickSave(); };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      {tap ? <TapRipple key={tap.k} x={tap.x} y={tap.y} /> : null}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <JournalEntryFormCard>
@@ -545,9 +602,10 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
                   style={{ maxHeight: 220 }}
                   nestedScrollEnabled
                 >
-                  {filteredParks.map((item) => (
+                  {filteredParks.map((item, idx) => (
                     <TouchableOpacity
                       key={item.id}
+                      ref={idx === 0 ? firstResultRef : undefined}
                       style={styles.resultRow}
                       activeOpacity={0.8}
                       onPress={() => {
@@ -574,7 +632,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit }: Props) 
 
             {selectedPark && !showDetails ? (
               <>
-                <TouchableOpacity style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
+                <TouchableOpacity ref={quickSaveRef} style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
                   <Ionicons name="checkmark-circle" size={22} color={C.onPrimary} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.quickSaveTitle}>Log {selectedPark.name} now</Text>
