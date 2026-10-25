@@ -1,40 +1,81 @@
 {
-  "_comment": "Affiliate/partner link templates used by build-parks.mjs. {q} = URL-encoded '<Park> National Park, <State>'. Replace with tracked URLs once approved; set enabled:false to hide a slot. Links render with rel=sponsored.",
+  "_comment": "Partner links rendered by build-parks.mjs. Each slot: `url` is the untracked fallback; set `trackedUrl` once a program approves you and it takes over automatically. Placeholders: {q} = '<Park> National Park, <State>' | {park} = park name | {state} | {city} (near pages) | {lat} {lng}. `contexts` controls where it shows: park (park pages), near (city pages). `requires` = 'camping' hides the slot on parks with no campgrounds. Links render rel=sponsored and fire a GA4 'affiliate_click' event.",
+  "_apply": {
+    "stay": "Booking.com Affiliate Partner Programme (or Expedia Group via Partnerize). Paste the tracked deep link as trackedUrl with {q} kept in it.",
+    "camp": "Hipcamp affiliate runs on Impact.com; The Dyrt is the alternative.",
+    "pass": "REI sells the America the Beautiful pass; REI's affiliate program is on AvantLink. USGS store has no program.",
+    "car": "Expedia/Discover Cars/RentalCars via Partnerize or TravelPayouts.",
+    "guide": "Already tracked: Amazon Associates tag parkatlas-20 (same as /gear)."
+  },
   "disclosure": "Some links on this page are affiliate links. If you book or buy through them, ParkAtlas may earn a small commission at no extra cost to you. It helps keep the app free of ads.",
   "slots": [
     {
       "id": "stay",
       "enabled": true,
+      "contexts": ["park", "near"],
       "icon": "🏨",
       "title": "Places to stay",
       "blurb": "Hotels, cabins, and lodges near the park.",
+      "blurbNear": "Hotels and cabins for the drive out and the nights near the park.",
       "cta": "Search stays",
-      "url": "https://www.booking.com/searchresults.html?ss={q}"
+      "url": "https://www.booking.com/searchresults.html?ss={q}",
+      "urlNear": "https://www.booking.com/searchresults.html?ss={city}",
+      "trackedUrl": "",
+      "trackedUrlNear": ""
     },
     {
       "id": "camp",
       "enabled": true,
+      "contexts": ["park"],
+      "requires": "camping",
       "icon": "⛺",
       "title": "Campsites",
-      "blurb": "Public campgrounds plus private land nearby.",
+      "blurb": "Public campgrounds plus private land nearby. Book early for peak season.",
       "cta": "Find a campsite",
-      "url": "https://www.hipcamp.com/en-US/search?q={q}"
+      "url": "https://www.hipcamp.com/en-US/search?q={q}",
+      "trackedUrl": ""
+    },
+    {
+      "id": "car",
+      "enabled": true,
+      "contexts": ["near"],
+      "icon": "🚗",
+      "title": "Rental car",
+      "blurbNear": "Most of these parks are a drive, not a flight. Pick up in {city}.",
+      "cta": "Compare cars",
+      "urlNear": "https://www.expedia.com/Cars?locn={city}",
+      "trackedUrlNear": ""
     },
     {
       "id": "pass",
       "enabled": true,
+      "contexts": ["park"],
       "icon": "🎟️",
       "title": "America the Beautiful pass",
-      "blurb": "One annual pass covers entry to every national park.",
+      "blurb": "$80 covers entry to every national park for a year — pays for itself in three visits.",
       "cta": "Get the pass",
-      "url": "https://store.usgs.gov/recreational-passes"
+      "url": "https://www.rei.com/product/128746/america-the-beautiful-national-parks-and-federal-recreational-lands-annual-pass",
+      "trackedUrl": ""
+    },
+    {
+      "id": "guide",
+      "enabled": true,
+      "contexts": ["park"],
+      "icon": "📖",
+      "title": "{park} guidebook",
+      "blurb": "Trail-by-trail guides and maps. Download the Kindle version before you lose signal.",
+      "cta": "Browse guides",
+      "url": "https://www.amazon.com/s?k={park}+National+Park+guide&tag=parkatlas-20",
+      "trackedUrl": "https://www.amazon.com/s?k={park}+National+Park+guide&tag=parkatlas-20"
     },
     {
       "id": "gear",
       "enabled": true,
+      "contexts": ["park", "near"],
       "icon": "🥾",
       "title": "Trail gear",
       "blurb": "The short list of what I actually pack — packs, layers, coffee.",
+      "blurbNear": "The short list of what I actually pack — packs, layers, coffee.",
       "cta": "See the gear list",
       "url": "/gear",
       "internal": true

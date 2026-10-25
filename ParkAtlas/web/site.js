@@ -53,6 +53,15 @@
   if (initial) { input.value = initial; apply(); }
 })();
 
+// Affiliate click tracking (GA4) so each partner slot's earning potential is visible before payouts arrive.
+(function () {
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a[data-aff]');
+    if (!a || !window.gtag) return;
+    gtag('event', 'affiliate_click', { slot: a.getAttribute('data-aff'), page: location.pathname, transport_type: 'beacon' });
+  });
+})();
+
 // Web → app: on phones, [data-app-path] tries the parkatlas:// scheme and falls back to the App Store.
 // (Same-domain taps in Safari don't fire universal links, so the custom scheme is the reliable path here.)
 (function () {

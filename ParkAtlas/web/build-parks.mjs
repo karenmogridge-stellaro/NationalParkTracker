@@ -210,34 +210,52 @@ const foot = ({ disclosure = false } = {}) => `
 </body>
 </html>`;
 
-// Affiliate/partner links from web/affiliates.json. {q} = "<Park> National Park, <State>".
-const affiliateUrl = (slot, park) =>
-  slot.url.replace('{q}', encodeURIComponent(`${park.name} National Park, ${stateDisplayName(park.state)}`));
+// Affiliate/partner links from web/affiliates.json. A slot's trackedUrl wins over url once it's filled in.
+const fillUrl = (tpl, vars) => tpl.replace(/\{(q|park|state|city|lat|lng)\}/g, (_, k) => encodeURIComponent(vars[k] ?? ''));
+const parkVars = (park) => ({ q: `${park.name} National Park, ${stateDisplayName(park.state)}`, park: park.name, state: stateDisplayName(park.state), lat: park.lat, lng: park.lng });
+const metroVars = (metro) => ({ q: `${metro.city}, ${stateDisplayName(metro.state)}`, city: metro.city, state: stateDisplayName(metro.state), lat: metro.lat, lng: metro.lng });
+const slotUrl = (slot, ctx, vars) => {
+  const tpl = ctx === 'near'
+    ? (slot.trackedUrlNear || slot.urlNear || slot.trackedUrl || slot.url)
+    : (slot.trackedUrl || slot.url);
+  return tpl ? fillUrl(tpl, vars) : null;
+};
+const slotText = (s, ctx, vars) => (s[ctx === 'near' ? 'blurbNear' : 'blurb'] || s.blurb || '').replace(/\{(park|city|state)\}/g, (_, k) => vars[k] ?? '');
+const slotTitle = (s, vars) => (s.title || '').replace(/\{(park|city|state)\}/g, (_, k) => vars[k] ?? '');
 const affiliateSlot = (id) => AFFILIATES.slots.find((s) => s.id === id && s.enabled);
+const affiliateUrl = (slot, park) => slotUrl(slot, 'park', parkVars(park));
 
-const planTrip = (park) => {
-  const slots = AFFILIATES.slots.filter((s) => s.enabled);
+// ctx: 'park' | 'near'. subject: the park or metro record.
+const planTrip = (subject, ctx = 'park') => {
+  const vars = ctx === 'near' ? metroVars(subject) : parkVars(subject);
+  const slots = AFFILIATES.slots.filter((s) =>
+    s.enabled && (s.contexts || ['park']).includes(ctx) && !(ctx === 'park' && s.requires === 'camping' && !subject.detail?.camping));
   if (!slots.length) return '';
+  const card = (s) => {
+    const href = s.internal ? s.url : slotUrl(s, ctx, vars);
+    if (!href) return '';
+    const attrs = s.internal ? '' : ` target="_blank" rel="sponsored noopener" data-aff="${s.id}"`;
+    return `<a class="plan-card" href="${href}"${attrs}>
+              <span class="plan-icon">${s.icon}</span>
+              <strong>${esc(slotTitle(s, vars))}</strong>
+              <span class="muted">${esc(slotText(s, ctx, vars))}</span>
+              <span class="plan-cta">${esc(s.cta)} →</span>
+            </a>`;
+  };
   return `
         <section class="plan">
           <h2>Plan your trip</h2>
-          <p class="muted">The practical bits, so more of the weekend goes to the trail.</p>
+          <p class="muted">${ctx === 'near' ? `The practical bits for a ${esc(subject.city)} start — so more of the weekend goes to the trail.` : 'The practical bits, so more of the weekend goes to the trail.'}</p>
           <div class="plan-grid">
-            ${slots.map((s) => s.internal
-              ? `<a class="plan-card" href="${s.url}">
-              <span class="plan-icon">${s.icon}</span>
-              <strong>${esc(s.title)}</strong>
-              <span class="muted">${esc(s.blurb)}</span>
-              <span class="plan-cta">${esc(s.cta)} →</span>
-            </a>`
-              : `<a class="plan-card" href="${affiliateUrl(s, park)}" target="_blank" rel="sponsored noopener">
-              <span class="plan-icon">${s.icon}</span>
-              <strong>${esc(s.title)}</strong>
-              <span class="muted">${esc(s.blurb)}</span>
-              <span class="plan-cta">${esc(s.cta)} →</span>
-            </a>`).join('\n            ')}
+            ${slots.map(card).filter(Boolean).join('\n            ')}
           </div>
         </section>`;
+};
+// Text link for the pass wherever fees are mentioned.
+const passLink = (park, label = 'America the Beautiful pass') => {
+  const s = affiliateSlot('pass');
+  const href = s ? affiliateUrl(s, park) : null;
+  return href ? `<a class="text-link" href="${href}" target="_blank" rel="sponsored noopener" data-aff="pass">${esc(label)}</a>` : esc(label);
 };
 
 const appCta = (park) => `
@@ -362,7 +380,7 @@ async function parkPage(park) {
               ? `Approximately ${d.campsiteCount} campsites across the park's campgrounds. Reservations are strongly recommended in peak season (${esc(d.peakSeason)}).`
               : 'Backcountry and primitive camping are available. Check NPS.gov for permits and current conditions.')
             : 'There are no NPS campgrounds inside the park. Lodging and private campgrounds are typically available nearby.'}</p>
-          ${staySearch ? `<p><a class="text-link" href="${staySearch}" target="_blank" rel="sponsored noopener">Find places to stay near ${esc(park.name)} →</a></p>` : ''}
+          ${staySearch ? `<p><a class="text-link" href="${staySearch}" target="_blank" rel="sponsored noopener" data-aff="stay">Find places to stay near ${esc(park.name)} →</a></p>` : ''}
         </section>
 
         <section>
@@ -379,8 +397,12 @@ async function parkPage(park) {
           <ul class="fee-list">
             ${fees.map((f) => `<li><span><strong>${esc(f.title)}</strong>${f.description ? ` <span class="muted">— ${esc(f.description)}</span>` : ''}</span><strong>${Number(f.cost) > 0 ? `$${Number(f.cost).toFixed(0)}` : 'Free'}</strong></li>`).join('\n            ')}
           </ul>
-          ${nps?.entrancePasses?.[0] ? `<p class="muted">${esc(nps.entrancePasses[0].title)}: $${Number(nps.entrancePasses[0].cost).toFixed(0)}. An America the Beautiful pass ($80/yr) covers every national park.</p>` : ''}
-        </section>` : ''}
+          ${nps?.entrancePasses?.[0] ? `<p class="muted">${esc(nps.entrancePasses[0].title)}: $${Number(nps.entrancePasses[0].cost).toFixed(0)}. An ${passLink(park)} ($80/yr) covers every national park.</p>` : `<p class="muted">Visiting more than two parks this year? An ${passLink(park)} ($80/yr) covers entry to all of them.</p>`}
+        </section>` : `
+        <section>
+          <h2>Entrance fees</h2>
+          <p>Entry is <strong>${esc(d.entryFee)}</strong>.${d.entryFee.toLowerCase() === 'free' ? '' : ` An ${passLink(park)} ($80/yr) covers entry to every national park — it pays for itself in about three visits.`}</p>
+        </section>`}
 
         <section>
           <h2>Getting there</h2>
@@ -621,6 +643,8 @@ function nearPage(metro) {
           ${faqs.map((f) => `<details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n          ')}
         </section>
 
+        ${planTrip(metro, 'near')}
+
         ${appCta({ name: `parks near ${metro.city}` })}
       </article>
 
@@ -635,7 +659,7 @@ function nearPage(metro) {
       </aside>
     </div>
   </main>
-${foot()}`;
+${foot({ disclosure: true })}`;
 }
 
 function nearIndexPage() {
