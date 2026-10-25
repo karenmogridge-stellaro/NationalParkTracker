@@ -155,6 +155,64 @@
 .index-hero { max-width: var(--max); margin: 0 auto; padding: 32px 24px 24px; display: grid; gap: 12px; justify-items: start; }
 .index-hero h1 { font-size: clamp(36px, 5.5vw, 60px); font-weight: 800; }
 .index-hero .lede { max-width: 640px; }
+
+/* Parks directory: search + region chips + photo cards */
+.filter-bar { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 560px; margin-top: 8px; }
+.filter-bar input {
+  flex: 1; min-width: 0;
+  font: inherit; font-size: 17px;
+  padding: 14px 18px;
+  border: 1.5px solid var(--outline);
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--text);
+  -webkit-appearance: none;
+}
+.filter-bar input:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 4px var(--primary-container); }
+.filter-count { font-size: 14px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit; font-size: 14px; font-weight: 700;
+  padding: 8px 14px;
+  border: 1.5px solid var(--outline);
+  border-radius: 999px;
+  background: #fff; color: var(--text);
+  cursor: pointer;
+}
+.chip small { color: var(--muted); font-weight: 600; margin-left: 2px; }
+.chip:hover { border-color: var(--primary); }
+.chip.is-active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.chip.is-active small { color: rgba(255, 255, 255, 0.75); }
+#park-directory { max-width: var(--max); margin: 0 auto; padding: 8px 24px 48px; }
+.region { margin-top: 36px; }
+.region h2 { font-size: 24px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: baseline; gap: 10px; }
+.region h2 small { font-size: 14px; font-weight: 700; color: var(--muted); }
+.park-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.park-card {
+  display: flex; flex-direction: column;
+  background: var(--surface-low);
+  border-radius: 18px;
+  overflow: hidden;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.park-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(27, 67, 50, 0.14); }
+.park-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--surface-high); }
+.park-card-body { display: grid; gap: 4px; padding: 12px 14px 14px; }
+.park-card strong { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.park-card small { color: var(--muted); font-size: 13px; font-weight: 600; }
+.park-card-facts { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.park-card[hidden], .region[hidden] { display: none; }
+.no-results { text-align: center; color: var(--muted); padding: 48px 0; }
+.parks-index .final-cta { margin-top: 24px; }
+@media (max-width: 560px) {
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-count { text-align: right; }
+  .park-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .park-card-body { padding: 10px 12px 12px; }
+  .park-card strong { font-size: 14px; }
+  .park-card-facts { display: none; }
+}
 .state-grid {
   max-width: var(--max);
   margin: 0 auto;

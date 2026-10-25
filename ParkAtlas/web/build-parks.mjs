@@ -646,17 +646,22 @@ ${foot()}`;
 }
 
 // ── Index page ───────────────────────────────────────────────────────────────
+const REGIONS = [
+  ['California', ['CA']],
+  ['Pacific Northwest', ['WA', 'OR']],
+  ['Mountain West', ['UT', 'CO', 'WY', 'MT', 'ID']],
+  ['Southwest', ['AZ', 'NM', 'NV', 'TX']],
+  ['Midwest & Plains', ['SD', 'ND', 'MN', 'MI', 'IN', 'OH', 'MO']],
+  ['South & East', ['ME', 'VA', 'WV', 'KY', 'TN', 'NC', 'SC', 'AR', 'FL']],
+  ['Alaska', ['AK']],
+  ['Hawaii & Islands', ['HI', 'AS', 'VI']],
+];
+const regionOf = (park) => REGIONS.find(([, states]) => states.includes(park.state))?.[0] ?? 'Other';
+
 function indexPage() {
-  const groups = new Map();
-  for (const p of parks) {
-    const s = stateDisplayName(p.state);
-    if (!groups.has(s)) groups.set(s, []);
-    groups.get(s).push(p);
-  }
-  const sorted = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
   const url = `${SITE}/parks`;
-  const title = 'U.S. National Parks by State — Trails, Camping & Fees | ParkAtlas';
-  const description = 'Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Keep track of the ones you\u2019ve explored in the ParkAtlas app.';
+  const title = 'All 63 U.S. National Parks — Photos, Trails, Camping & Fees | ParkAtlas';
+  const description = 'Browse every U.S. national park by region with photos, entry fees, peak season, and trail counts. Search by name or state, then keep track of the ones you\u2019ve explored in the ParkAtlas app.';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
@@ -664,23 +669,45 @@ function indexPage() {
     numberOfItems: parks.length,
     itemListElement: parks.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${p.name} National Park`, url: `${SITE}/parks/${p.slug}` })),
   };
+  const groups = REGIONS.map(([name]) => [name, parks.filter((p) => regionOf(p) === name).sort((a, b) => a.name.localeCompare(b.name))]).filter(([, list]) => list.length);
+  const card = (p) => `
+        <a class="park-card" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}">
+          <img src="${heroFor(p, 640)}" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>${esc(p.name)}</strong>
+            <small>${esc(stateDisplayName(p.state))}</small>
+            <span class="park-card-facts"><span>🎟️ ${esc(p.detail.entryFee)}</span><span>☀️ ${esc(p.detail.peakSeason)}</span></span>
+          </span>
+        </a>`;
 
   return `${head({ title, description, url, image: `${SITE}/og.png`, jsonLd })}
   <main class="parks-index">
     <section class="index-hero">
-      <p class="eyebrow">The full list</p>
-      <h1>National parks, by state</h1>
-      <p class="lede">Tap any park for trails, camping, fees, and the best time to go. Or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a> and start planning.</p>
-      <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
+      <p class="eyebrow">All 63</p>
+      <h1>Every U.S. national park</h1>
+      <p class="lede">Browse by region, or type a park or state. Each page has trails, camping, fees, and the best time to go. Closer to home? See <a class="text-link" href="/near">parks near your city</a> or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a>.</p>
+      <div class="filter-bar" role="search">
+        <label class="sr-only" for="park-filter">Filter parks by name or state</label>
+        <input id="park-filter" type="search" placeholder="Search parks or states…" autocomplete="off" />
+        <span class="filter-count" id="park-count" aria-live="polite">${parks.length} parks</span>
+      </div>
+      <div class="chips" id="region-chips" role="group" aria-label="Filter by region">
+        <button type="button" class="chip is-active" data-region="">All</button>
+        ${groups.map(([name, list]) => `<button type="button" class="chip" data-region="${esc(name)}">${esc(name)} <small>${list.length}</small></button>`).join('\n        ')}
+      </div>
     </section>
-    <section class="state-grid">
-      ${sorted.map(([state, list]) => `
-      <div class="state-card">
-        <h2>${esc(state)} <small>${list.length}</small></h2>
-        <ul>
-          ${list.sort((a, b) => a.name.localeCompare(b.name)).map((p) => `<li><a href="/parks/${p.slug}">${esc(p.name)}</a></li>`).join('\n          ')}
-        </ul>
-      </div>`).join('')}
+    <div id="park-directory">
+    ${groups.map(([name, list]) => `
+    <section class="region" data-region="${esc(name)}">
+      <h2>${esc(name)} <small>${list.length} ${list.length === 1 ? 'park' : 'parks'}</small></h2>
+      <div class="park-grid">${list.map(card).join('')}
+      </div>
+    </section>`).join('')}
+    <p class="no-results" id="no-results" hidden>No parks match that. Try a park name like “Zion” or a state like “Utah”.</p>
+    </div>
+    <section class="final-cta">
+      <h2>Been to some of these?<br />Log them in two taps.</h2>
+      <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="180" height="60" /></a>
     </section>
   </main>
 ${foot()}`;

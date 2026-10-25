@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>U.S. National Parks by State — Trails, Camping &amp; Fees | ParkAtlas</title>
-  <meta name="description" content="Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Keep track of the ones you’ve explored in the ParkAtlas app." />
+  <title>All 63 U.S. National Parks — Photos, Trails, Camping &amp; Fees | ParkAtlas</title>
+  <meta name="description" content="Browse every U.S. national park by region with photos, entry fees, peak season, and trail counts. Search by name or state, then keep track of the ones you’ve explored in the ParkAtlas app." />
   <link rel="canonical" href="https://parkatlas.io/parks" />
   <link rel="icon" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -15,8 +15,8 @@
   <meta name="apple-itunes-app" content="app-id=6760982981" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="ParkAtlas" />
-  <meta property="og:title" content="U.S. National Parks by State — Trails, Camping &amp; Fees | ParkAtlas" />
-  <meta property="og:description" content="Every U.S. national park grouped by state, with trails, camping, entry fees, and the best time to visit. Keep track of the ones you’ve explored in the ParkAtlas app." />
+  <meta property="og:title" content="All 63 U.S. National Parks — Photos, Trails, Camping &amp; Fees | ParkAtlas" />
+  <meta property="og:description" content="Browse every U.S. national park by region with photos, entry fees, peak season, and trail counts. Search by name or state, then keep track of the ones you’ve explored in the ParkAtlas app." />
   <meta property="og:url" content="https://parkatlas.io/parks" />
   <meta property="og:image" content="https://parkatlas.io/og.png" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -38,226 +38,577 @@
   </header>
   <main class="parks-index">
     <section class="index-hero">
-      <p class="eyebrow">The full list</p>
-      <h1>National parks, by state</h1>
-      <p class="lede">Tap any park for trails, camping, fees, and the best time to go. Or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a> and start planning.</p>
-      <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
+      <p class="eyebrow">All 63</p>
+      <h1>Every U.S. national park</h1>
+      <p class="lede">Browse by region, or type a park or state. Each page has trails, camping, fees, and the best time to go. Closer to home? See <a class="text-link" href="/near">parks near your city</a> or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a>.</p>
+      <div class="filter-bar" role="search">
+        <label class="sr-only" for="park-filter">Filter parks by name or state</label>
+        <input id="park-filter" type="search" placeholder="Search parks or states…" autocomplete="off" />
+        <span class="filter-count" id="park-count" aria-live="polite">63 parks</span>
+      </div>
+      <div class="chips" id="region-chips" role="group" aria-label="Filter by region">
+        <button type="button" class="chip is-active" data-region="">All</button>
+        <button type="button" class="chip" data-region="California">California <small>9</small></button>
+        <button type="button" class="chip" data-region="Pacific Northwest">Pacific Northwest <small>4</small></button>
+        <button type="button" class="chip" data-region="Mountain West">Mountain West <small>12</small></button>
+        <button type="button" class="chip" data-region="Southwest">Southwest <small>8</small></button>
+        <button type="button" class="chip" data-region="Midwest &amp; Plains">Midwest &amp; Plains <small>8</small></button>
+        <button type="button" class="chip" data-region="South &amp; East">South &amp; East <small>10</small></button>
+        <button type="button" class="chip" data-region="Alaska">Alaska <small>8</small></button>
+        <button type="button" class="chip" data-region="Hawaii &amp; Islands">Hawaii &amp; Islands <small>4</small></button>
+      </div>
     </section>
-    <section class="state-grid">
-      
-      <div class="state-card">
-        <h2>Alaska <small>8</small></h2>
-        <ul>
-          <li><a href="/parks/denali">Denali</a></li>
-          <li><a href="/parks/gates-of-the-arctic">Gates of the Arctic</a></li>
-          <li><a href="/parks/glacier-bay">Glacier Bay</a></li>
-          <li><a href="/parks/katmai">Katmai</a></li>
-          <li><a href="/parks/kenai-fjords">Kenai Fjords</a></li>
-          <li><a href="/parks/kobuk-valley">Kobuk Valley</a></li>
-          <li><a href="/parks/lake-clark">Lake Clark</a></li>
-          <li><a href="/parks/wrangell-st-elias">Wrangell–St. Elias</a></li>
-        </ul>
+    <div id="park-directory">
+    
+    <section class="region" data-region="California">
+      <h2>California <small>9 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/channel-islands" data-name="channel islands" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Channel_Islands_National_Park_by_Sentinel-2.jpg/3840px-Channel_Islands_National_Park_by_Sentinel-2.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Channel Islands</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/death-valley" data-name="death valley" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Mesquite_Sand_Dunes_in_Death_Valley.jpg/960px-Mesquite_Sand_Dunes_in_Death_Valley.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Death Valley</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ October – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/joshua-tree" data-name="joshua tree" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Joshua_Tree_-_Cyclops_%2B_Potato_Head_-_Sunrise.jpg/3840px-Joshua_Tree_-_Cyclops_%2B_Potato_Head_-_Sunrise.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Joshua Tree</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ October – May</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/kings-canyon" data-name="kings canyon" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/KingsCanyonNP.JPG/960px-KingsCanyonNP.JPG" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Kings Canyon</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/lassen-volcanic" data-name="lassen volcanic" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Lassen_Peak_and_Lake_Helen.jpg/3840px-Lassen_Peak_and_Lake_Helen.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Lassen Volcanic</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ June – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/pinnacles" data-name="pinnacles" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Rock_formations_at_Pinnacles_National_Park.jpg/3840px-Rock_formations_at_Pinnacles_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Pinnacles</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ February – May, Oct – Nov</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/redwood" data-name="redwood" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Redwood_National_Park%2C_fog_in_the_forest.jpg/960px-Redwood_National_Park%2C_fog_in_the_forest.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Redwood</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/sequoia" data-name="sequoia" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/General_Sherman_Tree_in_Sequoia_National_Park_-_June_2022.jpg/960px-General_Sherman_Tree_in_Sequoia_National_Park_-_June_2022.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Sequoia</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ June – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/yosemite" data-name="yosemite" data-state="california ca" data-region="California">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Half_Dome_with_Eastern_Yosemite_Valley_%2850MP%29.jpg/3840px-Half_Dome_with_Eastern_Yosemite_Valley_%2850MP%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Yosemite</strong>
+            <small>California</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>American Samoa <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/american-samoa">American Samoa</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Pacific Northwest">
+      <h2>Pacific Northwest <small>4 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/crater-lake" data-name="crater lake" data-state="oregon or" data-region="Pacific Northwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Above_Crater_Lake_%28cropped%29.jpg/3840px-Above_Crater_Lake_%28cropped%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Crater Lake</strong>
+            <small>Oregon</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ July – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/mount-rainier" data-name="mount rainier" data-state="washington wa" data-region="Pacific Northwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Mount_Rainier_from_above_Myrtle_Falls_in_August.JPG/3840px-Mount_Rainier_from_above_Myrtle_Falls_in_August.JPG" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Mount Rainier</strong>
+            <small>Washington</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ July – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/north-cascades" data-name="north cascades" data-state="washington wa" data-region="Pacific Northwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Cascade_Pass_and_Pelton_Basin.jpg/960px-Cascade_Pass_and_Pelton_Basin.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>North Cascades</strong>
+            <small>Washington</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ July – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/olympic" data-name="olympic" data-state="washington wa" data-region="Pacific Northwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Cedar_Creek_Abbey_Island_Ruby_Beach.jpg/3840px-Cedar_Creek_Abbey_Island_Ruby_Beach.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Olympic</strong>
+            <small>Washington</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Arizona <small>3</small></h2>
-        <ul>
-          <li><a href="/parks/grand-canyon">Grand Canyon</a></li>
-          <li><a href="/parks/petrified-forest">Petrified Forest</a></li>
-          <li><a href="/parks/saguaro">Saguaro</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Mountain West">
+      <h2>Mountain West <small>12 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/arches" data-name="arches" data-state="utah ut" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/Delicate_arch_sunset.jpg/960px-Delicate_arch_sunset.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Arches</strong>
+            <small>Utah</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ March – May, Sept – Oct</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/black-canyon-of-the-gunnison" data-name="black canyon of the gunnison" data-state="colorado co" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Black_Canyon_and_Gunnison_River_2008.jpg/960px-Black_Canyon_and_Gunnison_River_2008.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Black Canyon of the Gunnison</strong>
+            <small>Colorado</small>
+            <span class="park-card-facts"><span>🎟️ $20 / vehicle</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/bryce-canyon" data-name="bryce canyon" data-state="utah ut" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Inspiration_Point_Bryce_Canyon_November_2018_panorama.jpg/3840px-Inspiration_Point_Bryce_Canyon_November_2018_panorama.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Bryce Canyon</strong>
+            <small>Utah</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/canyonlands" data-name="canyonlands" data-state="utah ut" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Green_River_Overlook_Ekker_Butte.jpg/960px-Green_River_Overlook_Ekker_Butte.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Canyonlands</strong>
+            <small>Utah</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ March – May, Sept – Nov</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/capitol-reef" data-name="capitol reef" data-state="utah ut" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Capitol_Reef_National_Park.jpg/960px-Capitol_Reef_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Capitol Reef</strong>
+            <small>Utah</small>
+            <span class="park-card-facts"><span>🎟️ $20 / vehicle</span><span>☀️ March – May, Sept – Oct</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/glacier" data-name="glacier" data-state="montana mt" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Mountain_Goat_at_Hidden_Lake.jpg/3840px-Mountain_Goat_at_Hidden_Lake.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Glacier</strong>
+            <small>Montana</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ July – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/grand-teton" data-name="grand teton" data-state="wyoming wy" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Barns_grand_tetons.jpg/960px-Barns_grand_tetons.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Grand Teton</strong>
+            <small>Wyoming</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/great-sand-dunes" data-name="great sand dunes" data-state="colorado co" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Great_Sand_Dunes_National_Park_and_Preserve%2C_United_States_%28Unsplash%29.jpg/3840px-Great_Sand_Dunes_National_Park_and_Preserve%2C_United_States_%28Unsplash%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Great Sand Dunes</strong>
+            <small>Colorado</small>
+            <span class="park-card-facts"><span>🎟️ $25 / vehicle</span><span>☀️ April – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/mesa-verde" data-name="mesa verde" data-state="colorado co" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Cliff_Palace-Colorado-Mesa_Verde_NP.jpg/3840px-Cliff_Palace-Colorado-Mesa_Verde_NP.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Mesa Verde</strong>
+            <small>Colorado</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/rocky-mountain" data-name="rocky mountain" data-state="colorado co" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Rocky_Mountain_National_Park_in_September_2011_-_Glacier_Gorge_from_Bear_Lake.JPG/960px-Rocky_Mountain_National_Park_in_September_2011_-_Glacier_Gorge_from_Bear_Lake.JPG" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Rocky Mountain</strong>
+            <small>Colorado</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/yellowstone" data-name="yellowstone" data-state="wyoming wy" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Grand_Canyon_of_the_Yellowstone_Lower_Falls_%2895819p%29.jpg/3840px-Grand_Canyon_of_the_Yellowstone_Lower_Falls_%2895819p%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Yellowstone</strong>
+            <small>Wyoming</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/zion" data-name="zion" data-state="utah ut" data-region="Mountain West">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Zion_angels_landing_view.jpg/960px-Zion_angels_landing_view.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Zion</strong>
+            <small>Utah</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ March – May, Sept – Nov</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Arkansas <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/hot-springs">Hot Springs</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Southwest">
+      <h2>Southwest <small>8 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/big-bend" data-name="big bend" data-state="texas tx" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Canyon%2C_Rio_Grande%2C_Texas.jpeg/960px-Canyon%2C_Rio_Grande%2C_Texas.jpeg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Big Bend</strong>
+            <small>Texas</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ October – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/carlsbad-caverns" data-name="carlsbad caverns" data-state="new mexico nm" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Carlsbad_Interior_Formations.jpg/960px-Carlsbad_Interior_Formations.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Carlsbad Caverns</strong>
+            <small>New Mexico</small>
+            <span class="park-card-facts"><span>🎟️ $15 / person</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/grand-canyon" data-name="grand canyon" data-state="arizona az" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Dawn_on_the_S_rim_of_the_Grand_Canyon_%288645178272%29.jpg/960px-Dawn_on_the_S_rim_of_the_Grand_Canyon_%288645178272%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Grand Canyon</strong>
+            <small>Arizona</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ March – May, Sept – Nov</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/great-basin" data-name="great basin" data-state="nevada nv" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Prometheus_Wheeler.jpg/960px-Prometheus_Wheeler.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Great Basin</strong>
+            <small>Nevada</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/guadalupe-mountains" data-name="guadalupe mountains" data-state="texas tx" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Guadalupe_Peak_from_Hunter_Peak.jpg/3840px-Guadalupe_Peak_from_Hunter_Peak.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Guadalupe Mountains</strong>
+            <small>Texas</small>
+            <span class="park-card-facts"><span>🎟️ $25 / vehicle</span><span>☀️ March – May, Sept – Nov</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/petrified-forest" data-name="petrified forest" data-state="arizona az" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Jasper_Forest_at_Petrified_Forest_NP_in_AZ_12.jpg/960px-Jasper_Forest_at_Petrified_Forest_NP_in_AZ_12.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Petrified Forest</strong>
+            <small>Arizona</small>
+            <span class="park-card-facts"><span>🎟️ $25 / vehicle</span><span>☀️ April – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/saguaro" data-name="saguaro" data-state="arizona az" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Saguaro_Sunset.jpg/3840px-Saguaro_Sunset.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Saguaro</strong>
+            <small>Arizona</small>
+            <span class="park-card-facts"><span>🎟️ $25 / vehicle</span><span>☀️ October – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/white-sands" data-name="white sands" data-state="new mexico nm" data-region="Southwest">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/White_Sands_National_Park_visitor_center_and_native_plant_garden%2C_New_Mexico%2C_United_States.jpg/960px-White_Sands_National_Park_visitor_center_and_native_plant_garden%2C_New_Mexico%2C_United_States.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>White Sands</strong>
+            <small>New Mexico</small>
+            <span class="park-card-facts"><span>🎟️ $25 / vehicle</span><span>☀️ October – March</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>California <small>9</small></h2>
-        <ul>
-          <li><a href="/parks/channel-islands">Channel Islands</a></li>
-          <li><a href="/parks/death-valley">Death Valley</a></li>
-          <li><a href="/parks/joshua-tree">Joshua Tree</a></li>
-          <li><a href="/parks/kings-canyon">Kings Canyon</a></li>
-          <li><a href="/parks/lassen-volcanic">Lassen Volcanic</a></li>
-          <li><a href="/parks/pinnacles">Pinnacles</a></li>
-          <li><a href="/parks/redwood">Redwood</a></li>
-          <li><a href="/parks/sequoia">Sequoia</a></li>
-          <li><a href="/parks/yosemite">Yosemite</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Midwest &amp; Plains">
+      <h2>Midwest &amp; Plains <small>8 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/badlands" data-name="badlands" data-state="south dakota sd" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/MK00609_Badlands.jpg/960px-MK00609_Badlands.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Badlands</strong>
+            <small>South Dakota</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/cuyahoga-valley" data-name="cuyahoga valley" data-state="ohio oh" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Cuyahoga_Valley_National_Park_20.jpg/960px-Cuyahoga_Valley_National_Park_20.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Cuyahoga Valley</strong>
+            <small>Ohio</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/gateway-arch" data-name="gateway arch" data-state="missouri mo" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Gateway_Arch%2C_St._Louis.jpg/960px-Gateway_Arch%2C_St._Louis.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Gateway Arch</strong>
+            <small>Missouri</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ Year-round</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/indiana-dunes" data-name="indiana dunes" data-state="indiana in" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Indiana_Dunes_National_Lakeshore%2C_Michigan_City%2C_Indiana%2C_Estados_Unidos%2C_2012-10-20%2C_DD_03.jpg/3840px-Indiana_Dunes_National_Lakeshore%2C_Michigan_City%2C_Indiana%2C_Estados_Unidos%2C_2012-10-20%2C_DD_03.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Indiana Dunes</strong>
+            <small>Indiana</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/isle-royale" data-name="isle royale" data-state="michigan mi" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Edisen_Fishery_at_IRNP.jpg/960px-Edisen_Fishery_at_IRNP.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Isle Royale</strong>
+            <small>Michigan</small>
+            <span class="park-card-facts"><span>🎟️ $7 / person / day</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/theodore-roosevelt" data-name="theodore roosevelt" data-state="north dakota nd" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/34/View_of_Theodore_Roosevelt_National_Park.jpg/960px-View_of_Theodore_Roosevelt_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Theodore Roosevelt</strong>
+            <small>North Dakota</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/voyageurs" data-name="voyageurs" data-state="minnesota mn" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Voyageurs_National_Park.jpg/960px-Voyageurs_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Voyageurs</strong>
+            <small>Minnesota</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/wind-cave" data-name="wind cave" data-state="south dakota sd" data-region="Midwest &amp; Plains">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Skyway_Lake%2C_stalactites%2C_Wind_Cave.jpg/960px-Skyway_Lake%2C_stalactites%2C_Wind_Cave.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Wind Cave</strong>
+            <small>South Dakota</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Colorado <small>4</small></h2>
-        <ul>
-          <li><a href="/parks/black-canyon-of-the-gunnison">Black Canyon of the Gunnison</a></li>
-          <li><a href="/parks/great-sand-dunes">Great Sand Dunes</a></li>
-          <li><a href="/parks/mesa-verde">Mesa Verde</a></li>
-          <li><a href="/parks/rocky-mountain">Rocky Mountain</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="South &amp; East">
+      <h2>South &amp; East <small>10 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/acadia" data-name="acadia" data-state="maine me" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Acadia_National_Park_02.JPG/960px-Acadia_National_Park_02.JPG" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Acadia</strong>
+            <small>Maine</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/biscayne" data-name="biscayne" data-state="florida fl" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Biscayne.JPG/960px-Biscayne.JPG" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Biscayne</strong>
+            <small>Florida</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ December – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/congaree" data-name="congaree" data-state="south carolina sc" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/A548%2C_Congaree_National_Park%2C_South_Carolina%2C_USA%2C_2012.jpg/960px-A548%2C_Congaree_National_Park%2C_South_Carolina%2C_USA%2C_2012.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Congaree</strong>
+            <small>South Carolina</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ October – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/dry-tortugas" data-name="dry tortugas" data-state="florida fl" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Fort-Jefferson_Dry-Tortugas.jpg/960px-Fort-Jefferson_Dry-Tortugas.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Dry Tortugas</strong>
+            <small>Florida</small>
+            <span class="park-card-facts"><span>🎟️ $15 / person</span><span>☀️ December – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/everglades" data-name="everglades" data-state="florida fl" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Sunset_over_the_River_of_Grass%2C_NPSphoto%2C_G.Gardner_%289255157507%29.jpg/3840px-Sunset_over_the_River_of_Grass%2C_NPSphoto%2C_G.Gardner_%289255157507%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Everglades</strong>
+            <small>Florida</small>
+            <span class="park-card-facts"><span>🎟️ $35 / vehicle</span><span>☀️ December – April</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/great-smoky-mountains" data-name="great smoky mountains" data-state="tennessee tn" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/View_atop_Cliff_Tops_on_Mount_LeConte%2C_GSMNP%2C_TN.jpg/960px-View_atop_Cliff_Tops_on_Mount_LeConte%2C_GSMNP%2C_TN.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Great Smoky Mountains</strong>
+            <small>Tennessee</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/hot-springs" data-name="hot springs" data-state="arkansas ar" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Steamy_Entrance_Springs_on_Cold_Night_in_Hot_Springs_National_Park.jpg/960px-Steamy_Entrance_Springs_on_Cold_Night_in_Hot_Springs_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Hot Springs</strong>
+            <small>Arkansas</small>
+            <span class="park-card-facts"><span>🎟️ $20 / vehicle</span><span>☀️ April – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/mammoth-cave" data-name="mammoth cave" data-state="kentucky ky" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Mammoth_Cave_Rotunda_%28USGS_Lwt02830%29.jpg/960px-Mammoth_Cave_Rotunda_%28USGS_Lwt02830%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Mammoth Cave</strong>
+            <small>Kentucky</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ April – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/new-river-gorge" data-name="new river gorge" data-state="west virginia wv" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Grandview_Overlook%2C_New_River.jpg/3840px-Grandview_Overlook%2C_New_River.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>New River Gorge</strong>
+            <small>West Virginia</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ April – October</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/shenandoah" data-name="shenandoah" data-state="virginia va" data-region="South &amp; East">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/Skyline_Drive_in_the_Fall_%2821852619608%29.jpg/3840px-Skyline_Drive_in_the_Fall_%2821852619608%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Shenandoah</strong>
+            <small>Virginia</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ May – October</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Florida <small>3</small></h2>
-        <ul>
-          <li><a href="/parks/biscayne">Biscayne</a></li>
-          <li><a href="/parks/dry-tortugas">Dry Tortugas</a></li>
-          <li><a href="/parks/everglades">Everglades</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Alaska">
+      <h2>Alaska <small>8 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/denali" data-name="denali" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Every_Road-_Denali_%287945497984%29.jpg/3840px-Every_Road-_Denali_%287945497984%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Denali</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ $15 / person</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/gates-of-the-arctic" data-name="gates of the arctic" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/f/fc/Remote_river_in_Gates_of_the_Arctic_%2816524035298%29.jpg/960px-Remote_river_in_Gates_of_the_Arctic_%2816524035298%29.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Gates of the Arctic</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/glacier-bay" data-name="glacier bay" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/b/bf/A045%2C_Glacier_Bay_National_Park%2C_Alaska%2C_USA%2C_Johns_Hopkins_Glacier%2C_2002.jpg/960px-A045%2C_Glacier_Bay_National_Park%2C_Alaska%2C_USA%2C_Johns_Hopkins_Glacier%2C_2002.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Glacier Bay</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/katmai" data-name="katmai" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Katmai_Crater_1980.jpg/960px-Katmai_Crater_1980.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Katmai</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ July – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/kenai-fjords" data-name="kenai fjords" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Kenai_Fjords_coast.jpg/960px-Kenai_Fjords_coast.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Kenai Fjords</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ May – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/kobuk-valley" data-name="kobuk valley" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Kobuk_Bendlova_235.jpg/960px-Kobuk_Bendlova_235.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Kobuk Valley</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/lake-clark" data-name="lake clark" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Lake_Clark_National_Park.jpg/960px-Lake_Clark_National_Park.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Lake Clark</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – September</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/wrangell-st-elias" data-name="wrangell–st. elias" data-state="alaska ak" data-region="Alaska">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Mt_Saint_Elias%2C_South_Central_Alaska.jpg/960px-Mt_Saint_Elias%2C_South_Central_Alaska.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Wrangell–St. Elias</strong>
+            <small>Alaska</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ June – August</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Hawaii <small>2</small></h2>
-        <ul>
-          <li><a href="/parks/haleakala">Haleakalā</a></li>
-          <li><a href="/parks/hawaii-volcanoes">Hawaiʻi Volcanoes</a></li>
-        </ul>
+    </section>
+    <section class="region" data-region="Hawaii &amp; Islands">
+      <h2>Hawaii &amp; Islands <small>4 parks</small></h2>
+      <div class="park-grid">
+        <a class="park-card" href="/parks/american-samoa" data-name="american samoa" data-state="american samoa as" data-region="Hawaii &amp; Islands">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Pola_Islands_Tutuila_NPS.jpg/960px-Pola_Islands_Tutuila_NPS.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>American Samoa</strong>
+            <small>American Samoa</small>
+            <span class="park-card-facts"><span>🎟️ Free</span><span>☀️ April – November</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/haleakala" data-name="haleakalā" data-state="hawaii hi" data-region="Hawaii &amp; Islands">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Haleakala_National_Park_02.jpg/960px-Haleakala_National_Park_02.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Haleakalā</strong>
+            <small>Hawaii</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ Year-round</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/hawaii-volcanoes" data-name="hawaiʻi volcanoes" data-state="hawaii hi" data-region="Hawaii &amp; Islands">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/P%C4%81hoehoe_and_Aa_flows_at_Hawaii.jpg/960px-P%C4%81hoehoe_and_Aa_flows_at_Hawaii.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Hawaiʻi Volcanoes</strong>
+            <small>Hawaii</small>
+            <span class="park-card-facts"><span>🎟️ $30 / vehicle</span><span>☀️ Year-round</span></span>
+          </span>
+        </a>
+        <a class="park-card" href="/parks/virgin-islands" data-name="virgin islands" data-state="virgin islands vi" data-region="Hawaii &amp; Islands">
+          <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/St_John_Trunk_Bay_3.jpg/3840px-St_John_Trunk_Bay_3.jpg" alt="" loading="lazy" width="320" height="240" />
+          <span class="park-card-body">
+            <strong>Virgin Islands</strong>
+            <small>Virgin Islands</small>
+            <span class="park-card-facts"><span>🎟️ $8 / person</span><span>☀️ December – April</span></span>
+          </span>
+        </a>
       </div>
-      <div class="state-card">
-        <h2>Indiana <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/indiana-dunes">Indiana Dunes</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Kentucky <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/mammoth-cave">Mammoth Cave</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Maine <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/acadia">Acadia</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Michigan <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/isle-royale">Isle Royale</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Minnesota <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/voyageurs">Voyageurs</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Missouri <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/gateway-arch">Gateway Arch</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Montana <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/glacier">Glacier</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Nevada <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/great-basin">Great Basin</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>New Mexico <small>2</small></h2>
-        <ul>
-          <li><a href="/parks/carlsbad-caverns">Carlsbad Caverns</a></li>
-          <li><a href="/parks/white-sands">White Sands</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>North Dakota <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/theodore-roosevelt">Theodore Roosevelt</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Ohio <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/cuyahoga-valley">Cuyahoga Valley</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Oregon <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/crater-lake">Crater Lake</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>South Carolina <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/congaree">Congaree</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>South Dakota <small>2</small></h2>
-        <ul>
-          <li><a href="/parks/badlands">Badlands</a></li>
-          <li><a href="/parks/wind-cave">Wind Cave</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Tennessee <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/great-smoky-mountains">Great Smoky Mountains</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Texas <small>2</small></h2>
-        <ul>
-          <li><a href="/parks/big-bend">Big Bend</a></li>
-          <li><a href="/parks/guadalupe-mountains">Guadalupe Mountains</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Utah <small>5</small></h2>
-        <ul>
-          <li><a href="/parks/arches">Arches</a></li>
-          <li><a href="/parks/bryce-canyon">Bryce Canyon</a></li>
-          <li><a href="/parks/canyonlands">Canyonlands</a></li>
-          <li><a href="/parks/capitol-reef">Capitol Reef</a></li>
-          <li><a href="/parks/zion">Zion</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Virgin Islands <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/virgin-islands">Virgin Islands</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Virginia <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/shenandoah">Shenandoah</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Washington <small>3</small></h2>
-        <ul>
-          <li><a href="/parks/mount-rainier">Mount Rainier</a></li>
-          <li><a href="/parks/north-cascades">North Cascades</a></li>
-          <li><a href="/parks/olympic">Olympic</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>West Virginia <small>1</small></h2>
-        <ul>
-          <li><a href="/parks/new-river-gorge">New River Gorge</a></li>
-        </ul>
-      </div>
-      <div class="state-card">
-        <h2>Wyoming <small>2</small></h2>
-        <ul>
-          <li><a href="/parks/grand-teton">Grand Teton</a></li>
-          <li><a href="/parks/yellowstone">Yellowstone</a></li>
-        </ul>
-      </div>
+    </section>
+    <p class="no-results" id="no-results" hidden>No parks match that. Try a park name like “Zion” or a state like “Utah”.</p>
+    </div>
+    <section class="final-cta">
+      <h2>Been to some of these?<br />Log them in two taps.</h2>
+      <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="180" height="60" /></a>
     </section>
   </main>
 
