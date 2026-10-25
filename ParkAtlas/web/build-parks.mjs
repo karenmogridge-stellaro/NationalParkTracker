@@ -20,6 +20,14 @@ const APP_STORE = 'https://apps.apple.com/app/id6760982981';
 const AFFILIATES = JSON.parse(await readFile(path.join(WEB, 'affiliates.json'), 'utf8'));
 // Official NPS copy (public domain) pulled by web/fetch-nps-content.mjs; pages still build without it.
 const NPS = await readFile(path.join(WEB, 'nps-content.json'), 'utf8').then(JSON.parse).catch(() => ({}));
+// Distinct users who logged each park, from web/fetch-park-stats.mjs (gitignored; optional).
+const STATS = await readFile(path.join(WEB, 'park-stats.json'), 'utf8').then(JSON.parse).catch(() => ({ parks: {} }));
+// Below this, a count reads as "nobody uses this" rather than social proof, so it isn't rendered.
+const MIN_SOCIAL_PROOF = 25;
+const loggedBy = (park) => {
+  const n = STATS.parks?.[park.id] ?? 0;
+  return n >= MIN_SOCIAL_PROOF ? n : 0;
+};
 
 // ── Load the TypeScript data by bundling a tiny entry with esbuild ────────────
 const tmp = path.join(os.tmpdir(), `parkatlas-data-${Date.now()}.mjs`);
@@ -306,6 +314,7 @@ function parkPage(park) {
           <span>⛺ ${d.camping ? (d.campsiteCount ? `${d.campsiteCount} campsites` : 'Camping') : 'No campgrounds'}</span>
           <span>☀️ ${esc(d.peakSeason)}</span>
           <span>${d.openYear ? '📅 Open year-round' : '📅 Seasonal access'}</span>
+          ${loggedBy(park) ? `<span>👥 Logged by ${loggedBy(park).toLocaleString('en-US')} ParkAtlas explorers</span>` : ''}
         </div>
       </div>
     </section>
@@ -677,6 +686,7 @@ function indexPage() {
             <strong>${esc(p.name)}</strong>
             <small>${esc(stateDisplayName(p.state))}</small>
             <span class="park-card-facts"><span>🎟️ ${esc(p.detail.entryFee)}</span><span>☀️ ${esc(p.detail.peakSeason)}</span></span>
+            ${loggedBy(p) ? `<span class="park-card-proof">👥 ${loggedBy(p).toLocaleString('en-US')} explorers logged it</span>` : ''}
           </span>
         </a>`;
 
