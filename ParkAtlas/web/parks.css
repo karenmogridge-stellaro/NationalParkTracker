@@ -69,6 +69,17 @@
 .trail-list li:nth-child(odd) { background: var(--surface-low); }
 .trail-list strong { color: var(--primary); font-variant-numeric: tabular-nums; }
 
+/* /near/<city> ranked list — whole row is a link */
+.near-parks li { padding: 0; }
+.near-parks li a { display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%; padding: 14px 18px; color: inherit; }
+.near-parks li a:hover { background: var(--primary-container); }
+.near-parks .rank { display: inline-block; min-width: 24px; color: var(--muted); font-weight: 800; }
+.near-parks li > a > strong { text-align: right; white-space: nowrap; }
+.near-parks li > a > strong small { display: block; color: var(--muted); font-weight: 500; font-size: 12px; }
+.near-parks li > a > span small { display: block; font-weight: 400; }
+.state-card h2 a { color: inherit; }
+.state-card h2 a:hover { color: var(--primary); }
+
 /* Fees, FAQ, more-parks (NPS-enriched sections) */
 .fee-list { list-style: none; padding: 0; margin: 14px 0 8px; border: 1px solid var(--surface-high); border-radius: 18px; overflow: hidden; }
 .fee-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 12px 18px; border-bottom: 1px solid var(--surface-high); }

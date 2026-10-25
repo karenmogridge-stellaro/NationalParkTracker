@@ -131,6 +131,8 @@ interface VisitedParksState {
   /** Most recent first-time national park visit this session; consumed by the celebration host. */
   lastNewParkEvent: NewParkEvent | null;
   clearNewParkEvent: () => void;
+  /** Asks for an App Store rating once, right after a big celebration (milestone/rank-up at 5+ parks). */
+  requestReviewAfterCelebration: (event: NewParkEvent) => Promise<void>;
   /** Set once when visits logged as a guest were folded into the account after sign-in. */
   lastGuestImport: { id: number; count: number } | null;
 }
@@ -368,19 +370,17 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
     setReviewPrompted(true);
   }, [reviewPrompted, user?.id]);
 
-  useEffect(() => {
-    (async () => {
-      if (!user?.id || !reviewPromptLoaded || reviewPrompted) return;
-      const uniqueParks = new Set(visits.map((v) => v.parkId)).size;
-      if (uniqueParks < 5) return;
-
-      const available = await StoreReview.isAvailableAsync();
-      await markReviewPrompted();
-      if (available) {
-        await StoreReview.requestReview();
-      }
-    })();
-  }, [markReviewPrompted, reviewPromptLoaded, reviewPrompted, user?.id, visits]);
+  // Prompting mid-celebration (while the user is happiest) converts far better than a launch-time effect.
+  const requestReviewAfterCelebration = useCallback(async (event: NewParkEvent) => {
+    if (!reviewPromptLoaded || reviewPrompted) return;
+    if (!(event.milestone || event.newRank) || event.uniqueParks < 5) return;
+    await markReviewPrompted();
+    try {
+      if (await StoreReview.isAvailableAsync()) await StoreReview.requestReview();
+    } catch {
+      // The OS decides whether to actually show the sheet; nothing to recover.
+    }
+  }, [markReviewPrompted, reviewPromptLoaded, reviewPrompted]);
 
   const persist = useCallback(async (updated: ParkVisit[]) => {
     if (user?.id) {
@@ -621,6 +621,7 @@ export function VisitedParksProvider({ children }: { children: React.ReactNode }
         nationalParkCount,
         lastNewParkEvent,
         clearNewParkEvent,
+        requestReviewAfterCelebration,
         lastGuestImport,
       }}
     >

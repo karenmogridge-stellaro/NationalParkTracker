@@ -124,6 +124,7 @@ const html = `<!doctype html>
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
       <a href="/parks">National parks</a>
+      <a href="/near">Parks near you</a>
       <a href="/gear">Gear</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>

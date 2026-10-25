@@ -12,6 +12,7 @@ import { useVisitedParks } from '@/hooks/useVisitedParks';
 import { useShareCard } from '@/hooks/useShareCard';
 import { ShareCard } from '@/components/ShareCard';
 import { PARKS } from '@/data/parksData';
+import { shareLandingUrl } from '@/utils/shareLinks';
 
 // parkatlas.io/get redirects to the store listing (see web/vercel.json) and reads better in a text.
 const INVITE_URL = 'https://parkatlas.io/get';
@@ -39,8 +40,9 @@ export default function InviteRouteScreen() {
   }, [visits]);
 
   const who = inviterName || 'A friend';
+  // With parks logged, the link goes to the inviter's ring page (parkatlas.io/s), which carries the install CTA.
   const message = nationalParkCount > 0
-    ? `${who}'s at ${nationalParkCount} of 63 national parks and wants you on ParkAtlas — log your visits, compare rings, and plan the next trip together.\n\n${storeUrl}`
+    ? `${who}'s at ${nationalParkCount} of 63 national parks and wants you on ParkAtlas — log your visits, compare rings, and plan the next trip together.\n\n${shareLandingUrl({ name: inviterName, parks: nationalParkCount, latestPark: latest?.parkName })}`
     : `${who} invited you to join ParkAtlas — track visits, hikes, camps, and road-trip stops across all 63 national parks.\n\n${storeUrl}`;
   const onShared = () => {
     void recordInviteSent(storeUrl);

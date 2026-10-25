@@ -22,6 +22,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ShareCard } from '@/components/ShareCard';
 import { useShareCard } from '@/hooks/useShareCard';
 import { canShareToInstagramStories } from '@/utils/instagram';
+import { shareLandingUrl } from '@/utils/shareLinks';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { fetchFriendActivities } from '@/utils/userDirectoryApi';
@@ -95,7 +96,7 @@ export default function ParkDetailScreen() {
     : undefined;
 
   const shareMessage = park
-    ? `I've visited ${nationalParkCount} of 63 U.S. National Parks — latest: ${park.name}. Tracking them all on ParkAtlas.`
+    ? `I've visited ${nationalParkCount} of 63 U.S. National Parks — latest: ${park.name}. Tracking them all on ParkAtlas.\n\n${shareLandingUrl({ name: shareName, parks: nationalParkCount, latestPark: park.name })}`
     : '';
   const onShared = () => toast.success('Tag @parkatlas.io and we\'ll reshare it', { icon: 'logo-instagram', silent: true, durationMs: 3200 });
   const onShareError = () => toast.error("Couldn't create the share card. Try again.");

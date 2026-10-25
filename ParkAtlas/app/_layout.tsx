@@ -16,6 +16,7 @@ import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { CelebrationOverlay, type CelebrationPayload } from '@/components/CelebrationOverlay';
 import { ShareCard } from '@/components/ShareCard';
 import { useShareCard } from '@/hooks/useShareCard';
+import { shareLandingUrl } from '@/utils/shareLinks';
 import { PARKS } from '@/data/parksData';
 import { NameCaptureSheet } from '@/components/NameCaptureSheet';
 import { NearbyParksPrompt } from '@/components/NearbyParksPrompt';
@@ -50,7 +51,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 /** Shows the confetti card whenever a first-time national park visit is logged anywhere in the app. */
 function CelebrationHost() {
-  const { lastNewParkEvent, clearNewParkEvent, lastGuestImport } = useVisitedParks();
+  const { lastNewParkEvent, clearNewParkEvent, requestReviewAfterCelebration, lastGuestImport } = useVisitedParks();
   const { user } = useAuth();
   const firstName = (user?.firstName || user?.name?.split(/\s+/)[0] || '').trim();
   const [demo, setDemo] = useState<CelebrationPayload | null>(null);
@@ -80,7 +81,7 @@ function CelebrationHost() {
   const { ref: shareRef, shareToInstagram, sharing } = useShareCard({
     format: 'story',
     message: payload
-      ? `${rankLabel} — ${payload.uniqueParks} of 63 U.S. National Parks. Tracking them all on ParkAtlas.`
+      ? `${rankLabel} — ${payload.uniqueParks} of 63 U.S. National Parks. Tracking them all on ParkAtlas.\n\n${shareLandingUrl({ name: firstName, parks: payload.uniqueParks, latestPark: payload.parkName })}`
       : '',
     onShared: () => toast.success("Tag @parkatlas.io and we'll reshare it", { icon: 'logo-instagram', silent: true, durationMs: 3200 }),
     onError: () => toast.error("Couldn't create the share card. Try again."),
@@ -91,7 +92,13 @@ function CelebrationHost() {
     <>
       <CelebrationOverlay
         payload={payload}
-        onDismiss={() => { setDemo(null); clearNewParkEvent(); }}
+        onDismiss={() => {
+          const real = demo ? null : lastNewParkEvent;
+          setDemo(null);
+          clearNewParkEvent();
+          // Wait for the overlay's exit animation so the system sheet doesn't fight the confetti.
+          if (real) setTimeout(() => { void requestReviewAfterCelebration(real); }, 500);
+        }}
         onShare={() => { void shareToInstagram(); }}
         sharing={sharing}
       />
