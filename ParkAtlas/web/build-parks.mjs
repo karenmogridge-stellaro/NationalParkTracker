@@ -54,13 +54,7 @@ await build({
 const { PARKS, PARK_TERRAIN_BY_ID, getParkDetail, PARK_TRAILS, PARK_IMAGES, stateDisplayName, slugify } = await import(tmp);
 await rm(tmp, { force: true });
 
-// Browser copy of the QR library for the "Send to my phone" hand-off (loaded lazily by site.js).
-await mkdir(path.join(WEB, 'vendor'), { recursive: true });
-await build({
-  entryPoints: [path.join(ROOT, 'node_modules/qrcode/lib/browser.js')],
-  bundle: true, minify: true, format: 'iife', globalName: 'QRCode', platform: 'browser',
-  outfile: path.join(WEB, 'vendor', 'qrcode.min.js'), logLevel: 'silent',
-});
+// Build-time QR for the park-page sidebar (desktop only).
 const qrSvg = (text) => QRCode.toString(text, { type: 'svg', margin: 1, width: 160, color: { dark: '#1b4332', light: '#ffffff' } });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -738,15 +732,12 @@ function indexPage() {
           <strong><span id="web-ring-count">0</span> of ${parks.length}</strong>
           <span class="muted">parks you've marked “Been here” on this device</span>
         </div>
-        <button type="button" class="btn-app" id="handoff-open">📲 Send to my phone</button>
+        <button type="button" class="btn-app" id="handoff-open"><span class="desktop-only">📲 Send to my phone</span><span class="mobile-only">Add these to ParkAtlas</span></button>
       </div>
       <div class="handoff" id="handoff" hidden>
-        <div class="handoff-qr" id="handoff-qr" aria-label="QR code for your parks"></div>
-        <div class="handoff-body">
-          <strong>Scan with your iPhone camera</strong>
-          <p class="muted">Opens ParkAtlas with these parks ready to add — or the App Store if it isn't installed yet. On your phone already? <a class="text-link" id="handoff-link" href="/get">Open in ParkAtlas</a>.</p>
-          <div class="handoff-row"><input id="handoff-url" type="text" readonly aria-label="Import link" /><button type="button" class="chip" id="handoff-copy">Copy</button></div>
-        </div>
+        <strong>Open this link on your iPhone</strong>
+        <p class="muted">It opens ParkAtlas with these parks ready to add — or the App Store first if you don't have the app yet. The link keeps working after you install.</p>
+        <div class="handoff-row"><input id="handoff-url" type="text" readonly aria-label="Import link" /><button type="button" class="chip" id="handoff-copy">Copy</button><a class="chip" id="handoff-mail" href="#">Email me this link</a></div>
       </div>
     </section>
     <div id="park-directory">

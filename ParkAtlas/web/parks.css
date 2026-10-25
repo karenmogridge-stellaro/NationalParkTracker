@@ -259,11 +259,11 @@ html.is-mobile .trail-list a.trail-log:active { background: var(--primary-contai
 .web-ring-text strong { font-size: 18px; font-weight: 800; }
 .web-ring .btn-app { background: var(--primary); color: #fff; box-shadow: none; }
 .web-ring .btn-app:hover { background: #163728; }
-.handoff { display: grid; grid-template-columns: 180px 1fr; gap: 18px; align-items: center; width: 100%; max-width: 640px; background: #fff; border: 1.5px solid var(--primary-container); border-radius: 18px; padding: 16px; }
-.handoff-qr svg { width: 180px; height: 180px; }
-.handoff-body strong { display: block; margin-bottom: 4px; }
-.handoff-row { display: flex; gap: 8px; margin-top: 10px; }
-.handoff-row input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--outline); border-radius: 999px; color: var(--muted); background: var(--surface-low); }
+.handoff { display: grid; gap: 4px; width: 100%; max-width: 640px; background: #fff; border: 1.5px solid var(--primary-container); border-radius: 18px; padding: 16px 18px; }
+.handoff strong { font-size: 15px; }
+.handoff-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.handoff-row input { flex: 1; min-width: 200px; font: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--outline); border-radius: 999px; color: var(--muted); background: var(--surface-low); }
+.handoff-row a.chip { text-decoration: none; }
 .import-page { display: grid; gap: 18px; justify-items: center; max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; text-align: center; }
 .import-page h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 800; }
 .import-page .lede { max-width: 520px; }
@@ -278,8 +278,6 @@ html.is-mobile .trail-list a.trail-log:active { background: var(--primary-contai
 @media (max-width: 720px) {
   .web-ring { grid-template-columns: 56px 1fr; }
   .web-ring .btn-app { grid-column: 1 / -1; justify-content: center; }
-  .handoff { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-  .handoff-row { width: 100%; }
 }
 @media (max-width: 560px) {
   .filter-bar { flex-direction: column; align-items: stretch; }

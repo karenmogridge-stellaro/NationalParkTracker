@@ -63,15 +63,12 @@
           <strong><span id="web-ring-count">0</span> of 63</strong>
           <span class="muted">parks you've marked “Been here” on this device</span>
         </div>
-        <button type="button" class="btn-app" id="handoff-open">📲 Send to my phone</button>
+        <button type="button" class="btn-app" id="handoff-open"><span class="desktop-only">📲 Send to my phone</span><span class="mobile-only">Add these to ParkAtlas</span></button>
       </div>
       <div class="handoff" id="handoff" hidden>
-        <div class="handoff-qr" id="handoff-qr" aria-label="QR code for your parks"></div>
-        <div class="handoff-body">
-          <strong>Scan with your iPhone camera</strong>
-          <p class="muted">Opens ParkAtlas with these parks ready to add — or the App Store if it isn't installed yet. On your phone already? <a class="text-link" id="handoff-link" href="/get">Open in ParkAtlas</a>.</p>
-          <div class="handoff-row"><input id="handoff-url" type="text" readonly aria-label="Import link" /><button type="button" class="chip" id="handoff-copy">Copy</button></div>
-        </div>
+        <strong>Open this link on your iPhone</strong>
+        <p class="muted">It opens ParkAtlas with these parks ready to add — or the App Store first if you don't have the app yet. The link keeps working after you install.</p>
+        <div class="handoff-row"><input id="handoff-url" type="text" readonly aria-label="Import link" /><button type="button" class="chip" id="handoff-copy">Copy</button><a class="chip" id="handoff-mail" href="#">Email me this link</a></div>
       </div>
     </section>
     <div id="park-directory">
