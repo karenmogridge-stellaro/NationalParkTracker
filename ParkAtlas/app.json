@@ -60,6 +60,16 @@
               "scheme": "https",
               "host": "parkatlas.io",
               "pathPrefix": "/invite/"
+            },
+            {
+              "scheme": "https",
+              "host": "parkatlas.io",
+              "pathPrefix": "/parks/"
+            },
+            {
+              "scheme": "https",
+              "host": "parkatlas.io",
+              "path": "/import"
             }
           ],
           "category": [

@@ -5,7 +5,9 @@
       {
         "appIDs": ["8J93L5235U.com.parkatlas.mobile"],
         "components": [
-          { "/": "/invite/*", "comment": "Friend invite links open in the app" }
+          { "/": "/invite/*", "comment": "Friend invite links open in the app" },
+          { "/": "/parks/*", "comment": "Park guide pages open the park in the app (optionally ?trail=)" },
+          { "/": "/import", "comment": "Website checklist hand-off (?v=slug,slug)" }
         ]
       }
     ]

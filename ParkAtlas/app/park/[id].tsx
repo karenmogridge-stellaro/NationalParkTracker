@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { ShareCard } from '@/components/ShareCard';
 import { useShareCard } from '@/hooks/useShareCard';
 import { canShareToInstagramStories } from '@/utils/instagram';
 import { shareLandingUrl } from '@/utils/shareLinks';
+import { parkWebUrl, slugify } from '@/utils/parkSlug';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends } from '@/hooks/useFriends';
 import { fetchFriendActivities } from '@/utils/userDirectoryApi';
@@ -40,7 +41,7 @@ const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1542038784456-1ea8e93
 type FriendVisitor = { id: string; name: string; avatar: string; visits: number };
 
 export default function ParkDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, trail: trailParam } = useLocalSearchParams<{ id: string; trail?: string }>();
   const insets = useSafeAreaInsets();
   const park = PARKS.find((p) => p.id === id);
   const detail = park ? getParkDetail(park.npsCode) : null;
@@ -71,6 +72,17 @@ export default function ParkDetailScreen() {
     setSheetTrail(trail ?? null);
     setSheetVisible(true);
   }
+
+  // Deep link from a trail on parkatlas.io (?trail=<slug>): land straight in the log sheet with it selected.
+  const openedTrailRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!trailParam || !park || openedTrailRef.current === trailParam) return;
+    const match = curatedTrails.find((t) => slugify(t.name) === slugify(String(trailParam)));
+    if (!match) return;
+    openedTrailRef.current = trailParam;
+    const t = setTimeout(() => openLogSheet(match), 350);
+    return () => clearTimeout(t);
+  }, [trailParam, park, curatedTrails]);
 
   // One tap, no fields: today's date, no trail. Works with no signal (queued locally); details can be added later from Home.
   function quickLog() {
@@ -200,6 +212,10 @@ export default function ParkDetailScreen() {
     Linking.openURL(`https://www.nps.gov/${park!.npsCode}/index.htm`);
   }
 
+  function openGuide() {
+    Linking.openURL(parkWebUrl(park!));
+  }
+
   const friendSummary = friendVisitors.length === 0
     ? null
     : friendVisitors.length === 1
@@ -244,6 +260,10 @@ export default function ParkDetailScreen() {
             <View style={styles.heroTopRight}>
               <TouchableOpacity style={styles.glassBtn} onPress={chooseShareFormat} activeOpacity={0.7} disabled={sharing} accessibilityRole="button" accessibilityLabel="Share this park">
                 {sharing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="share-outline" size={20} color="#fff" />}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.glassPill} onPress={openGuide} activeOpacity={0.7} accessibilityRole="link" accessibilityLabel={`Full ${park.name} guide on parkatlas.io`}>
+                <Text style={styles.glassPillText}>Guide</Text>
+                <Ionicons name="open-outline" size={13} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.glassPill} onPress={openNPS} activeOpacity={0.7} accessibilityRole="link">
                 <Text style={styles.glassPillText}>NPS</Text>

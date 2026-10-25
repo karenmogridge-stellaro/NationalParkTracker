@@ -75,6 +75,7 @@
     "eslint": "^9.25.0",
     "eslint-config-expo": "~55.0.1",
     "firebase-admin": "^13.10.0",
+    "qrcode": "^1.5.4",
     "typescript": "~5.9.2"
   },
   "private": true

@@ -12,6 +12,7 @@ import { mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
+import QRCode from 'qrcode';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'web');
@@ -39,6 +40,7 @@ await build({
       export { PARK_TRAILS } from './data/trailsData';
       export { PARK_IMAGES } from './data/parkImages';
       export { stateDisplayName } from './utils/search';
+      export { slugify } from './utils/parkSlug';
     `,
     resolveDir: ROOT,
     loader: 'ts',
@@ -49,8 +51,17 @@ await build({
   outfile: tmp,
   logLevel: 'silent',
 });
-const { PARKS, PARK_TERRAIN_BY_ID, getParkDetail, PARK_TRAILS, PARK_IMAGES, stateDisplayName } = await import(tmp);
+const { PARKS, PARK_TERRAIN_BY_ID, getParkDetail, PARK_TRAILS, PARK_IMAGES, stateDisplayName, slugify } = await import(tmp);
 await rm(tmp, { force: true });
+
+// Browser copy of the QR library for the "Send to my phone" hand-off (loaded lazily by site.js).
+await mkdir(path.join(WEB, 'vendor'), { recursive: true });
+await build({
+  entryPoints: [path.join(ROOT, 'node_modules/qrcode/lib/browser.js')],
+  bundle: true, minify: true, format: 'iife', globalName: 'QRCode', platform: 'browser',
+  outfile: path.join(WEB, 'vendor', 'qrcode.min.js'), logLevel: 'silent',
+});
+const qrSvg = (text) => QRCode.toString(text, { type: 'svg', margin: 1, width: 160, color: { dark: '#1b4332', light: '#ffffff' } });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const TERRAIN_IMAGE = {
@@ -65,9 +76,6 @@ const heroFor = (park, w = 1600) =>
   `https://images.unsplash.com/${TERRAIN_IMAGE[PARK_TERRAIN_BY_ID[park.id] ?? 'woodland']}?auto=format&fit=crop&w=${w}&q=80`;
 const creditFor = (park) => PARK_IMAGES[park.id]?.credit;
 const creditPageFor = (park) => PARK_IMAGES[park.id]?.page;
-
-const slugify = (s) =>
-  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f\u02bb\u2018\u2019']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -151,7 +159,8 @@ const paragraphs = (text, max = 3) => {
 };
 
 // ── Shared chrome ────────────────────────────────────────────────────────────
-const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
+// appArgument: the Smart App Banner opens this URL in the app when it's installed.
+const head = ({ title, description, url, image, jsonLd, appArgument }) => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -165,7 +174,7 @@ const head = ({ title, description, url, image, jsonLd }) => `<!doctype html>
   <link rel="stylesheet" href="/parks.css" />
   <script src="/analytics.js"></script>
   <script src="/site.js" defer></script>
-  <meta name="apple-itunes-app" content="app-id=6760982981" />
+  <meta name="apple-itunes-app" content="app-id=6760982981${appArgument ? `, app-argument=${esc(appArgument)}` : ''}" />
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="ParkAtlas" />
   <meta property="og:title" content="${esc(title)}" />
@@ -244,14 +253,18 @@ const appCta = (park) => `
       <h3>Track ${esc(park.name)} in ParkAtlas</h3>
       <p>Log the trail you hiked, keep every park you've explored in one place, and share a park card to Stories. No account required.</p>
     </div>
-    <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
+    <a class="appstore" href="/get" aria-label="Download on the App Store"${park.slug ? ` data-app-path="parks/${park.slug}"` : ''}><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
   </aside>`;
 
+// "Been here?" toggle: state lives in localStorage (site.js); the website checklist hands off to the app via /import.
+const beenHere = (park, extra = '') => `<button type="button" class="been-here ${extra}" data-id="${park.id}" data-slug="${park.slug}" aria-pressed="false"><span class="bh-off">Been here?</span><span class="bh-on">✓ Been here</span></button>`;
+
 // ── Park page ────────────────────────────────────────────────────────────────
-function parkPage(park) {
+async function parkPage(park) {
   const d = park.detail;
   const state = stateDisplayName(park.state);
   const url = `${SITE}/parks/${park.slug}`;
+  const qr = await qrSvg(url);
   const title = `${park.name} National Park — Trails, Camping, Fees & Best Time to Visit | ParkAtlas`;
   const description = `${d.description} Popular trails, camping, entry fee, peak season, and directions for ${park.name} National Park in ${state}.`;
   const near = nearby(park);
@@ -301,7 +314,7 @@ function parkPage(park) {
     ],
   }];
 
-  return `${head({ title, description, url, image: heroFor(park, 1200), jsonLd })}
+  return `${head({ title, description, url, image: heroFor(park, 1200), jsonLd, appArgument: url })}
   <main class="park">
     <section class="park-hero" style="background-image:url('${heroFor(park)}')">
       <div class="park-hero-inner">
@@ -315,6 +328,10 @@ function parkPage(park) {
           <span>☀️ ${esc(d.peakSeason)}</span>
           <span>${d.openYear ? '📅 Open year-round' : '📅 Seasonal access'}</span>
           ${loggedBy(park) ? `<span>👥 Logged by ${loggedBy(park).toLocaleString('en-US')} ParkAtlas explorers</span>` : ''}
+        </div>
+        <div class="hero-actions">
+          <a class="btn-app" href="/get" data-app-path="parks/${park.slug}"><img src="/logo.png" alt="" width="22" height="22" />Open in ParkAtlas</a>
+          ${beenHere(park, 'light')}
         </div>
       </div>
     </section>
@@ -331,9 +348,9 @@ function parkPage(park) {
         ${topTrails.length ? `
         <section>
           <h2>Popular trails</h2>
-          <p class="muted">Curated routes with approximate round-trip distance. In the app, tap one to log it.</p>
+          <p class="muted">Curated routes with approximate round-trip distance. <span class="mobile-only">Tap one to log it in the app.</span><span class="desktop-only">In the app, tap one to log it.</span></p>
           <ul class="trail-list">
-            ${topTrails.map((t) => `<li><span>${esc(t.name)}</span><strong>${t.miles.toFixed(1)} mi</strong></li>`).join('\n            ')}
+            ${topTrails.map((t) => `<li><a class="trail-log" href="/get" data-app-path="parks/${park.slug}?trail=${slugify(t.name)}"><span>${esc(t.name)}</span><strong>${t.miles.toFixed(1)} mi<small class="mobile-only"> · Log →</small></strong></a></li>`).join('\n            ')}
           </ul>
           ${hasHikesPage(park)
             ? `<p><a class="text-link" href="/parks/${park.slug}/hikes">All ${park.trails.length} ${esc(park.name)} hikes by distance →</a></p>`
@@ -393,6 +410,13 @@ function parkPage(park) {
       </article>
 
       <aside class="park-side">
+        <div class="qr-card desktop-only">
+          ${qr}
+          <div>
+            <strong>Open on your phone</strong>
+            <p class="muted">Scan to open ${esc(park.name)} in ParkAtlas, or the App Store if you don't have it yet.</p>
+          </div>
+        </div>
         <h3>Nearby national parks</h3>
         <ul class="near-list">
           ${near.map(({ p, mi }) => `<li><a href="/parks/${p.slug}"><span>${esc(p.name)}</span><small>${Math.round(mi)} mi · ${esc(stateDisplayName(p.state))}</small></a></li>`).join('\n          ')}
@@ -680,7 +704,8 @@ function indexPage() {
   };
   const groups = REGIONS.map(([name]) => [name, parks.filter((p) => regionOf(p) === name).sort((a, b) => a.name.localeCompare(b.name))]).filter(([, list]) => list.length);
   const card = (p) => `
-        <a class="park-card" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}">
+        <div class="park-card-wrap">
+        <a class="park-card" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}" data-id="${p.id}">
           <img src="${heroFor(p, 640)}" alt="" loading="lazy" width="320" height="240" />
           <span class="park-card-body">
             <strong>${esc(p.name)}</strong>
@@ -688,7 +713,9 @@ function indexPage() {
             <span class="park-card-facts"><span>🎟️ ${esc(p.detail.entryFee)}</span><span>☀️ ${esc(p.detail.peakSeason)}</span></span>
             ${loggedBy(p) ? `<span class="park-card-proof">👥 ${loggedBy(p).toLocaleString('en-US')} explorers logged it</span>` : ''}
           </span>
-        </a>`;
+        </a>
+        ${beenHere(p, 'on-card')}
+        </div>`;
 
   return `${head({ title, description, url, image: `${SITE}/og.png`, jsonLd })}
   <main class="parks-index">
@@ -704,6 +731,22 @@ function indexPage() {
       <div class="chips" id="region-chips" role="group" aria-label="Filter by region">
         <button type="button" class="chip is-active" data-region="">All</button>
         ${groups.map(([name, list]) => `<button type="button" class="chip" data-region="${esc(name)}">${esc(name)} <small>${list.length}</small></button>`).join('\n        ')}
+      </div>
+      <div class="web-ring" id="web-ring" hidden>
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" id="web-ring-fill" cx="32" cy="32" r="27"></circle></svg>
+        <div class="web-ring-text">
+          <strong><span id="web-ring-count">0</span> of ${parks.length}</strong>
+          <span class="muted">parks you've marked “Been here” on this device</span>
+        </div>
+        <button type="button" class="btn-app" id="handoff-open">📲 Send to my phone</button>
+      </div>
+      <div class="handoff" id="handoff" hidden>
+        <div class="handoff-qr" id="handoff-qr" aria-label="QR code for your parks"></div>
+        <div class="handoff-body">
+          <strong>Scan with your iPhone camera</strong>
+          <p class="muted">Opens ParkAtlas with these parks ready to add — or the App Store if it isn't installed yet. On your phone already? <a class="text-link" id="handoff-link" href="/get">Open in ParkAtlas</a>.</p>
+          <div class="handoff-row"><input id="handoff-url" type="text" readonly aria-label="Import link" /><button type="button" class="chip" id="handoff-copy">Copy</button></div>
+        </div>
       </div>
     </section>
     <div id="park-directory">
@@ -732,7 +775,7 @@ let hikesCount = 0;
 for (const park of parks) {
   const dir = path.join(WEB, 'parks', park.slug);
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, 'index.html'), parkPage(park));
+  await writeFile(path.join(dir, 'index.html'), await parkPage(park));
   if (hasHikesPage(park)) {
     await mkdir(path.join(dir, 'hikes'), { recursive: true });
     await writeFile(path.join(dir, 'hikes', 'index.html'), hikesPage(park));
@@ -746,10 +789,12 @@ for (const metro of METROS) {
   await writeFile(path.join(dir, 'index.html'), nearPage(metro));
 }
 await writeFile(path.join(WEB, 'near', 'index.html'), nearIndexPage());
+// Lightweight lookup for client-side pages (/import) — id, slug, name, state.
+await writeFile(path.join(WEB, 'parks-min.json'), JSON.stringify(parks.map((p) => ({ id: p.id, slug: p.slug, name: p.name, state: stateDisplayName(p.state) }))));
 
 const today = new Date().toISOString().slice(0, 10);
 const urls = [
-  '/', '/parks', '/near', '/gear', '/s', '/privacy',
+  '/', '/parks', '/near', '/gear', '/s', '/import', '/privacy',
   ...parks.map((p) => `/parks/${p.slug}`),
   ...parks.filter(hasHikesPage).map((p) => `/parks/${p.slug}/hikes`),
   ...METROS.map((m) => `/near/${m.slug}`),

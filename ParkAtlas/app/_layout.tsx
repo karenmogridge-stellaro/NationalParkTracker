@@ -167,6 +167,8 @@ export default function RootLayout() {
               <Stack.Screen name="invite/[inviteCode]" options={{ headerShown: false }} />
               <Stack.Screen name="friend/[id]" options={{ headerShown: false }} />
               <Stack.Screen name="park/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="parks/[slug]" options={{ headerShown: false }} />
+              <Stack.Screen name="import" options={{ headerShown: false, presentation: 'modal' }} />
             </Stack>
           </AuthGate>
           <CelebrationHost />
