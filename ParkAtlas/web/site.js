@@ -119,34 +119,4 @@
     });
   });
   render();
-
-  // Hand-off (only on /parks). On a phone the button deep-links straight into the app; on desktop it reveals the link.
-  var open = document.getElementById('handoff-open');
-  var panel = document.getElementById('handoff');
-  if (!open || !panel) return;
-  var urlInput = document.getElementById('handoff-url');
-  var mail = document.getElementById('handoff-mail');
-  var copy = document.getElementById('handoff-copy');
-  var isMobile = document.documentElement.classList.contains('is-mobile');
-  function importUrl() { return 'https://parkatlas.io/import?v=' + ids.join(','); }
-  open.addEventListener('click', function () {
-    if (!ids.length) return;
-    var url = importUrl();
-    if (window.gtag) gtag('event', 'handoff_open', { parks: ids.length, mobile: isMobile });
-    if (isMobile) {
-      var t = setTimeout(function () { if (document.visibilityState === 'visible') location.href = url; }, 1400);
-      document.addEventListener('visibilitychange', function onHide() { if (document.visibilityState === 'hidden') { clearTimeout(t); document.removeEventListener('visibilitychange', onHide); } });
-      location.href = 'parkatlas://import?v=' + ids.join(',');
-      return;
-    }
-    urlInput.value = url;
-    mail.setAttribute('href', 'mailto:?subject=' + encodeURIComponent('My national parks for ParkAtlas') + '&body=' + encodeURIComponent('Open this on your iPhone to add ' + ids.length + (ids.length === 1 ? ' park' : ' parks') + ' to ParkAtlas:\n\n' + url));
-    panel.hidden = false;
-    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  });
-  copy.addEventListener('click', function () {
-    var done = function () { copy.textContent = 'Copied'; setTimeout(function () { copy.textContent = 'Copy'; }, 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(urlInput.value).then(done, function () { urlInput.select(); });
-    else { urlInput.select(); try { document.execCommand('copy'); done(); } catch (_) {} }
-  });
 })();

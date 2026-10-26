@@ -261,20 +261,13 @@ html.is-mobile .trail-list a.trail-log:active { background: var(--primary-contai
 .qr-card svg { width: 112px; height: 112px; border-radius: 10px; background: #fff; }
 .qr-card strong { display: block; font-size: 14px; margin-bottom: 4px; }
 .qr-card .muted { font-size: 12px; }
-.web-ring { display: grid; grid-template-columns: 64px 1fr auto; gap: 14px; align-items: center; width: 100%; max-width: 640px; background: var(--surface-low); border-radius: 18px; padding: 14px 16px; margin-top: 6px; }
+.web-ring { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; width: 100%; max-width: 640px; background: var(--surface-low); border-radius: 18px; padding: 14px 16px; margin-top: 6px; }
 .web-ring svg { width: 64px; height: 64px; transform: rotate(-90deg); }
 .web-ring circle { fill: none; stroke-width: 7; stroke-linecap: round; }
 .web-ring .track { stroke: var(--surface-high); }
 .web-ring .fill { stroke: var(--primary); stroke-dasharray: 170; stroke-dashoffset: 170; transition: stroke-dashoffset 0.5s ease; }
 .web-ring-text { display: grid; gap: 2px; }
 .web-ring-text strong { font-size: 18px; font-weight: 800; }
-.web-ring .btn-app { background: var(--primary); color: #fff; box-shadow: none; }
-.web-ring .btn-app:hover { background: #163728; }
-.handoff { display: grid; gap: 4px; width: 100%; max-width: 640px; background: #fff; border: 1.5px solid var(--primary-container); border-radius: 18px; padding: 16px 18px; }
-.handoff strong { font-size: 15px; }
-.handoff-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.handoff-row input { flex: 1; min-width: 200px; font: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--outline); border-radius: 999px; color: var(--muted); background: var(--surface-low); }
-.handoff-row a.chip { text-decoration: none; }
 .import-page { display: grid; gap: 18px; justify-items: center; max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; text-align: center; }
 .import-page h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 800; }
 .import-page .lede { max-width: 520px; }
@@ -288,7 +281,6 @@ html.is-mobile .trail-list a.trail-log:active { background: var(--primary-contai
 .import-list small { color: var(--muted); }
 @media (max-width: 720px) {
   .web-ring { grid-template-columns: 56px 1fr; }
-  .web-ring .btn-app { grid-column: 1 / -1; justify-content: center; }
 }
 @media (max-width: 560px) {
   .filter-bar { flex-direction: column; align-items: stretch; }
