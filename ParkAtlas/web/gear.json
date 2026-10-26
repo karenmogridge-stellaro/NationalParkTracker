@@ -287,5 +287,46 @@
         }
       ]
     }
-  ]
+  ],
+  "parkPicks": {
+    "_comment": "Drives the 'Pack for <park>' strip on every park page (build-parks.mjs). byTerrain: ASINs from the sections above, in priority order. byPark: park-specific extras keyed by NPS code (asin or search). roadTrip: ASINs for the strip on /near/<city> pages.",
+    "byTerrain": {
+      "desert": ["B0GM2X8G3N", "B0CQDFPMQW", "B0DMHN59NR", "B0GZRVL8SP", "B0BR63TX2T"],
+      "alpine": ["B0BNYTPFHP", "B00DNO0DVG", "B0G1PXQCGV", "B09NQKZ4BP", "B0DC4RPXN1"],
+      "woodland": ["B0BR63TX2T", "B00DNO0DVG", "B0DLBF9HTD", "B0FKDSG3L2", "B0CXDXP8VR"],
+      "coastline": ["B00DNO0DVG", "B0DLBF9HTD", "B0DC4RPXN1", "B0CXDXP8VR", "B0BR63TX2T"]
+    },
+    "terrainLabel": {
+      "desert": "desert heat and long exposed miles",
+      "alpine": "alpine weather that changes by the hour",
+      "woodland": "forest trails and afternoon showers",
+      "coastline": "wind, spray, and wet rock"
+    },
+    "byPark": {
+      "zion": [{ "name": "Neoprene socks for The Narrows", "why": "The river is cold even in July.", "search": "neoprene socks canyoneering" }],
+      "glac": [{ "name": "Counter Assault bear spray", "why": "Required kit on every Glacier trail. Buy locally if flying.", "search": "Counter Assault bear spray" }],
+      "yell": [{ "name": "Counter Assault bear spray", "why": "Carry it on every trail beyond the boardwalks.", "search": "Counter Assault bear spray" }],
+      "grte": [{ "name": "Counter Assault bear spray", "why": "Grizzly country from the trailhead.", "search": "Counter Assault bear spray" }],
+      "dena": [{ "name": "Counter Assault bear spray", "why": "Standard issue for the backcountry.", "search": "Counter Assault bear spray" }],
+      "kefj": [{ "name": "Counter Assault bear spray", "why": "Black and brown bears on the Harding Icefield trail.", "search": "Counter Assault bear spray" }],
+      "ever": [{ "name": "Picaridin insect repellent", "why": "Mosquitoes are the main event May through October.", "search": "picaridin insect repellent lotion" }],
+      "cong": [{ "name": "Picaridin insect repellent", "why": "The boardwalk is beautiful; the mosquitoes are serious.", "search": "picaridin insect repellent lotion" }],
+      "voya": [{ "name": "Picaridin insect repellent", "why": "Black flies and mosquitoes from June on.", "search": "picaridin insect repellent lotion" }],
+      "isro": [{ "name": "Picaridin insect repellent", "why": "Pack it for the ferry and every portage.", "search": "picaridin insect repellent lotion" }],
+      "bisc": [{ "name": "Reef-safe sunscreen", "why": "Required for snorkeling the reef; regular sunscreen damages coral.", "search": "reef safe mineral sunscreen" }],
+      "drto": [{ "name": "Reef-safe sunscreen", "why": "Zero shade on the fort; reef-safe for the snorkeling.", "search": "reef safe mineral sunscreen" }],
+      "npsa": [{ "name": "Reef-safe sunscreen", "why": "Reef-safe only around the lagoons.", "search": "reef safe mineral sunscreen" }],
+      "hale": [
+        { "name": "Turtle Fur beanie", "why": "Summit sunrise is near freezing year-round.", "asin": "B009AWF9N2" },
+        { "name": "Smartwool merino gloves", "why": "For the hour before the sun clears the crater.", "asin": "B0BXTXR5LL" }
+      ],
+      "cave": [{ "name": "Black Diamond rechargeable headlamp", "why": "Hands free for the natural entrance trail.", "asin": "B09NQKZ4BP" }],
+      "maca": [{ "name": "Black Diamond rechargeable headlamp", "why": "Tours are lit; the surface trails at dusk are not.", "asin": "B09NQKZ4BP" }],
+      "grsa": [{ "name": "Sand sled", "why": "The dunes are the attraction; rent locally or bring your own.", "search": "sand sled for dunes" }],
+      "deva": [{ "name": "LMNT electrolytes", "why": "Double the usual. Heat here is not a figure of speech.", "asin": "B0CQDFPMQW" }],
+      "grca": [{ "name": "LMNT electrolytes", "why": "Rim-to-river hikers run out of salt before water.", "asin": "B0CQDFPMQW" }],
+      "bibe": [{ "name": "LMNT electrolytes", "why": "Dry heat and no shade on most desert trails.", "asin": "B0CQDFPMQW" }]
+    },
+    "roadTrip": ["B0842CNQ94", "B0CTGXQJJX", "B08DDK5Y1L", "B0CXDXP8VR"]
+  }
 }

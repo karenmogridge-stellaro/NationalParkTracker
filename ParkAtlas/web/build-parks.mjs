@@ -19,6 +19,8 @@ const WEB = path.join(ROOT, 'web');
 const SITE = 'https://parkatlas.io';
 const APP_STORE = 'https://apps.apple.com/app/id6760982981';
 const AFFILIATES = JSON.parse(await readFile(path.join(WEB, 'affiliates.json'), 'utf8'));
+// Gear catalog (drives /gear) — reused here for the per-park "Pack for" strip.
+const GEAR = JSON.parse(await readFile(path.join(WEB, 'gear.json'), 'utf8'));
 // Official NPS copy (public domain) pulled by web/fetch-nps-content.mjs; pages still build without it.
 const NPS = await readFile(path.join(WEB, 'nps-content.json'), 'utf8').then(JSON.parse).catch(() => ({}));
 // Distinct users who logged each park, from web/fetch-park-stats.mjs (gitignored; optional).
@@ -258,6 +260,58 @@ const passLink = (park, label = 'America the Beautiful pass') => {
   return href ? `<a class="text-link" href="${href}" target="_blank" rel="sponsored noopener" data-aff="pass">${esc(label)}</a>` : esc(label);
 };
 
+// ── "Pack for <park>" strip: gear.json items chosen by terrain + park-specific extras ──
+const GEAR_BY_ASIN = new Map(GEAR.sections.flatMap((s) => s.items || []).filter((i) => i.asin && i.enabled !== false).map((i) => [i.asin, i]));
+const amazonUrl = (item) => {
+  if (item.url) {
+    const u = new URL(item.url);
+    if (u.hostname !== 'amzn.to' && !u.searchParams.has('tag')) u.searchParams.set('tag', GEAR.tag);
+    return u.toString();
+  }
+  if (item.asin) return `https://www.amazon.com/dp/${item.asin}?tag=${encodeURIComponent(GEAR.tag)}`;
+  return `https://www.amazon.com/s?k=${encodeURIComponent(item.search || item.name)}&tag=${encodeURIComponent(GEAR.tag)}`;
+};
+const packItems = (park, n = 4) => {
+  const picks = GEAR.parkPicks || {};
+  const extras = (picks.byPark?.[park.npsCode] || []).map((x) => ({ ...(x.asin ? GEAR_BY_ASIN.get(x.asin) : {}), ...x, specific: true }));
+  const terrain = PARK_TERRAIN_BY_ID[park.id] ?? 'woodland';
+  const base = (picks.byTerrain?.[terrain] || []).map((asin) => GEAR_BY_ASIN.get(asin)).filter(Boolean);
+  const seen = new Set();
+  return [...extras, ...base].filter((i) => { const k = i.asin || i.search || i.name; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, n);
+};
+const gearCard = (i) => `<a class="pack-item" href="${esc(amazonUrl(i))}" target="_blank" rel="sponsored noopener" data-aff="amazon-pack">
+            ${i.image ? `<img src="${esc(i.image)}" alt="" loading="lazy" width="200" height="150" />` : `<span class="pack-noimg">🛍️</span>`}
+            <strong>${esc(i.name)}</strong>
+            ${i.why ? `<small>${esc(i.why)}</small>` : ''}
+            <span class="pack-cta">${i.specific ? 'Shop on Amazon' : 'See on Amazon'} →</span>
+          </a>`;
+const packStrip = (park) => {
+  const items = packItems(park);
+  if (!items.length) return '';
+  const terrain = PARK_TERRAIN_BY_ID[park.id] ?? 'woodland';
+  const label = GEAR.parkPicks?.terrainLabel?.[terrain] || 'the trail';
+  return `
+        <section class="pack">
+          <h2>Pack for ${esc(park.name)}</h2>
+          <p class="muted">Four things worth having for ${esc(label)}. From <a class="text-link" href="/gear">the full gear list</a>; links support ParkAtlas.</p>
+          <div class="pack-grid">
+          ${items.map(gearCard).join('\n          ')}
+          </div>
+        </section>`;
+};
+const roadTripStrip = (metro) => {
+  const items = (GEAR.parkPicks?.roadTrip || []).map((a) => GEAR_BY_ASIN.get(a)).filter(Boolean).slice(0, 4);
+  if (!items.length) return '';
+  return `
+        <section class="pack">
+          <h2>Road-trip kit from ${esc(metro.city)}</h2>
+          <p class="muted">The car is the base camp. From <a class="text-link" href="/gear">the full gear list</a>; links support ParkAtlas.</p>
+          <div class="pack-grid">
+          ${items.map(gearCard).join('\n          ')}
+          </div>
+        </section>`;
+};
+
 const appCta = (park) => `
   <aside class="app-cta">
     <img src="/logo.png" alt="" width="56" height="56" />
@@ -390,6 +444,8 @@ async function parkPage(park) {
             : 'Access is seasonal — confirm opening and closing dates on NPS.gov before you go.'}</p>
           ${weatherParas.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
         </section>
+
+        ${packStrip(park)}
 
         ${fees.length ? `
         <section>
@@ -644,6 +700,8 @@ function nearPage(metro) {
         </section>
 
         ${planTrip(metro, 'near')}
+
+        ${roadTripStrip(metro)}
 
         ${appCta({ name: `parks near ${metro.city}` })}
       </article>

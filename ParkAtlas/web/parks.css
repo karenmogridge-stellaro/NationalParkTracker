@@ -114,6 +114,17 @@
 @media (max-width: 560px) { .plan-grid { grid-template-columns: 1fr; } }
 .disclosure { max-width: 720px; margin: 0 auto 10px; }
 
+/* "Pack for <park>" product strip */
+.pack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; }
+.pack-item { display: flex; flex-direction: column; gap: 6px; background: var(--surface-low); border-radius: 16px; padding: 12px; color: inherit; text-decoration: none; }
+.pack-item:hover { background: var(--primary-container); }
+.pack-item img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; background: #fff; border-radius: 10px; mix-blend-mode: multiply; }
+.pack-noimg { display: grid; place-content: center; aspect-ratio: 4 / 3; background: #fff; border-radius: 10px; font-size: 32px; }
+.pack-item strong { font-size: 14px; line-height: 1.25; }
+.pack-item small { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.pack-cta { margin-top: auto; padding-top: 4px; color: var(--primary); font-weight: 700; font-size: 13px; }
+@media (max-width: 720px) { .pack-grid { grid-template-columns: repeat(2, 1fr); } }
+
 /* App CTA */
 .app-cta {
   display: grid;
