@@ -261,6 +261,7 @@ html.is-mobile .trail-list a.trail-log:active { background: var(--primary-contai
 .qr-card svg { width: 112px; height: 112px; border-radius: 10px; background: #fff; }
 .qr-card strong { display: block; font-size: 14px; margin-bottom: 4px; }
 .qr-card .muted { font-size: 12px; }
+.index-qr { max-width: 460px; margin: 4px 0 0; }
 .web-ring { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; width: 100%; max-width: 640px; background: var(--surface-low); border-radius: 18px; padding: 14px 16px; margin-top: 6px; }
 .web-ring svg { width: 64px; height: 64px; transform: rotate(-90deg); }
 .web-ring circle { fill: none; stroke-width: 7; stroke-linecap: round; }

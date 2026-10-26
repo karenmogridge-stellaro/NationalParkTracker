@@ -767,8 +767,9 @@ const REGIONS = [
 ];
 const regionOf = (park) => REGIONS.find(([, states]) => states.includes(park.state))?.[0] ?? 'Other';
 
-function indexPage() {
+async function indexPage() {
   const url = `${SITE}/parks`;
+  const qr = await qrSvg(`${SITE}/get`);
   const title = 'All 63 U.S. National Parks — Photos, Trails, Camping & Fees | ParkAtlas';
   const description = 'Browse every U.S. national park by region with photos, entry fees, peak season, and trail counts. Search by name or state, then keep track of the ones you\u2019ve explored in the ParkAtlas app.';
   const jsonLd = {
@@ -799,6 +800,13 @@ function indexPage() {
       <p class="eyebrow">All 63</p>
       <h1>Every U.S. national park</h1>
       <p class="lede">Browse by region, or type a park or state. Each page has trails, camping, fees, and the best time to go. Closer to home? See <a class="text-link" href="/near">parks near your city</a> or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a>.</p>
+      <div class="qr-card desktop-only index-qr">
+        ${qr}
+        <div>
+          <strong>Get ParkAtlas on your phone</strong>
+          <p class="muted">Scan with your camera to open the App Store. Log the parks you've been to in two taps, then find the next one nearby.</p>
+        </div>
+      </div>
       <div class="filter-bar" role="search">
         <label class="sr-only" for="park-filter">Filter parks by name or state</label>
         <input id="park-filter" type="search" placeholder="Search parks or states…" autocomplete="off" />
@@ -849,7 +857,7 @@ for (const park of parks) {
     hikesCount += 1;
   }
 }
-await writeFile(path.join(WEB, 'parks', 'index.html'), indexPage());
+await writeFile(path.join(WEB, 'parks', 'index.html'), await indexPage());
 for (const metro of METROS) {
   const dir = path.join(WEB, 'near', metro.slug);
   await mkdir(dir, { recursive: true });
