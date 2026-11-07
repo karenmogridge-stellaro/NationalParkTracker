@@ -17,16 +17,17 @@
 // /parks directory: text + region filtering. Works without JS (everything is rendered); this only hides.
 (function () {
   var input = document.getElementById('park-filter');
-  var chips = document.getElementById('region-chips');
-  if (!input || !chips) return;
+  var regionFilter = document.getElementById('region-filter');
+  if (!input || !regionFilter) return;
   var cards = Array.prototype.slice.call(document.querySelectorAll('.park-card'));
   var regions = Array.prototype.slice.call(document.querySelectorAll('.region'));
+  var featured = document.getElementById('featured-parks');
   var count = document.getElementById('park-count');
   var empty = document.getElementById('no-results');
-  var region = '';
   var fold = function (s) { return s.normalize('NFD').replace(/[\u0300-\u036f\u02bb\u2018\u2019']/g, '').toLowerCase(); };
   function apply() {
     var q = fold(input.value.trim());
+    var region = regionFilter.value;
     var shown = 0;
     cards.forEach(function (c) {
       var hay = fold(c.getAttribute('data-name') + ' ' + c.getAttribute('data-state'));
@@ -34,20 +35,15 @@
       c.hidden = !ok;
       var wrap = c.closest('.park-card-wrap');
       if (wrap) wrap.hidden = !ok;
-      if (ok) shown++;
+      if (ok && c.closest('#all-parks')) shown++;
     });
     regions.forEach(function (r) { r.hidden = !r.querySelector('.park-card:not([hidden])'); });
+    if (featured) featured.hidden = Boolean(q || region);
     if (count) count.textContent = shown + (shown === 1 ? ' park' : ' parks');
     if (empty) empty.hidden = shown > 0;
   }
   input.addEventListener('input', apply);
-  chips.addEventListener('click', function (e) {
-    var chip = e.target.closest('.chip');
-    if (!chip) return;
-    region = chip.getAttribute('data-region') || '';
-    chips.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('is-active', c === chip); });
-    apply();
-  });
+  regionFilter.addEventListener('change', apply);
   // Deep-linkable: /parks?q=utah
   var initial = new URLSearchParams(location.search).get('q');
   if (initial) { input.value = initial; apply(); }
@@ -99,7 +95,7 @@
   var ring = document.getElementById('web-ring');
   var fill = document.getElementById('web-ring-fill');
   var count = document.getElementById('web-ring-count');
-  var total = buttons.length;
+  var total = new Set(buttons.map(function (b) { return b.getAttribute('data-id'); })).size;
   function render() {
     buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(ids.indexOf(b.getAttribute('data-id')) !== -1)); });
     if (ring) {

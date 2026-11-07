@@ -74,6 +74,12 @@ const creditFor = (park) => PARK_IMAGES[park.id]?.credit;
 const creditPageFor = (park) => PARK_IMAGES[park.id]?.page;
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const formatDate = (date) => new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  timeZone: 'UTC',
+});
 
 const milesBetween = (a, b) => {
   const toRad = (d) => (d * Math.PI) / 180;
@@ -126,7 +132,7 @@ const driveLabel = (mi, park, metro) => {
   if (needsFlight(metro, park)) return 'flight or boat required';
   if (BOAT_PARKS.has(park.npsCode)) return 'ferry or flight required';
   const h = driveHours(mi);
-  return `~${h % 1 === 0 ? h : h.toFixed(1)} hr drive`;
+  return `~${h % 1 === 0 ? h : h.toFixed(1)} hr drive estimate`;
 };
 const trailBlurb = (p) => (p.detail.trailCount > 0 ? `${p.detail.trailCount}+ trails` : 'backcountry');
 
@@ -340,7 +346,7 @@ async function parkPage(park) {
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${park.lat},${park.lng}`;
   const staySlot = affiliateSlot('stay');
   const staySearch = staySlot ? affiliateUrl(staySlot, park) : null;
-  const aboutParas = nps ? paragraphs(nps.description) : [];
+  const aboutParas = paragraphs(nps?.description || d.description);
   const weatherParas = nps ? paragraphs(nps.weatherInfo, 2) : [];
   const directionParas = nps ? paragraphs(nps.directionsInfo, 2) : [];
   const fees = nps?.entranceFees?.filter((f) => f.title) ?? [];
@@ -366,10 +372,6 @@ async function parkPage(park) {
     isAccessibleForFree: d.entryFee.toLowerCase() === 'free',
     touristType: ['Hikers', 'Campers', 'Families'],
     ...(nps?.url ? { sameAs: nps.url } : {}),
-  }, {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
   }, {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -406,9 +408,10 @@ async function parkPage(park) {
       <article class="park-main">
         ${aboutParas.length ? `
         <section>
-          <h2>About ${esc(park.name)}</h2>
+          <h2>At a glance</h2>
           ${aboutParas.map((p) => `<p>${esc(p)}</p>`).join('\n          ')}
           ${activities.length ? `<p class="muted"><strong>Things to do:</strong> ${activities.slice(0, 14).map(esc).join(' · ')}</p>` : ''}
+          <p class="editorial-note">ParkAtlas, maintained by Stellaroos, combines its park and trail dataset with public information from the <a class="text-link" href="${esc(nps?.url || `https://www.nps.gov/${park.npsCode}/index.htm`)}" target="_blank" rel="noopener">National Park Service</a>.${nps?.fetchedAt ? ` NPS data snapshot retrieved <time datetime="${esc(nps.fetchedAt)}">${formatDate(nps.fetchedAt)}</time>.` : ''} Fees, access, and conditions can change; verify current details with NPS before traveling.</p>
         </section>` : ''}
 
         ${topTrails.length ? `
@@ -548,10 +551,6 @@ function hikesPage(park) {
     itemListElement: sorted.map((t, i) => ({ '@type': 'ListItem', position: i + 1, name: t.name, description: `${t.miles.toFixed(1)} miles round trip` })),
   }, {
     '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
-  }, {
-    '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'ParkAtlas', item: SITE },
@@ -632,14 +631,15 @@ function nearPage(metro) {
   const list = parksNear(metro);
   const closest = list[0];
   const weekend = list.filter(({ p, mi }) => !needsFlight(metro, p) && !BOAT_PARKS.has(p.npsCode) && driveHours(mi) <= 6);
-  const title = `National Parks Near ${metro.city} — ${list.length} Parks by Drive Time | ParkAtlas`;
-  const description = `The closest national parks to ${metro.city}, ${stateDisplayName(metro.state)}, ranked by distance. ${closest.p.name} is nearest at about ${Math.round(closest.mi)} miles. Trails, camping, and fees for each.`;
+  const withinRadiusCount = parks.filter((park) => milesBetween(metro, park) <= NEAR_RADIUS_MI).length;
+  const title = `National Parks Near ${metro.city} — Closest Parks by Distance | ParkAtlas`;
+  const description = `Find national parks near ${metro.city}, ${stateDisplayName(metro.state)}, ranked by straight-line distance. ${closest.p.name} is nearest at about ${Math.round(closest.mi)} miles; drive times are rough estimates, not route directions.`;
   const otherMetros = METROS.filter((m) => m.slug !== metro.slug).map((m) => ({ m, mi: milesBetween(metro, m) })).sort((a, b) => a.mi - b.mi).slice(0, 6);
 
   const faqs = [
     { q: `What is the closest national park to ${metro.city}?`, a: `${closest.p.name} National Park, about ${Math.round(closest.mi)} miles away (${driveLabel(closest.mi, closest.p, metro)}).` },
-    ...(weekend.length ? [{ q: `Which national parks near ${metro.city} work for a weekend trip?`, a: `Within roughly a six-hour drive: ${weekend.map(({ p }) => p.name).join(', ')}.` }] : []),
-    { q: `How many national parks are within ${NEAR_RADIUS_MI} miles of ${metro.city}?`, a: `${list.filter(({ mi }) => mi <= NEAR_RADIUS_MI).length} of the 63 U.S. national parks are within ${NEAR_RADIUS_MI} miles of ${metro.city}.` },
+    ...(weekend.length ? [{ q: `Which national parks near ${metro.city} work for a weekend trip?`, a: `Our rough drive-time estimate puts these within about six hours: ${weekend.map(({ p }) => p.name).join(', ')}. Check a current route before planning.` }] : []),
+    { q: `How many national parks are within ${NEAR_RADIUS_MI} straight-line miles of ${metro.city}?`, a: `${withinRadiusCount} of the 63 U.S. national parks are within ${NEAR_RADIUS_MI} straight-line miles of ${metro.city}.` },
   ];
 
   const jsonLd = [{
@@ -648,10 +648,6 @@ function nearPage(metro) {
     name: `National parks near ${metro.city}`,
     numberOfItems: list.length,
     itemListElement: list.map(({ p }, i) => ({ '@type': 'ListItem', position: i + 1, name: `${p.name} National Park`, url: `${SITE}/parks/${p.slug}` })),
-  }, {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
   }, {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -668,10 +664,10 @@ function nearPage(metro) {
       <div class="park-hero-inner">
         <p class="eyebrow light"><a class="crumb" href="/near">Parks near you</a> · ${esc(stateDisplayName(metro.state))}</p>
         <h1>National parks near ${esc(metro.city)}</h1>
-        <p class="lede light">${list.length} parks ranked by distance from downtown ${esc(metro.city)}. ${esc(closest.p.name)} is closest at about ${Math.round(closest.mi)} miles.</p>
+        <p class="lede light">${list.length} parks ranked by straight-line distance from downtown ${esc(metro.city)}. ${esc(closest.p.name)} is closest at about ${Math.round(closest.mi)} miles.</p>
         <div class="facts">
-          <span>🚗 ${weekend.length} within a 6-hr drive</span>
-          <span>🏞️ ${list.filter(({ mi }) => mi <= NEAR_RADIUS_MI).length} within ${NEAR_RADIUS_MI} mi</span>
+          <span>🚗 ${weekend.length} of these estimated within a 6-hr drive</span>
+          <span>🏞️ ${withinRadiusCount} within ${NEAR_RADIUS_MI} straight-line mi</span>
         </div>
       </div>
     </section>
@@ -680,7 +676,7 @@ function nearPage(metro) {
       <article class="park-main">
         <section>
           <h2>Closest first</h2>
-          <p class="muted">Straight-line miles from the city center; drive times are rough estimates. Open the app for parks near wherever you are right now.</p>
+          <p class="muted">The list shows up to 10 closest parks within 500 miles; if none are within that range, it shows the 3 nearest overall. Distances are straight-line miles from the city center to approximate park coordinates. Drive times are rough estimates based on distance, not live routing; ferry, traffic, road closures, and seasonal access can change a trip. Confirm routes and current conditions with the <a class="text-link" href="https://www.nps.gov/" target="_blank" rel="noopener">National Park Service</a> before you go. Open the app for parks near wherever you are right now.</p>
           <ul class="trail-list near-parks">
             ${list.map(({ p, mi }, i) => `<li><a href="/parks/${p.slug}"><span><strong class="rank">${i + 1}</strong> ${esc(p.name)}<small class="muted"> · ${esc(stateDisplayName(p.state))} · ${trailBlurb(p)} · ${esc(p.detail.entryFee)}</small></span><strong>${Math.round(mi)} mi<small> · ${esc(driveLabel(mi, p, metro))}</small></strong></a></li>`).join('\n            ')}
           </ul>
@@ -689,7 +685,7 @@ function nearPage(metro) {
         <section>
           <h2>Planning a trip from ${esc(metro.city)}</h2>
           <p>${weekend.length
-            ? `${weekend.map(({ p }) => `<a class="text-link" href="/parks/${p.slug}">${esc(p.name)}</a>`).join(', ')} ${weekend.length === 1 ? 'is' : 'are'} realistic for a long weekend. Leave early Friday, and reserve campsites or lodging ahead in peak season.`
+            ? `By our rough distance-based estimate, ${weekend.map(({ p }) => `<a class="text-link" href="/parks/${p.slug}">${esc(p.name)}</a>`).join(', ')} ${weekend.length === 1 ? 'is' : 'are'} within about six hours by road. Actual travel times vary; check a current route and reserve campsites or lodging ahead in peak season.`
             : `Nothing on this list is a casual day trip from ${esc(metro.city)}, so plan a longer road trip or fly closer. The <a class="text-link" href="/parkatlas-63-checklist.pdf">printable 63-park checklist</a> helps group parks by region.`}</p>
           <p>Each park page covers popular trails, camping, entrance fees, and the best time to visit. In ParkAtlas, the home screen shows unvisited parks within reach of your current location and lets you log the one you pick.</p>
         </section>
@@ -723,7 +719,7 @@ ${foot({ disclosure: true })}`;
 function nearIndexPage() {
   const url = `${SITE}/near`;
   const title = 'National Parks Near Me — Closest Parks by City | ParkAtlas';
-  const description = `Find the national parks closest to ${METROS.length} U.S. cities, ranked by drive time, with trails, camping, and fees for each.`;
+  const description = `Find national parks near ${METROS.length} U.S. cities, ranked by straight-line distance. See rough drive-time estimates plus park trails, camping, and fee information.`;
   const sorted = [...METROS].sort((a, b) => a.city.localeCompare(b.city));
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -737,7 +733,7 @@ function nearIndexPage() {
     <section class="index-hero">
       <p class="eyebrow">Start close to home</p>
       <h1>National parks near you</h1>
-      <p class="lede">Pick your city for the closest parks by drive time. Or open the app — it uses your location and skips the ones you've already logged.</p>
+      <p class="lede">Pick your city to see nearby national parks ranked by straight-line distance, with rough drive-time estimates. Or open the app — it uses your location and skips the ones you've already logged.</p>
       <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
     </section>
     <section class="state-grid">
@@ -780,10 +776,17 @@ async function indexPage() {
     itemListElement: parks.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${p.name} National Park`, url: `${SITE}/parks/${p.slug}` })),
   };
   const groups = REGIONS.map(([name]) => [name, parks.filter((p) => regionOf(p) === name).sort((a, b) => a.name.localeCompare(b.name))]).filter(([, list]) => list.length);
-  const card = (p) => `
+  const featuredNames = ['Great Smoky Mountains', 'Zion', 'Yellowstone', 'Grand Canyon', 'Yosemite', 'Rocky Mountain', 'Acadia', 'Grand Teton', 'Olympic', 'Glacier'];
+  const featured = featuredNames.map((name, i) => {
+    const park = parks.find((p) => p.name === name);
+    if (!park) throw new Error(`Featured park not found: ${name}`);
+    return { park, rank: i + 1 };
+  });
+  const card = (p, featuredRank = 0) => `
         <div class="park-card-wrap">
-        <a class="park-card" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}" data-id="${p.id}">
+        <a class="park-card${featuredRank ? ' is-featured' : ''}" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}" data-id="${p.id}">
           <img src="${heroFor(p, 640)}" alt="" loading="lazy" width="320" height="240" />
+          ${featuredRank ? `<span class="featured-badge">2025 Top 10 · #${featuredRank}</span>` : ''}
           <span class="park-card-body">
             <strong>${esc(p.name)}</strong>
             <small>${esc(stateDisplayName(p.state))}</small>
@@ -797,24 +800,32 @@ async function indexPage() {
   return `${head({ title, description, url, image: `${SITE}/og.png`, jsonLd })}
   <main class="parks-index">
     <section class="index-hero">
-      <p class="eyebrow">All 63</p>
-      <h1>Every U.S. national park</h1>
-      <p class="lede">Browse by region, or type a park or state. Each page has trails, camping, fees, and the best time to go. Closer to home? See <a class="text-link" href="/near">parks near your city</a> or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a>.</p>
-      <div class="qr-card desktop-only index-qr">
-        ${qr}
-        <div>
-          <strong>Get ParkAtlas on your phone</strong>
-          <p class="muted">Scan with your camera to open the App Store. Log the parks you've been to in two taps, then find the next one nearby.</p>
+      <div class="index-hero-top">
+        <div class="index-intro">
+          <p class="eyebrow">All 63</p>
+          <h1>Every U.S. national park</h1>
+          <p class="lede">Browse all 63 parks, search by name or state, or optionally filter by region. Each page has trails, camping, fees, and the best time to go. Closer to home? See <a class="text-link" href="/near">parks near your city</a> or <a class="text-link" href="/parkatlas-63-checklist.pdf">print the checklist</a>.</p>
+        </div>
+        <div class="qr-card desktop-only index-qr">
+          ${qr}
+          <div>
+            <strong>Get ParkAtlas on your phone</strong>
+            <p class="muted">Scan with your camera to open the App Store. Log the parks you've been to in two taps, then find the next one nearby.</p>
+          </div>
         </div>
       </div>
-      <div class="filter-bar" role="search">
-        <label class="sr-only" for="park-filter">Filter parks by name or state</label>
-        <input id="park-filter" type="search" placeholder="Search parks or states…" autocomplete="off" />
-        <span class="filter-count" id="park-count" aria-live="polite">${parks.length} parks</span>
-      </div>
-      <div class="chips" id="region-chips" role="group" aria-label="Filter by region">
-        <button type="button" class="chip is-active" data-region="">All</button>
-        ${groups.map(([name, list]) => `<button type="button" class="chip" data-region="${esc(name)}">${esc(name)} <small>${list.length}</small></button>`).join('\n        ')}
+      <div class="directory-controls">
+        <div class="filter-bar" role="search">
+          <label class="sr-only" for="park-filter">Search all national parks by name or state</label>
+          <input id="park-filter" type="search" placeholder="Search all 63 parks…" autocomplete="off" />
+          <span class="filter-count" id="park-count" aria-live="polite">${parks.length} parks</span>
+        </div>
+        <label class="region-filter-label" for="region-filter">Optional region filter
+          <select id="region-filter">
+            <option value="">All 63 parks</option>
+            ${groups.map(([name, list]) => `<option value="${esc(name)}">${esc(name)} (${list.length})</option>`).join('\n            ')}
+          </select>
+        </label>
       </div>
       <div class="web-ring" id="web-ring" hidden>
         <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" id="web-ring-fill" cx="32" cy="32" r="27"></circle></svg>
@@ -825,12 +836,25 @@ async function indexPage() {
       </div>
     </section>
     <div id="park-directory">
+    <section class="featured-parks" id="featured-parks" aria-labelledby="featured-parks-title">
+      <div class="featured-heading">
+        <div>
+          <p class="eyebrow">Visitor favorites</p>
+          <h2 id="featured-parks-title">Most visited national parks in 2025</h2>
+        </div>
+        <p class="muted">Top 10 by recreation visits, according to the <a class="text-link" href="https://www.nps.gov/orgs/1207/03-13-26-2025-visitation-statsitics.htm" target="_blank" rel="noopener">National Park Service</a>. <a class="text-link" href="#all-parks">Browse all 63 below</a>.</p>
+      </div>
+      <div class="park-grid">${featured.map(({ park, rank }) => card(park, rank)).join('')}
+      </div>
+    </section>
+    <div id="all-parks">
     ${groups.map(([name, list]) => `
     <section class="region" data-region="${esc(name)}">
       <h2>${esc(name)} <small>${list.length} ${list.length === 1 ? 'park' : 'parks'}</small></h2>
-      <div class="park-grid">${list.map(card).join('')}
+      <div class="park-grid">${list.map((park) => card(park)).join('')}
       </div>
     </section>`).join('')}
+    </div>
     <p class="no-results" id="no-results" hidden>No parks match that. Try a park name like “Zion” or a state like “Utah”.</p>
     </div>
     <section class="final-cta">
@@ -867,9 +891,8 @@ await writeFile(path.join(WEB, 'near', 'index.html'), nearIndexPage());
 // Lightweight lookup for client-side pages (/import) — id, slug, name, state.
 await writeFile(path.join(WEB, 'parks-min.json'), JSON.stringify(parks.map((p) => ({ id: p.id, slug: p.slug, name: p.name, state: stateDisplayName(p.state) }))));
 
-const today = new Date().toISOString().slice(0, 10);
 const urls = [
-  '/', '/parks', '/near', '/gear', '/s', '/import', '/privacy',
+  '/', '/parks', '/near', '/gear', '/s',
   ...parks.map((p) => `/parks/${p.slug}`),
   ...parks.filter(hasHikesPage).map((p) => `/parks/${p.slug}/hikes`),
   ...METROS.map((m) => `/near/${m.slug}`),
@@ -877,7 +900,7 @@ const urls = [
 await writeFile(
   path.join(WEB, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
-    .map((u) => `  <url><loc>${SITE}${u}</loc><lastmod>${today}</lastmod><changefreq>${u.startsWith('/parks/') || u.startsWith('/near/') ? 'monthly' : 'weekly'}</changefreq></url>`)
+    .map((u) => `  <url><loc>${SITE}${u}</loc><changefreq>${u.startsWith('/parks/') || u.startsWith('/near/') ? 'monthly' : 'weekly'}</changefreq></url>`)
     .join('\n')}\n</urlset>\n`,
 );
 await writeFile(path.join(WEB, 'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
