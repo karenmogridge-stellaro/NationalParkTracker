@@ -1,3 +1,10 @@
+// Only the homepage redirects; shared guides and account links remain accessible.
+(function () {
+  if (location.pathname === '/' && /iPhone/i.test(navigator.userAgent)) {
+    location.replace('https://apps.apple.com/app/id6760982981');
+  }
+})();
+
 // Mobile nav toggle for parkatlas.io.
 (function () {
   var header = document.querySelector('header.nav');
@@ -12,6 +19,62 @@
   header.querySelectorAll('nav a').forEach(function (a) { a.addEventListener('click', function () { setOpen(false); }); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
   document.addEventListener('click', function (e) { if (!header.contains(e.target)) setOpen(false); });
+})();
+
+// Location stays in memory; calculate distances locally without geocoding or analytics.
+(function () {
+  var button = document.getElementById('use-location');
+  if (!button) return;
+  var status = document.getElementById('location-status');
+  var results = document.getElementById('location-results');
+  var list = document.getElementById('location-parks');
+  var rows = Array.prototype.slice.call(list.querySelectorAll('li[data-lat][data-lng]'));
+  function fail(message) {
+    button.disabled = false;
+    button.textContent = 'Try my location again';
+    results.hidden = true;
+    status.textContent = message + ' You can browse by city below.';
+  }
+  button.addEventListener('click', function () {
+    if (!navigator.geolocation) {
+      fail('Location is not available in this browser.');
+      return;
+    }
+    button.disabled = true;
+    button.textContent = 'Finding your location…';
+    results.hidden = true;
+    status.textContent = 'Allow location access when your browser asks.';
+    navigator.geolocation.getCurrentPosition(function (position) {
+      var latitude = position.coords.latitude;
+      var longitude = position.coords.longitude;
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        fail('Your browser returned an invalid location.');
+        return;
+      }
+      var rad = function (degrees) { return degrees * Math.PI / 180; };
+      var ranked = rows.map(function (row) {
+        var lat = Number(row.getAttribute('data-lat'));
+        var lng = Number(row.getAttribute('data-lng'));
+        var h = Math.sin(rad(lat - latitude) / 2) ** 2 +
+          Math.cos(rad(latitude)) * Math.cos(rad(lat)) * Math.sin(rad(lng - longitude) / 2) ** 2;
+        h = Math.max(0, Math.min(1, h));
+        return { row: row, miles: 2 * 6371 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)) * 0.621371 };
+      }).sort(function (a, b) { return a.miles - b.miles; });
+      ranked.forEach(function (item, index) {
+        item.row.hidden = index >= 10;
+        item.row.querySelector('.location-distance').textContent = Math.round(item.miles).toLocaleString('en-US') + ' mi';
+        list.appendChild(item.row);
+      });
+      results.hidden = false;
+      button.disabled = false;
+      button.textContent = 'Update my location';
+      status.textContent = 'Showing the 10 closest national parks to your location.';
+    }, function (error) {
+      if (error.code === 1) fail('Location permission was denied. Allow location access in your browser settings to try again.');
+      else if (error.code === 3) fail('Finding your location timed out. Please try again.');
+      else fail('Your location could not be determined. Please try again.');
+    }, { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
+  });
 })();
 
 // /parks directory: text + region filtering. Works without JS (everything is rendered); this only hides.

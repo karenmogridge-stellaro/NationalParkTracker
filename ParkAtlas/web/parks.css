@@ -171,6 +171,14 @@
 .index-intro .eyebrow, .index-intro h1, .index-intro .lede { max-width: 680px; }
 .index-hero h1 { font-size: clamp(36px, 4.6vw, 56px); font-weight: 800; }
 .index-hero .lede { max-width: 640px; }
+.location-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.location-button { font: inherit; font-weight: 800; border: 0; border-radius: 999px; padding: 14px 22px; background: var(--primary); color: #fff; cursor: pointer; }
+.location-button:disabled { opacity: 0.6; cursor: wait; }
+.location-button:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+.location-results, .city-directory { max-width: var(--max); margin: 0 auto; padding: 16px 24px 32px; }
+.location-results h2, .city-directory > h2 { font-size: 26px; font-weight: 800; margin-bottom: 12px; }
+.location-results[hidden], #location-parks li[hidden] { display: none; }
+.city-directory .state-grid { padding: 0; }
 
 /* Parks directory: search, optional region filter, featured parks, and photo cards */
 .directory-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 14px 24px; width: 100%; margin-top: 8px; }

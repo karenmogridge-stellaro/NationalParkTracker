@@ -719,7 +719,7 @@ ${foot({ disclosure: true })}`;
 function nearIndexPage() {
   const url = `${SITE}/near`;
   const title = 'National Parks Near Me — Closest Parks by City | ParkAtlas';
-  const description = `Find national parks near ${METROS.length} U.S. cities, ranked by straight-line distance. See rough drive-time estimates plus park trails, camping, and fee information.`;
+  const description = `Use your location to find the closest national parks, or browse parks near ${METROS.length} U.S. cities. Distances are straight-line estimates, not driving routes.`;
   const sorted = [...METROS].sort((a, b) => a.city.localeCompare(b.city));
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -733,10 +733,26 @@ function nearIndexPage() {
     <section class="index-hero">
       <p class="eyebrow">Start close to home</p>
       <h1>National parks near you</h1>
-      <p class="lede">Pick your city to see nearby national parks ranked by straight-line distance, with rough drive-time estimates. Or open the app — it uses your location and skips the ones you've already logged.</p>
+      <p class="lede">Find the closest national parks using your location, or browse by city below.</p>
+      <div class="location-actions">
+        <button class="location-button" id="use-location" type="button">Use my location</button>
+        <a class="text-link" href="#browse-cities">Browse by city instead</a>
+      </div>
+      <p class="muted">Your browser will ask permission. Your location is used only on this page; it is not stored or sent to ParkAtlas.</p>
+      <p id="location-status" role="status" aria-live="polite"></p>
+      <noscript><p>Enable JavaScript to use your location, or browse by city below.</p></noscript>
       <a class="appstore" href="/get" aria-label="Download on the App Store"><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
     </section>
-    <section class="state-grid">
+    <section class="location-results" id="location-results" hidden aria-labelledby="location-results-title">
+      <h2 id="location-results-title">Closest parks to your location</h2>
+      <p class="muted">The 10 closest of all 63 national parks, ranked by straight-line distance to approximate park coordinates. These are not driving distances; islands and remote parks may require a boat or flight. Check the park guide for access details.</p>
+      <ul class="trail-list near-parks" id="location-parks">
+        ${parks.map((p) => `<li data-lat="${p.lat}" data-lng="${p.lng}"><a href="/parks/${p.slug}"><span>${esc(p.name)}<small class="muted">${esc(stateDisplayName(p.state))}</small></span><strong class="location-distance"></strong></a></li>`).join('\n        ')}
+      </ul>
+    </section>
+    <section class="city-directory" id="browse-cities" aria-labelledby="browse-cities-title">
+      <h2 id="browse-cities-title">Browse parks near a city</h2>
+      <div class="state-grid">
       ${sorted.map((m) => {
         const c = parksNear(m)[0];
         return `
@@ -745,6 +761,7 @@ function nearIndexPage() {
         <ul><li class="muted">Closest: <a href="/parks/${c.p.slug}">${esc(c.p.name)}</a>, ${Math.round(c.mi)} mi</li></ul>
       </div>`;
       }).join('')}
+      </div>
     </section>
   </main>
 ${foot()}`;

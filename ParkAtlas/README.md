@@ -36,3 +36,5 @@ ParkAtlas helps users track visits, hikes, camps, and road-trip stops across all
 
 - Sign in is optional for browsing core park content.
 - Account features are available when a user signs in.
+- The marketing website in `web/` redirects iPhone visitors on the homepage to the App Store. Park guides, invites, imports, and other pages remain accessible.
+- The web `/near` page offers opt-in browser location to rank the 10 closest national parks locally, without storing or sending coordinates. City browsing remains available if location is unavailable or declined.
