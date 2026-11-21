@@ -162,30 +162,37 @@ const giftSections = giftCatalog.sections.map((s) => ({
   }),
 }));
 const giftPhotoCredits = giftSections.flatMap((s) => s.items.filter((item) => item.photo));
-const lifestylePhotos = [
-  { name: 'Cover', photo: giftCatalog.heroPhoto },
-  ...giftSections.filter((s) => s.sectionPhoto).map((s) => ({ name: s.label, photo: s.sectionPhoto })),
-].filter(({ photo }) => photo.source);
-const lifestyleImage = (photo, className, lead = false) =>
-  `<img class="${className}" src="${esc(photo.src)}" alt="${esc(photo.alt)}" ${lead ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" />`;
+const hero = giftCatalog.hero || {};
+const trust = giftCatalog.trust || {};
+const interlude = giftCatalog.interlude || {};
+const firstSectionId = giftSections[0]?.id || 'hiking';
 
-const giftSection = (s) => `
-      <section class="gear-section gift-section" id="${esc(s.id)}">
-        <h2>${esc(s.title)}</h2>
-        ${s.sectionPhoto ? lifestyleImage(s.sectionPhoto, 'gift-section-photo') : ''}
-        ${s.giftIdea ? `<p class="gift-idea">${esc(s.giftIdea)}</p>` : ''}
-        <div class="gear-grid">
-          ${s.items.map((item) => `
-          <article class="gear-card gift-card">
-            <a href="${esc(amazonUrl(item))}" target="_blank" rel="sponsored noopener" data-gift-section="${esc(s.id)}" data-gift-asin="${esc(item.asin)}" aria-labelledby="gift-${esc(item.asin)} shop-${esc(item.asin)}">
-              ${item.photo ? `<img class="gift-photo" src="${esc(item.photo.src)}" alt="${esc(item.photo.alt)}" loading="lazy" decoding="async" />` : ''}
-              <div class="gear-body">
-                <h3 id="gift-${esc(item.asin)}">${esc(item.name)}</h3>
+const giftCard = (s, item) => `
+          <article class="gift-product">
+            <a class="gift-product-link" href="${esc(amazonUrl(item))}" target="_blank" rel="sponsored noopener noreferrer" data-gift-section="${esc(s.id)}" data-gift-asin="${esc(item.asin)}" aria-label="View ${esc(item.name)} on Amazon">
+              <div class="gift-media">
+                ${item.photo
+                  ? `<img src="${esc(item.photo.src)}" alt="${esc(item.photo.alt)}" loading="lazy" decoding="async" />`
+                  : `<span class="gift-missing">${esc(item.name)}</span>`}
+              </div>
+              <div class="gift-cardbody">
+                <h3>${esc(item.name)}</h3>
                 <p>${esc(item.why)}</p>
-                <span class="gear-btn" id="shop-${esc(item.asin)}">Shop on Amazon ↗</span>
               </div>
             </a>
-          </article>`).join('')}
+          </article>`;
+
+const giftSection = (s) => `
+      <section class="gift-collect" id="${esc(s.id)}">
+        <div class="gift-heading">
+          <div>
+            <div class="gift-over">${esc(s.over || s.label)}</div>
+            <h2>${esc(s.heading || s.title)}</h2>
+          </div>
+          ${s.blurb ? `<p>${esc(s.blurb)}</p>` : ''}
+        </div>
+        <div class="gift-products">
+          ${s.items.map((item) => giftCard(s, item)).join('')}
         </div>
       </section>`;
 
@@ -201,6 +208,9 @@ const giftHtml = `<!doctype html>
   <link rel="canonical" href="${SITE}/gifts" />
   <link rel="icon" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/gear.css" />
   <script src="/analytics.js"></script>
@@ -210,34 +220,55 @@ const giftHtml = `<!doctype html>
   <meta property="og:title" content="${esc(giftTitle)}" />
   <meta property="og:description" content="${esc(giftDescription)}" />
   <meta property="og:url" content="${SITE}/gifts" />
+  <meta property="og:image" content="${SITE}${esc(giftCatalog.heroPhoto.src)}" />
 </head>
 <body class="gift-site">
-  <header class="gift-nav">
-    <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
-    <a class="text-link" href="/gear">All gear</a>
-  </header>
-  <main>
-    <div class="gear-body-wrap gift-page">
-      <section class="gift-intro" aria-labelledby="gift-title">
-        <div class="gift-intro-copy">
-          <p class="eyebrow">Ren’s holiday gift guide</p>
-          <h1 id="gift-title">${esc(giftTitle)}</h1>
-          <p class="gift-disclosure">${esc(G.disclosure)}</p>
-        </div>
-        ${lifestyleImage(giftCatalog.heroPhoto, 'gift-hero-photo', true)}
-      </section>
-      <nav class="gear-toc" aria-label="Gift guide sections">
+  <header class="gift-header">
+    <div class="gift-wrap">
+      <a class="gift-brand" href="/"><img src="/logo.png" alt="ParkAtlas logo" width="42" height="42" /><span>ParkAtlas</span></a>
+      <nav class="gift-links" aria-label="Gift guide sections">
         ${giftSections.map((s) => `<a href="#${esc(s.id)}">${esc(s.label)}</a>`).join('\n        ')}
+        <a href="/">Explore ParkAtlas ↗</a>
       </nav>
+    </div>
+  </header>
+  <div class="gift-hero" style="--gift-hero-image:url('${esc(giftCatalog.heroPhoto.src)}')">
+    <div class="gift-wrap">
+      ${hero.eyebrow ? `<p class="gift-eyebrow">${esc(hero.eyebrow)}</p>` : ''}
+      <h1>${(hero.titleLines || [giftTitle]).map(esc).join('<br/>')}</h1>
+      ${hero.lede ? `<p class="gift-lede">${esc(hero.lede)}</p>` : ''}
+    </div>
+    ${hero.snow ? `<span class="gift-snow">${esc(hero.snow)}</span>` : ''}
+  </div>
+  <div class="gift-trust">
+    <div class="gift-wrap">
+      <p>${trust.strong ? `<strong>${esc(trust.strong)}</strong> · ` : ''}${esc(trust.text || '')}</p>
+      <div class="gift-quick">
+        ${giftSections.map((s) => `<a href="#${esc(s.id)}">The ${esc(s.label.toLowerCase())} friend</a>`).join('\n        ')}
+      </div>
+    </div>
+  </div>
+  <main>
+    <div class="gift-wrap">
       ${giftSections.map(giftSection).join('\n')}
+      <div class="gift-interlude">
+        <div>
+          <strong>${esc(interlude.title || '')}</strong>
+          ${interlude.text ? `<p>${esc(interlude.text)}</p>` : ''}
+        </div>
+        ${interlude.cta ? `<a href="#${esc(firstSectionId)}">${esc(interlude.cta)}</a>` : ''}
+      </div>
     </div>
   </main>
-  <footer>
-    <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
-    <nav><a href="/gear">All gear</a><a href="/parks">National parks</a><a href="/privacy">Privacy</a></nav>
-    <p class="fine">See Amazon for product photos, prices, and availability.</p>
-    <p class="fine">Lifestyle photos via <a href="https://www.pexels.com/license/">Pexels</a>: ${lifestylePhotos.map(({ name, photo }) => `<a href="${esc(photo.source)}">${esc(name)}</a>`).join(' · ')}</p>
-    ${giftPhotoCredits.map(({ name, photo }) => `<p class="fine"><a href="${esc(photo.source)}">${esc(name)} photo</a> by ${esc(photo.credit)} · <a href="${esc(photo.licenseUrl)}">${esc(photo.license)}</a> · resized</p>`).join('\n    ')}
+  <footer class="gift-footer">
+    <div class="gift-wrap gift-footer-inner">
+      <div>
+        <div class="gift-brand"><img src="/logo.png" alt="ParkAtlas logo" width="28" height="28" /><span>ParkAtlas</span></div>
+        <p>Made for people who love the outdoors. ${esc(G.disclosure)} Product prices and availability are shown on Amazon.</p>
+        ${giftPhotoCredits.map(({ photo }) => `<p><a href="${esc(photo.source)}">${esc(photo.credit)}</a> photo · <a href="${esc(photo.licenseUrl)}">${esc(photo.license)}</a> · resized</p>`).join('\n        ')}
+      </div>
+      <div class="gift-note">Ren’s holiday gift guide · 2026<br/>© 2026 ParkAtlas</div>
+    </div>
   </footer>
 </body>
 </html>

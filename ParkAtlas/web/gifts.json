@@ -3,11 +3,29 @@
     "src": "/gifts/photos/christmas-tree-in-snow.jpg",
     "alt": "An outdoor Christmas tree glowing with lights in snowy woods at night"
   },
+  "hero": {
+    "eyebrow": "The 2026 Holiday Edit · Ren’s Picks",
+    "titleLines": ["Good gifts.", "Great adventures."],
+    "lede": "For the trail chasers, coffee lovers, and people who’d rather be outside. These are the gifts I’d actually give — and love getting.",
+    "snow": "A LITTLE WINTER MAGIC ✳"
+  },
+  "trust": {
+    "strong": "Handpicked by Ren",
+    "text": "Twelve thoughtful finds, from stocking stuffers to splurges."
+  },
+  "interlude": {
+    "title": "The best gifts get used on the next adventure.",
+    "text": "From winter hikes to camp coffee, find something they’ll reach for all year.",
+    "cta": "Back to Ren’s picks ↑"
+  },
   "sections": [
     {
       "id": "hiking",
       "title": "For the hiking friend",
       "label": "Hiking",
+      "over": "01 / Give them the outdoors",
+      "heading": "For the hiking friend.",
+      "blurb": "Long days, chilly trails, and gear that earns its place in the pack.",
       "items": [
         { "catalogAsin": "B0DC4RPXN1", "why": "The hiking socks I reach for." },
         { "catalogAsin": "B0CXDXP8VR", "why": "For offline maps and lots of photos." },
@@ -19,6 +37,9 @@
       "id": "camp-coffee",
       "title": "For the camp-coffee friend",
       "label": "Camp coffee",
+      "over": "02 / Better mornings anywhere",
+      "heading": "For the camp coffee friend.",
+      "blurb": "Thoughtful upgrades for anyone who believes the best cup is the one you make outside.",
       "sectionPhoto": {
         "src": "/gifts/photos/campfire-coffee.jpg",
         "alt": "A metal mug beside a campfire",
@@ -47,6 +68,9 @@
       "id": "self-care",
       "title": "For a little post-adventure self-care",
       "label": "Self-care",
+      "over": "03 / The after-adventure ritual",
+      "heading": "A little winter self-care.",
+      "blurb": "Small comforts for post-hike recovery, long travel days, and cold-weather reset moments.",
       "sectionPhoto": {
         "src": "/gifts/photos/self-care.jpg",
         "alt": "A candle, towels, and dried flowers arranged on a wooden tray",
