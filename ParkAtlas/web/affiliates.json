@@ -2,7 +2,7 @@
   "_comment": "Partner links rendered by build-parks.mjs. Each slot: `url` is the untracked fallback; set `trackedUrl` once a program approves you and it takes over automatically. Placeholders: {q} = '<Park> National Park, <State>' | {park} = park name | {state} | {city} (near pages) | {lat} {lng}. `contexts` controls where it shows: park (park pages), near (city pages). `requires` = 'camping' hides the slot on parks with no campgrounds. Links render rel=sponsored and fire a GA4 'affiliate_click' event.",
   "_apply": {
     "stay": "Booking.com Affiliate Partner Programme (or Expedia Group via Partnerize). Paste the tracked deep link as trackedUrl with {q} kept in it.",
-    "camp": "Hipcamp affiliate runs on Impact.com; The Dyrt is the alternative.",
+    "camp": "Campspot affiliate runs on Awin (awinmid 22326). Keep the cread.php link as trackedUrl.",
     "pass": "REI sells the America the Beautiful pass; REI's affiliate program is on AvantLink. USGS store has no program.",
     "car": "Expedia/Discover Cars/RentalCars via Partnerize or TravelPayouts.",
     "guide": "Already tracked: Amazon Associates tag parkatlas-20 (same as /gear)."
@@ -30,10 +30,10 @@
       "requires": "camping",
       "icon": "⛺",
       "title": "Campsites",
-      "blurb": "Public campgrounds plus private land nearby. Book early for peak season.",
+      "blurb": "Private campgrounds, RV parks, and cabins near the park. Book early for peak season.",
       "cta": "Find a campsite",
-      "url": "https://www.hipcamp.com/en-US/search?q={q}",
-      "trackedUrl": ""
+      "url": "https://www.campspot.com/",
+      "trackedUrl": "https://www.awin1.com/cread.php?awinmid=22326&awinaffid=3134660"
     },
     {
       "id": "car",
