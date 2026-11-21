@@ -65,6 +65,7 @@ export default function FriendsPage() {
   const toast = useToast();
   const [requestedExpanded, setRequestedExpanded] = useState(false);
   const [syncingContacts, setSyncingContacts] = useState(false);
+  const [suggestionSyncKey, setSuggestionSyncKey] = useState(0);
   // Name-only guesses from the last contacts sync (session-only; contact names never leave the device).
   const [nameSuggestions, setNameSuggestions] = useState<FriendProfile[]>([]);
   const [directoryWarning, setDirectoryWarning] = useState<string | null>(null);
@@ -74,6 +75,8 @@ export default function FriendsPage() {
   // Track previous user ID to detect fresh logins
   const prevUserIdRef = useRef<string | null>(null);
   const pendingIncomingHandledRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const pendingSuggestionsScrollRef = useRef(false);
   const isLoggedIn = Boolean(user?.id);
 
   const myFriendIds = useMemo(() => new Set(myFriends.map((f) => f.id)), [myFriends]);
@@ -205,18 +208,42 @@ export default function FriendsPage() {
 
       // Fallback for hidden-email / no-phone friends: same display name as someone in your contacts.
       const byName = await matchContactsByName({ names, excludeIds: [user.id, ...profiles.map((p) => p.id)] });
+      const availableNameMatches = byName.filter((match) =>
+        !matchedContactIds.has(match.id) &&
+        !myFriendIds.has(match.id) &&
+        !requestedIds.has(match.id) &&
+        !incomingIds.has(match.id)
+      );
+      const availableContactMatches = profiles.filter((profile) =>
+        !myFriendIds.has(profile.id) &&
+        !requestedIds.has(profile.id) &&
+        !incomingIds.has(profile.id)
+      );
       setNameSuggestions(byName.map(toProfile));
+      setSuggestionSyncKey((key) => key + 1);
+      pendingSuggestionsScrollRef.current = availableNameMatches.length > 0;
 
       await setDirectoryUsers([...profiles, ...byName.map(toProfile)]);
       await setMatchedContactIds(profiles.map((p) => p.id));
       await markContactsSynced(true);
-      const total = profiles.length + byName.length;
-      toast.success(
-        total === 0
-          ? 'Contacts synced — no matches yet'
-          : `Found ${profiles.length} from your contacts${byName.length ? ` and ${byName.length} you may know` : ''}`,
-        { icon: 'people' },
-      );
+      if (availableNameMatches.length === 1) {
+        toast.success(
+          `Possible match: ${availableNameMatches[0].name}. Showing below.`,
+          { icon: 'people', durationMs: 4500 },
+        );
+      } else if (availableNameMatches.length > 1) {
+        toast.success(
+          `${availableNameMatches.length} possible matches by name. Showing below.`,
+          { icon: 'people', durationMs: 4500 },
+        );
+      } else {
+        toast.success(
+          availableContactMatches.length === 0
+            ? 'Contacts synced — no new matches yet'
+            : `Found ${availableContactMatches.length} from your contacts`,
+          { icon: 'people' },
+        );
+      }
     } catch (e) {
       if (e instanceof ContactsPermissionDeniedError) {
         Alert.alert(
@@ -233,7 +260,7 @@ export default function FriendsPage() {
     } finally {
       setSyncingContacts(false);
     }
-  }, [user?.id, setDirectoryUsers, setMatchedContactIds, markContactsSynced, toast]);
+  }, [user?.id, setDirectoryUsers, setMatchedContactIds, markContactsSynced, toast, myFriendIds, requestedIds, incomingIds, matchedContactIds]);
 
   // Post-login resume: execute a pending 'follow' or 'viewProfile' action when user logs in
   useEffect(() => {
@@ -471,6 +498,7 @@ export default function FriendsPage() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -571,16 +599,43 @@ export default function FriendsPage() {
                     >
                       <Text style={styles.followBtnText}>{syncingContacts ? 'Syncing…' : 'Sync Contacts'}</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.secondaryActionBtn}
+                      activeOpacity={0.85}
+                      onPress={openInviteScreen}
+                    >
+                      <Text style={styles.secondaryActionText}>Share invite</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : contactMatches.length > 0 ? (
                   contactMatches.map(renderSuggestedRow)
                 ) : (
-                  <Text style={styles.emptyText}>None of your contacts are on ParkAtlas yet — invite them! (Friends who signed in with Apple and hid their email only match once they add a phone number.)</Text>
+                  <View style={styles.emptyInviteWrap}>
+                    <Text style={styles.emptyText}>None of your contacts are on ParkAtlas yet — invite them! (Friends who signed in with Apple and hid their email only match once they add a phone number.)</Text>
+                    <TouchableOpacity
+                      style={styles.secondaryActionBtn}
+                      activeOpacity={0.85}
+                      onPress={openInviteScreen}
+                    >
+                      <Text style={styles.secondaryActionText}>Share invite</Text>
+                    </TouchableOpacity>
+                  </View>
                 )}
               </View>
 
               {contactsSynced && maybeKnown.length > 0 ? (
-                <View style={styles.sectionBlock}>
+                <View
+                  key={suggestionSyncKey}
+                  style={styles.sectionBlock}
+                  onLayout={({ nativeEvent }) => {
+                    if (!pendingSuggestionsScrollRef.current) return;
+                    pendingSuggestionsScrollRef.current = false;
+                    scrollRef.current?.scrollTo({
+                      y: Math.max(0, nativeEvent.layout.y - 16),
+                      animated: true,
+                    });
+                  }}
+                >
                   <Text style={styles.sectionTitle}>People you may know</Text>
                   <Text style={styles.sectionHint}>Same name as someone in your contacts — a guess, so double-check before you follow.</Text>
                   {maybeKnown.map(renderSuggestedRow)}
@@ -803,6 +858,21 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: C.onSurfaceVariant,
+  },
+  secondaryActionBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: C.surfaceContainerHigh,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  secondaryActionText: {
+    color: C.primary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  emptyInviteWrap: {
+    gap: 10,
   },
   searchEmpty: {
     flexDirection: 'row',

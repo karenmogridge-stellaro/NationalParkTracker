@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ParkAtlas Invite</title>
+    <style>
+      :root {
+        --bg: #f4f6f5;
+        --card: #ffffff;
+        --text: #1e2a23;
+        --muted: #5d6b62;
+        --primary: #1b4332;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(160deg, #f8fbf9 0%, var(--bg) 100%);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+
+      .card {
+        width: min(520px, 100%);
+        background: var(--card);
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        text-align: center;
+      }
+
+      .logo {
+        width: 88px;
+        height: 88px;
+        object-fit: contain;
+      }
+
+      h1 {
+        margin: 14px 0 8px;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      p {
+        margin: 6px 0;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.45;
+      }
+
+      .code {
+        margin-top: 8px;
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .btn {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .btn-secondary {
+        background: #edf2ee;
+        color: var(--text);
+      }
+
+      .small {
+        margin-top: 14px;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <img src="/parkatlas-logo.png" alt="ParkAtlas" class="logo" />
+      <h1>You are invited to ParkAtlas</h1>
+      <p>Opening the app now. If nothing happens, use the button below.</p>
+      <p class="code" id="inviteCodeLabel"></p>
+
+      <div class="actions">
+        <button id="openAppBtn" class="btn btn-primary">Open ParkAtlas</button>
+        <button id="appStoreBtn" class="btn btn-secondary">Get ParkAtlas on the App Store</button>
+      </div>
+
+      <p class="small">If the app is installed, this page should hand off automatically.</p>
+    </main>
+
+    <script>
+      const APP_STORE_URL = "https://apps.apple.com/app/id6760982981";
+
+      function parseInviteCode() {
+        const params = new URLSearchParams(window.location.search);
+        const queryCode = params.get("code");
+        if (queryCode) return queryCode;
+
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        if (parts.length >= 2 && parts[0] === "invite") {
+          return decodeURIComponent(parts[1]);
+        }
+
+        return "";
+      }
+
+      const inviteCode = parseInviteCode();
+      const appUrl = inviteCode
+        ? `parkatlas://invite?code=${encodeURIComponent(inviteCode)}`
+        : "parkatlas://invite";
+
+      const label = document.getElementById("inviteCodeLabel");
+      if (inviteCode) {
+        label.textContent = `Invite code: ${inviteCode}`;
+      }
+
+      function openApp() {
+        window.location.href = appUrl;
+      }
+
+      function openStore() {
+        window.location.href = APP_STORE_URL;
+      }
+
+      document.getElementById("openAppBtn").addEventListener("click", openApp);
+      document.getElementById("appStoreBtn").addEventListener("click", openStore);
+
+      openApp();
+      setTimeout(openStore, 1800);
+    </script>
+  </body>
+</html>

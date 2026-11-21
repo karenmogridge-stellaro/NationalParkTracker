@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "8J93L5235U.com.parkatlas.mobile",
+        "paths": [
+          "/invite",
+          "/invite/*"
+        ]
+      }
+    ]
+  }
+}
