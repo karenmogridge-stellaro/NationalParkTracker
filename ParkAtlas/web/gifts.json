@@ -1,0 +1,64 @@
+{
+  "heroPhoto": {
+    "src": "/gifts/photos/christmas-tree-in-snow.jpg",
+    "alt": "An outdoor Christmas tree glowing with lights in snowy woods at night"
+  },
+  "sections": [
+    {
+      "id": "hiking",
+      "title": "For the hiking friend",
+      "label": "Hiking",
+      "items": [
+        { "catalogAsin": "B0DC4RPXN1", "why": "The hiking socks I reach for." },
+        { "catalogAsin": "B0CXDXP8VR", "why": "For offline maps and lots of photos." },
+        { "catalogAsin": "B0GZRVL8SP", "why": "Cold water on long trail days." },
+        { "catalogAsin": "B09NQKZ4BP", "why": "Hands-free light for sunrise hikes and late finishes." }
+      ]
+    },
+    {
+      "id": "camp-coffee",
+      "title": "For the camp-coffee friend",
+      "label": "Camp coffee",
+      "sectionPhoto": {
+        "src": "/gifts/photos/campfire-coffee.jpg",
+        "alt": "A metal mug beside a campfire",
+        "source": "https://www.pexels.com/photo/metal-mug-at-campfire-20160039/"
+      },
+      "items": [
+        { "asin": "B0CC4LXF1Z", "name": "1Zpresso K-Ultra hand grinder", "why": "I fell in love with this upgrade. Now it travels with me." },
+        {
+          "asin": "B0047BIWSK",
+          "name": "AeroPress Original",
+          "why": "Packs easily and rinses fast.",
+          "photo": {
+            "src": "/gifts/photos/aeropress-original.jpg",
+            "alt": "Dark AeroPress Original coffee maker on a blue mug",
+            "credit": "Bean Poet",
+            "source": "https://commons.wikimedia.org/wiki/File:Aeropress_coffee_maker_inverted.jpg",
+            "license": "CC BY-SA 4.0",
+            "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+          }
+        },
+        { "asin": "B076MCYZ9R", "name": "CAFEC V60-style paper filters", "why": "For size 02 pour-overs, not AeroPress." },
+        { "catalogAsin": "B0CVSBZ216", "why": "Stackable mugs for sharing a sunrise coffee." }
+      ]
+    },
+    {
+      "id": "self-care",
+      "title": "For a little post-adventure self-care",
+      "label": "Self-care",
+      "sectionPhoto": {
+        "src": "/gifts/photos/self-care.jpg",
+        "alt": "A candle, towels, and dried flowers arranged on a wooden tray",
+        "source": "https://www.pexels.com/photo/scented-candle-among-towels-7795820/"
+      },
+      "giftIdea": "Trail-to-travel reset: tuck the eye patches and lip mask into the zip pouch for an easy three-piece gift.",
+      "items": [
+        { "asin": "B07S3BT21Z", "name": "Pixi DetoxifEYE eye patches", "why": "A little treat after a hike or workout." },
+        { "asin": "B07XXPHQZK", "name": "Laneige Lip Sleeping Mask · Berry", "why": "My bedtime pick after a long travel day." },
+        { "asin": "B0DJH57CM1", "name": "EcoRight travel zip pouch", "why": "Wrap the self-care picks in something she can reuse." },
+        { "asin": "B0C5WYYQBQ", "name": "TriggerPoint MB1 Eco massage ball", "why": "A packable stocking stuffer for rolling out tired feet." }
+      ]
+    }
+  ]
+}

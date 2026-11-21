@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
- * Builds parkatlas.io/gear from web/gear.json. Run: node web/build-gear.mjs
- * Every product link gets the Amazon Associates tag from gear.json (asin > url > search).
+ * Builds /gear and /gifts from gear.json and gifts.json. Run: node web/build-gear.mjs
+ * Gift entries can reuse an existing gear item by catalogAsin or specify an exact ASIN.
+ * Optional gift photos use local assets and attribution in gifts.json; Gear listing images are not inherited.
+ * The hero and section photos are lifestyle images, separate from the shoppable product cards.
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -107,6 +109,7 @@ const html = `<!doctype html>
       </nav>
 
       <p class="gear-trust">${esc(G.trust)}</p>
+      <p class="gear-guide-link"><a class="text-link" href="/gifts">Shopping for a friend? See Ren’s gift ideas →</a></p>
       ${sections.map(section).join('\n')}
 
       <aside class="app-cta">
@@ -140,3 +143,106 @@ const html = `<!doctype html>
 await mkdir(path.join(WEB, 'gear'), { recursive: true });
 await writeFile(path.join(WEB, 'gear', 'index.html'), html);
 console.log(`wrote gear page: ${sections.length} sections, ${sections.reduce((n, s) => n + s.items.length, 0)} items (tag ${G.tag})`);
+
+const giftCatalog = JSON.parse(await readFile(path.join(WEB, 'gifts.json'), 'utf8'));
+const gearItems = sections.flatMap((entry) => entry.items);
+const giftSections = giftCatalog.sections.map((s) => ({
+  ...s,
+  items: s.items.map((item) => {
+    const existing = item.catalogAsin && gearItems.find((entry) => entry.asin === item.catalogAsin);
+    if (item.catalogAsin && !existing) {
+      throw new Error(`Unknown gear ASIN in gift section ${s.id}: ${item.catalogAsin}`);
+    }
+    const asin = existing?.asin ?? item.asin;
+    const name = existing?.name ?? item.name;
+    if (!/^[A-Z0-9]{10}$/.test(asin) || !name || !item.why) {
+      throw new Error(`Gift items need an exact ASIN, name, and description in section ${s.id}`);
+    }
+    return { asin, name, why: item.why, photo: item.photo };
+  }),
+}));
+const giftPhotoCredits = giftSections.flatMap((s) => s.items.filter((item) => item.photo));
+const lifestylePhotos = [
+  { name: 'Cover', photo: giftCatalog.heroPhoto },
+  ...giftSections.filter((s) => s.sectionPhoto).map((s) => ({ name: s.label, photo: s.sectionPhoto })),
+].filter(({ photo }) => photo.source);
+const lifestyleImage = (photo, className, lead = false) =>
+  `<img class="${className}" src="${esc(photo.src)}" alt="${esc(photo.alt)}" ${lead ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" />`;
+
+const giftSection = (s) => `
+      <section class="gear-section gift-section" id="${esc(s.id)}">
+        <h2>${esc(s.title)}</h2>
+        ${s.sectionPhoto ? lifestyleImage(s.sectionPhoto, 'gift-section-photo') : ''}
+        ${s.giftIdea ? `<p class="gift-idea">${esc(s.giftIdea)}</p>` : ''}
+        <div class="gear-grid">
+          ${s.items.map((item) => `
+          <article class="gear-card gift-card">
+            <a href="${esc(amazonUrl(item))}" target="_blank" rel="sponsored noopener" data-gift-section="${esc(s.id)}" data-gift-asin="${esc(item.asin)}" aria-labelledby="gift-${esc(item.asin)} shop-${esc(item.asin)}">
+              ${item.photo ? `<img class="gift-photo" src="${esc(item.photo.src)}" alt="${esc(item.photo.alt)}" loading="lazy" decoding="async" />` : ''}
+              <div class="gear-body">
+                <h3 id="gift-${esc(item.asin)}">${esc(item.name)}</h3>
+                <p>${esc(item.why)}</p>
+                <span class="gear-btn" id="shop-${esc(item.asin)}">Shop on Amazon ↗</span>
+              </div>
+            </a>
+          </article>`).join('')}
+        </div>
+      </section>`;
+
+const giftTitle = 'Christmas gifts for the friend who’d rather be outside';
+const giftDescription = 'Ren’s Christmas picks for hiking, camp coffee, and a little post-adventure self-care.';
+const giftHtml = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${esc(giftTitle)} | ParkAtlas</title>
+  <meta name="description" content="${esc(giftDescription)}" />
+  <link rel="canonical" href="${SITE}/gifts" />
+  <link rel="icon" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/gear.css" />
+  <script src="/analytics.js"></script>
+  <script src="/gift-clicks.js" defer></script>
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="ParkAtlas" />
+  <meta property="og:title" content="${esc(giftTitle)}" />
+  <meta property="og:description" content="${esc(giftDescription)}" />
+  <meta property="og:url" content="${SITE}/gifts" />
+</head>
+<body class="gift-site">
+  <header class="gift-nav">
+    <a class="brand" href="/"><img src="/logo.png" alt="" width="36" height="36" /><span>ParkAtlas</span></a>
+    <a class="text-link" href="/gear">All gear</a>
+  </header>
+  <main>
+    <div class="gear-body-wrap gift-page">
+      <section class="gift-intro" aria-labelledby="gift-title">
+        <div class="gift-intro-copy">
+          <p class="eyebrow">Ren’s holiday gift guide</p>
+          <h1 id="gift-title">${esc(giftTitle)}</h1>
+          <p class="gift-disclosure">${esc(G.disclosure)}</p>
+        </div>
+        ${lifestyleImage(giftCatalog.heroPhoto, 'gift-hero-photo', true)}
+      </section>
+      <nav class="gear-toc" aria-label="Gift guide sections">
+        ${giftSections.map((s) => `<a href="#${esc(s.id)}">${esc(s.label)}</a>`).join('\n        ')}
+      </nav>
+      ${giftSections.map(giftSection).join('\n')}
+    </div>
+  </main>
+  <footer>
+    <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
+    <nav><a href="/gear">All gear</a><a href="/parks">National parks</a><a href="/privacy">Privacy</a></nav>
+    <p class="fine">See Amazon for product photos, prices, and availability.</p>
+    <p class="fine">Lifestyle photos via <a href="https://www.pexels.com/license/">Pexels</a>: ${lifestylePhotos.map(({ name, photo }) => `<a href="${esc(photo.source)}">${esc(name)}</a>`).join(' · ')}</p>
+    ${giftPhotoCredits.map(({ name, photo }) => `<p class="fine"><a href="${esc(photo.source)}">${esc(name)} photo</a> by ${esc(photo.credit)} · <a href="${esc(photo.licenseUrl)}">${esc(photo.license)}</a> · resized</p>`).join('\n    ')}
+  </footer>
+</body>
+</html>
+`;
+
+await mkdir(path.join(WEB, 'gifts'), { recursive: true });
+await writeFile(path.join(WEB, 'gifts', 'index.html'), giftHtml);
+console.log(`wrote gifts page: ${giftSections.length} sections, ${giftSections.reduce((n, s) => n + s.items.length, 0)} items`);

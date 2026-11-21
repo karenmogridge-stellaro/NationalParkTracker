@@ -1,6 +1,6 @@
 {
   "_howto": [
-    "This file drives parkatlas.io/gear. Edit it, then run `node web/build-gear.mjs` (or `npm run web:build`) and push.",
+    "This file drives parkatlas.io/gear and supplies shared picks to gifts.json. For gift-specific copy or products, edit gifts.json. Run `node web/build-gear.mjs` (or `npm run web:build`) to regenerate both pages.",
     "tag: your Amazon Associates tracking ID. Used for any item that has `asin` or `search` instead of a full `url`.",
     "Per item, give ONE of: `url` (a pasted amzn.to SiteStripe link — preferred, used as-is), `asin` (10-char product code), or `search` keywords.",
     "pick: true adds the personal badge. image: optional URL for your own product photo. enabled: false hides an item or section without deleting it."

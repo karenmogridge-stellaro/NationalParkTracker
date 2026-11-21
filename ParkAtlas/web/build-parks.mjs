@@ -909,7 +909,7 @@ await writeFile(path.join(WEB, 'near', 'index.html'), nearIndexPage());
 await writeFile(path.join(WEB, 'parks-min.json'), JSON.stringify(parks.map((p) => ({ id: p.id, slug: p.slug, name: p.name, state: stateDisplayName(p.state) }))));
 
 const urls = [
-  '/', '/parks', '/near', '/gear', '/s',
+  '/', '/parks', '/near', '/gear', '/gifts', '/s',
   ...parks.map((p) => `/parks/${p.slug}`),
   ...parks.filter(hasHikesPage).map((p) => `/parks/${p.slug}/hikes`),
   ...METROS.map((m) => `/near/${m.slug}`),
