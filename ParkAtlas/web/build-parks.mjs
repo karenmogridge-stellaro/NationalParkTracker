@@ -192,7 +192,6 @@ const head = ({ title, description, url, image, jsonLd, appArgument }) => `<!doc
     <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-menu"><span></span><span></span><span></span></button>
     <nav id="site-menu">
       <a href="/parks">National parks</a>
-      <a href="/near">Parks near you</a>
       <a href="/gear">Gear</a>
       <a href="/#features">Features</a>
       <a href="/#about">Why</a>
@@ -206,7 +205,6 @@ const foot = ({ disclosure = false } = {}) => `
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
       <a href="/parks">National parks</a>
-      <a href="/near">Parks near you</a>
       <a href="/gear">Gear</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
@@ -328,9 +326,6 @@ const appCta = (park) => `
     <a class="appstore" href="/get" aria-label="Download on the App Store"${park.slug ? ` data-app-path="parks/${park.slug}"` : ''}><img src="/app-store-badge.svg" alt="Download on the App Store" width="160" height="53" /></a>
   </aside>`;
 
-// "Been here?" toggle: state lives in localStorage (site.js); the website checklist hands off to the app via /import.
-const beenHere = (park, extra = '') => `<button type="button" class="been-here ${extra}" data-id="${park.id}" data-slug="${park.slug}" aria-pressed="false"><span class="bh-off">Been here?</span><span class="bh-on">✓ Been here</span></button>`;
-
 // ── Park page ────────────────────────────────────────────────────────────────
 async function parkPage(park) {
   const d = park.detail;
@@ -399,7 +394,6 @@ async function parkPage(park) {
         </div>
         <div class="hero-actions">
           <a class="btn-app" href="/get" data-app-path="parks/${park.slug}"><img src="/logo.png" alt="" width="22" height="22" />Open in ParkAtlas</a>
-          ${beenHere(park, 'light')}
         </div>
       </div>
     </section>
@@ -803,15 +797,13 @@ async function indexPage() {
         <div class="park-card-wrap">
         <a class="park-card${featuredRank ? ' is-featured' : ''}" href="/parks/${p.slug}" data-name="${esc(p.name.toLowerCase())}" data-state="${esc(stateDisplayName(p.state).toLowerCase())} ${esc(p.state.toLowerCase())}" data-region="${esc(regionOf(p))}" data-id="${p.id}">
           <img src="${heroFor(p, 640)}" alt="" loading="lazy" width="320" height="240" />
-          ${featuredRank ? `<span class="featured-badge">2025 Top 10 · #${featuredRank}</span>` : ''}
           <span class="park-card-body">
             <strong>${esc(p.name)}</strong>
             <small>${esc(stateDisplayName(p.state))}</small>
             <span class="park-card-facts"><span>🎟️ ${esc(p.detail.entryFee)}</span><span>☀️ ${esc(p.detail.peakSeason)}</span></span>
-            ${loggedBy(p) ? `<span class="park-card-proof">👥 ${loggedBy(p).toLocaleString('en-US')} explorers logged it</span>` : ''}
-          </span>
+            ${loggedBy(p) ? `            <span class="park-card-proof">👥 ${loggedBy(p).toLocaleString('en-US')} explorers logged it</span>` : ''}
+            </span>
         </a>
-        ${beenHere(p, 'on-card')}
         </div>`;
 
   return `${head({ title, description, url, image: `${SITE}/og.png`, jsonLd })}
@@ -844,20 +836,13 @@ async function indexPage() {
           </select>
         </label>
       </div>
-      <div class="web-ring" id="web-ring" hidden>
-        <svg viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="27"></circle><circle class="fill" id="web-ring-fill" cx="32" cy="32" r="27"></circle></svg>
-        <div class="web-ring-text">
-          <strong><span id="web-ring-count">0</span> of ${parks.length}</strong>
-          <span class="muted">parks you've marked “Been here” on this device</span>
-        </div>
-      </div>
     </section>
     <div id="park-directory">
     <section class="featured-parks" id="featured-parks" aria-labelledby="featured-parks-title">
       <div class="featured-heading">
         <div>
           <p class="eyebrow">Visitor favorites</p>
-          <h2 id="featured-parks-title">Most visited national parks in 2025</h2>
+          <h2 id="featured-parks-title">Most visited national parks</h2>
         </div>
         <p class="muted">Top 10 by recreation visits, according to the <a class="text-link" href="https://www.nps.gov/orgs/1207/03-13-26-2025-visitation-statsitics.htm" target="_blank" rel="noopener">National Park Service</a>. <a class="text-link" href="#all-parks">Browse all 63 below</a>.</p>
       </div>

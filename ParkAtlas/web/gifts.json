@@ -5,7 +5,10 @@
   },
   "hero": {
     "eyebrow": "The 2026 Holiday Edit · Ren’s Picks",
-    "titleLines": ["Good gifts.", "Great adventures."],
+    "titleLines": [
+      "Good gifts.",
+      "Great adventures."
+    ],
     "lede": "For the trail chasers, coffee lovers, and people who’d rather be outside. These are the gifts I’d actually give — and love getting.",
     "snow": "A LITTLE WINTER MAGIC ✳"
   },
@@ -27,10 +30,34 @@
       "heading": "For the hiking friend.",
       "blurb": "Long days, chilly trails, and gear that earns its place in the pack.",
       "items": [
-        { "catalogAsin": "B0DC4RPXN1", "why": "The hiking socks I reach for." },
-        { "catalogAsin": "B0CXDXP8VR", "why": "For offline maps and lots of photos." },
-        { "catalogAsin": "B0GZRVL8SP", "why": "Cold water on long trail days." },
-        { "catalogAsin": "B09NQKZ4BP", "why": "Hands-free light for sunrise hikes and late finishes." }
+        {
+          "catalogAsin": "B0DC4RPXN1",
+          "why": "The hiking socks I reach for.",
+          "photo": {
+            "src": "/gifts/photos/B0DC4RPXN1.jpg",
+            "alt": "B0DC4RPXN1"
+          }
+        },
+        {
+          "catalogAsin": "B0CXDXP8VR",
+          "why": "For offline maps and lots of photos.",
+          "photo": {
+            "src": "/gifts/photos/B0CXDXP8VR.jpg",
+            "alt": "B0CXDXP8VR"
+          }
+        },
+        {
+          "catalogAsin": "B0GZRVL8SP",
+          "why": "Cold water on long trail days."
+        },
+        {
+          "catalogAsin": "B09NQKZ4BP",
+          "why": "Hands-free light for sunrise hikes and late finishes.",
+          "photo": {
+            "src": "/gifts/photos/B09NQKZ4BP.jpg",
+            "alt": "B09NQKZ4BP"
+          }
+        }
       ]
     },
     {
@@ -46,7 +73,15 @@
         "source": "https://www.pexels.com/photo/metal-mug-at-campfire-20160039/"
       },
       "items": [
-        { "asin": "B0CC4LXF1Z", "name": "1Zpresso K-Ultra hand grinder", "why": "I fell in love with this upgrade. Now it travels with me." },
+        {
+          "asin": "B0CC4LXF1Z",
+          "name": "1Zpresso K-Ultra hand grinder",
+          "why": "I fell in love with this upgrade. Now it travels with me.",
+          "photo": {
+            "src": "/gifts/photos/B0CC4LXF1Z.jpg",
+            "alt": "1Zpresso K-Ultra hand grinder"
+          }
+        },
         {
           "asin": "B0047BIWSK",
           "name": "AeroPress Original",
@@ -60,8 +95,15 @@
             "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
           }
         },
-        { "asin": "B076MCYZ9R", "name": "CAFEC V60-style paper filters", "why": "For size 02 pour-overs, not AeroPress." },
-        { "catalogAsin": "B0CVSBZ216", "why": "Stackable mugs for sharing a sunrise coffee." }
+        {
+          "asin": "B076MCYZ9R",
+          "name": "CAFEC V60-style paper filters",
+          "why": "For size 02 pour-overs, not AeroPress."
+        },
+        {
+          "catalogAsin": "B0CVSBZ216",
+          "why": "Stackable mugs for sharing a sunrise coffee."
+        }
       ]
     },
     {
@@ -78,10 +120,34 @@
       },
       "giftIdea": "Trail-to-travel reset: tuck the eye patches and lip mask into the zip pouch for an easy three-piece gift.",
       "items": [
-        { "asin": "B07S3BT21Z", "name": "Pixi DetoxifEYE eye patches", "why": "A little treat after a hike or workout." },
-        { "asin": "B07XXPHQZK", "name": "Laneige Lip Sleeping Mask · Berry", "why": "My bedtime pick after a long travel day." },
-        { "asin": "B0DJH57CM1", "name": "EcoRight travel zip pouch", "why": "Wrap the self-care picks in something she can reuse." },
-        { "asin": "B0C5WYYQBQ", "name": "TriggerPoint MB1 Eco massage ball", "why": "A packable stocking stuffer for rolling out tired feet." }
+        {
+          "asin": "B07S3BT21Z",
+          "name": "Pixi DetoxifEYE eye patches",
+          "why": "A little treat after a hike or workout.",
+          "photo": {
+            "src": "/gifts/photos/B07S3BT21Z.jpg",
+            "alt": "Pixi DetoxifEYE eye patches"
+          }
+        },
+        {
+          "asin": "B07XXPHQZK",
+          "name": "Laneige Lip Sleeping Mask · Berry",
+          "why": "My bedtime pick after a long travel day."
+        },
+        {
+          "asin": "B0DJH57CM1",
+          "name": "EcoRight travel zip pouch",
+          "why": "Wrap the self-care picks in something she can reuse."
+        },
+        {
+          "asin": "B0C5WYYQBQ",
+          "name": "TriggerPoint MB1 Eco massage ball",
+          "why": "A packable stocking stuffer for rolling out tired feet.",
+          "photo": {
+            "src": "/gifts/photos/B0C5WYYQBQ.jpg",
+            "alt": "TriggerPoint MB1 Eco massage ball"
+          }
+        }
       ]
     }
   ]

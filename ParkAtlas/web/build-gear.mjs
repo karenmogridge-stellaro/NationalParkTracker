@@ -127,7 +127,6 @@ const html = `<!doctype html>
     <div class="foot-brand"><img src="/logo.png" alt="" width="28" height="28" /><span>ParkAtlas</span></div>
     <nav>
       <a href="/parks">National parks</a>
-      <a href="/near">Parks near you</a>
       <a href="/gear">Gear</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
@@ -161,7 +160,7 @@ const giftSections = giftCatalog.sections.map((s) => ({
     return { asin, name, why: item.why, photo: item.photo };
   }),
 }));
-const giftPhotoCredits = giftSections.flatMap((s) => s.items.filter((item) => item.photo));
+const giftPhotoCredits = giftSections.flatMap((s) => s.items.filter((item) => item.photo && item.photo.credit));
 const hero = giftCatalog.hero || {};
 const trust = giftCatalog.trust || {};
 const interlude = giftCatalog.interlude || {};
