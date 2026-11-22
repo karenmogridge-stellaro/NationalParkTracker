@@ -112,7 +112,7 @@ const html = `<!doctype html>
       <p class="gear-trust">${esc(G.trust)}</p>
       <a class="gift-banner" href="/gifts">
         <span class="gift-banner-icon" aria-hidden="true">🎁</span>
-        <span class="gift-banner-text"><strong>Ren’s Christmas Gift Guide</strong><span>Friends, family, and coworkers keep asking for gift ideas, so I rounded up 12 I’d actually give →</span></span>
+        <span class="gift-banner-text"><strong>Ren’s Christmas Gift Guide</strong><span>I love gift-giving, so I rounded up 12 outdoor favorites friends and family keep asking me for →</span></span>
       </a>
       ${sections.map(section).join('\n')}
 
