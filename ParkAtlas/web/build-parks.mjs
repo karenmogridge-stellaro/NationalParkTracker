@@ -193,6 +193,7 @@ const head = ({ title, description, url, image, jsonLd, appArgument }) => `<!doc
     <nav id="site-menu">
       <a href="/parks">National parks</a>
       <a href="/gear">Gear</a>
+      <a href="/gifts">Gift guide</a>
       <a href="/#features">Features</a>
       <a href="/#about">Why</a>
       <a href="/#checklist">Checklist</a>
@@ -206,6 +207,7 @@ const foot = ({ disclosure = false } = {}) => `
     <nav>
       <a href="/parks">National parks</a>
       <a href="/gear">Gear</a>
+      <a href="/gifts">Gift guide</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
       <a href="https://www.instagram.com/parkatlas.io/" target="_blank" rel="noopener">Instagram</a>

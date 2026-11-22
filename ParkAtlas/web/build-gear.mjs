@@ -86,6 +86,7 @@ const html = `<!doctype html>
     <nav id="site-menu">
       <a href="/parks">National parks</a>
       <a href="/gear" aria-current="page">Gear</a>
+      <a href="/gifts">Gift guide</a>
       <a href="/#features">Features</a>
       <a href="/#about">Why</a>
       <a href="/#checklist">Checklist</a>
@@ -109,7 +110,10 @@ const html = `<!doctype html>
       </nav>
 
       <p class="gear-trust">${esc(G.trust)}</p>
-      <p class="gear-guide-link"><a class="text-link" href="/gifts">Shopping for a friend? See Ren’s gift ideas →</a></p>
+      <a class="gift-banner" href="/gifts">
+        <span class="gift-banner-icon" aria-hidden="true">🎁</span>
+        <span class="gift-banner-text"><strong>Ren’s Christmas Gift Guide</strong><span>12 outdoor-friendly picks for everyone on your list — ready to shop →</span></span>
+      </a>
       ${sections.map(section).join('\n')}
 
       <aside class="app-cta">
@@ -128,6 +132,7 @@ const html = `<!doctype html>
     <nav>
       <a href="/parks">National parks</a>
       <a href="/gear">Gear</a>
+      <a href="/gifts">Gift guide</a>
       <a href="/privacy">Privacy</a>
       <a href="mailto:hello@parkatlas.io">Support</a>
       <a href="https://www.instagram.com/parkatlas.io/" target="_blank" rel="noopener">Instagram</a>

@@ -54,6 +54,7 @@
 .gear-btn:hover { filter: brightness(1.08); }
 
 .gear-guide-link { margin: -20px 0 32px; }
+
 /* Shared /gear responsive rules (kept when the gift guide was redesigned) */
 @media (max-width: 900px) { .gear-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) {
