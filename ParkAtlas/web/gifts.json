@@ -31,11 +31,11 @@
       "blurb": "Long days, chilly trails, and gear that earns its place in the pack.",
       "items": [
         {
-          "catalogAsin": "B0DC4RPXN1",
-          "why": "The hiking socks I reach for.",
+          "catalogAsin": "B0BV92CLQ1",
+          "why": "The cozy hiking socks I reach for.",
           "photo": {
-            "src": "/gifts/photos/B0DC4RPXN1.jpg",
-            "alt": "B0DC4RPXN1"
+            "src": "/gifts/photos/B0BV92CLQ1.jpg",
+            "alt": "Smartwool light cushion hiking socks"
           }
         },
         {
@@ -43,19 +43,23 @@
           "why": "For offline maps and lots of photos.",
           "photo": {
             "src": "/gifts/photos/B0CXDXP8VR.jpg",
-            "alt": "B0CXDXP8VR"
+            "alt": "Anker portable charger"
           }
         },
         {
           "catalogAsin": "B0GZRVL8SP",
-          "why": "Cold water on long trail days."
+          "why": "Cold water on long trail days.",
+          "photo": {
+            "src": "/gifts/photos/B0GZRVL8SP.jpg",
+            "alt": "YETI Rambler water bottle"
+          }
         },
         {
           "catalogAsin": "B09NQKZ4BP",
           "why": "Hands-free light for sunrise hikes and late finishes.",
           "photo": {
             "src": "/gifts/photos/B09NQKZ4BP.jpg",
-            "alt": "B09NQKZ4BP"
+            "alt": "Black Diamond rechargeable headlamp"
           }
         }
       ]
@@ -87,12 +91,8 @@
           "name": "AeroPress Original",
           "why": "Packs easily and rinses fast.",
           "photo": {
-            "src": "/gifts/photos/aeropress-original.jpg",
-            "alt": "Dark AeroPress Original coffee maker on a blue mug",
-            "credit": "Bean Poet",
-            "source": "https://commons.wikimedia.org/wiki/File:Aeropress_coffee_maker_inverted.jpg",
-            "license": "CC BY-SA 4.0",
-            "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+            "src": "/gifts/photos/B0047BIWSK.jpg",
+            "alt": "AeroPress Original coffee maker"
           }
         },
         {
@@ -102,7 +102,11 @@
         },
         {
           "catalogAsin": "B0CVSBZ216",
-          "why": "Stackable mugs for sharing a sunrise coffee."
+          "why": "Stackable mugs for sharing a sunrise coffee.",
+          "photo": {
+            "src": "/gifts/photos/B0CVSBZ216.jpg",
+            "alt": "YETI stackable mugs"
+          }
         }
       ]
     },
@@ -126,7 +130,7 @@
           "why": "A little treat after a hike or workout.",
           "photo": {
             "src": "/gifts/photos/B07S3BT21Z.jpg",
-            "alt": "Pixi DetoxifEYE eye patches"
+            "alt": "Ren wearing Pixi DetoxifEYE eye patches on a mountain hike"
           }
         },
         {
