@@ -166,6 +166,19 @@ const trust = giftCatalog.trust || {};
 const interlude = giftCatalog.interlude || {};
 const firstSectionId = giftSections[0]?.id || 'hiking';
 
+// Deterministic falling snow for the hero (pure CSS; values seeded so builds are stable).
+const snowflakes = Array.from({ length: 34 }, (_, i) => {
+  const left = (i * 29 + 7) % 100;
+  const size = 9 + ((i * 13) % 16);
+  const dur = 7 + ((i * 7) % 9);
+  const delay = -((i * 5) % 14);
+  const op = (9 + ((i * 3) % 5)) / 14;
+  const drift = 10 + ((i * 11) % 30);
+  const glyph = i % 3 === 0 ? '❆' : '❄';
+  return `<span class="gift-flake" style="left:${left}%;font-size:${size}px;--dur:${dur}s;animation-delay:${delay}s;opacity:${op.toFixed(2)};--drift:${drift}px">${glyph}</span>`;
+}).join('');
+const heroDrift = '<svg class="gift-hero-drift" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true"><path fill="#f7f6f1" d="M0,70 C180,30 320,86 520,70 C720,54 820,16 1020,40 C1220,64 1320,84 1440,58 L1440,90 L0,90 Z"></path></svg>';
+
 const giftCard = (s, item) => `
           <article class="gift-product">
             <a class="gift-product-link" href="${esc(amazonUrl(item))}" target="_blank" rel="sponsored noopener noreferrer" data-gift-section="${esc(s.id)}" data-gift-asin="${esc(item.asin)}" aria-label="View ${esc(item.name)} on Amazon">
@@ -185,7 +198,7 @@ const giftSection = (s) => `
       <section class="gift-collect" id="${esc(s.id)}">
         <div class="gift-heading">
           <div>
-            <div class="gift-over">${esc(s.over || s.label)}</div>
+            <div class="gift-over"><span class="gift-over-flake" aria-hidden="true">❄</span> ${esc(s.over || s.label)}</div>
             <h2>${esc(s.heading || s.title)}</h2>
           </div>
           ${s.blurb ? `<p>${esc(s.blurb)}</p>` : ''}
@@ -232,12 +245,14 @@ const giftHtml = `<!doctype html>
     </div>
   </header>
   <div class="gift-hero" style="--gift-hero-image:url('${esc(giftCatalog.heroPhoto.src)}')">
+    <div class="gift-snowfall" aria-hidden="true">${snowflakes}</div>
     <div class="gift-wrap">
-      ${hero.eyebrow ? `<p class="gift-eyebrow">${esc(hero.eyebrow)}</p>` : ''}
+      ${hero.eyebrow ? `<p class="gift-eyebrow">🎄 ${esc(hero.eyebrow)}</p>` : ''}
       <h1>${(hero.titleLines || [giftTitle]).map(esc).join('<br/>')}</h1>
       ${hero.lede ? `<p class="gift-lede">${esc(hero.lede)}</p>` : ''}
     </div>
     ${hero.snow ? `<span class="gift-snow">${esc(hero.snow)}</span>` : ''}
+    ${heroDrift}
   </div>
   <div class="gift-trust">
     <div class="gift-wrap">
@@ -252,7 +267,7 @@ const giftHtml = `<!doctype html>
       ${giftSections.map(giftSection).join('\n')}
       <div class="gift-interlude">
         <div>
-          <strong>${esc(interlude.title || '')}</strong>
+          <strong>🎁 ${esc(interlude.title || '')}</strong>
           ${interlude.text ? `<p>${esc(interlude.text)}</p>` : ''}
         </div>
         ${interlude.cta ? `<a href="#${esc(firstSectionId)}">${esc(interlude.cta)}</a>` : ''}

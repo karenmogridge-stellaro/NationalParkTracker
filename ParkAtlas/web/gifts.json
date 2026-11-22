@@ -140,12 +140,20 @@
         {
           "asin": "B07XXPHQZK",
           "name": "Laneige Lip Sleeping Mask · Berry",
-          "why": "My bedtime pick after a long travel day."
+          "why": "My bedtime pick after a long travel day.",
+          "photo": {
+            "src": "/gifts/photos/B07XXPHQZK.jpg",
+            "alt": "Laneige Lip Sleeping Mask Berry jar and box"
+          }
         },
         {
-          "asin": "B0DJH57CM1",
-          "name": "EcoRight travel zip pouch",
-          "why": "Wrap the self-care picks in something she can reuse."
+          "asin": "B0FK72YNSQ",
+          "name": "Peak Design Wash Pouch",
+          "why": "A go-anywhere wash pouch to keep the travel-day essentials tidy.",
+          "photo": {
+            "src": "/gifts/photos/B0FK72YNSQ.jpg",
+            "alt": "Peak Design travel wash pouch"
+          }
         },
         {
           "asin": "B0C5WYYQBQ",
