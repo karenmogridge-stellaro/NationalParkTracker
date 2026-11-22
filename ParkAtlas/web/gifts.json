@@ -98,7 +98,11 @@
         {
           "asin": "B0CHHJWB6D",
           "name": "Fellow Carter insulated tumbler",
-          "why": "Keeps camp coffee hot from the first pour to the last sip."
+          "why": "Keeps camp coffee hot from the first pour to the last sip.",
+          "photo": {
+            "src": "/gifts/photos/B0CHHJWB6D.jpg",
+            "alt": "Fellow Carter insulated tumbler"
+          }
         },
         {
           "catalogAsin": "B0CVSBZ216",

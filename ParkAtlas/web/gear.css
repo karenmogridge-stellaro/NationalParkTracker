@@ -126,18 +126,18 @@
 .gift-product:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(22,59,43,.08); }
 .gift-product-link { display: flex; flex-direction: column; height: 100%; color: inherit; cursor: pointer; }
 .gift-product-link:focus-visible { outline: 3px solid var(--gift-red); outline-offset: 3px; }
-.gift-media { height: 250px; background: #f0f0ec; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
-.gift-media img { width: 100%; height: 100%; object-fit: contain; padding: 12px; transition: transform .3s ease; }
+.gift-media { height: 250px; background: #fff; border-bottom: 1px solid #ededea; display: flex; justify-content: center; align-items: center; overflow: hidden; position: relative; }
+.gift-media img { width: 100%; height: 100%; object-fit: contain; padding: 14px; transition: transform .3s ease; }
 .gift-product-link:hover .gift-media img { transform: scale(1.045); }
 .gift-media::after {
   content: '↗'; position: absolute; right: 14px; top: 14px;
-  background: rgba(255,255,255,.94); color: var(--gift-green); font-weight: 800;
+  background: var(--gift-green); color: #fff; font-weight: 800;
   border-radius: 100px; padding: 7px 10px; opacity: 0; transform: translateY(5px); transition: all .2s ease;
 }
 .gift-product-link:hover .gift-media::after, .gift-product-link:focus-visible .gift-media::after { opacity: 1; transform: none; }
 .gift-missing {
-  height: 100%; width: 100%; background: linear-gradient(145deg, #eeeae1, #f4f0e8);
-  color: #4f5e56; font-size: 17px; font-weight: 700;
+  height: 100%; width: 100%; background: #fff;
+  color: #8a948c; font-size: 16px; font-weight: 700;
   display: flex; justify-content: center; align-items: center; text-align: center; padding: 22px;
 }
 .gift-cardbody { padding: 18px 20px 20px; display: flex; flex-direction: column; flex: 1; }
