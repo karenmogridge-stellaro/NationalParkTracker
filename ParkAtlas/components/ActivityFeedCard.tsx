@@ -75,6 +75,15 @@ export type ActivityFeedCardProps = {
 
   /** Called when the card body is tapped (optional). */
   onPress?: () => void;
+
+  /** Long-press handler — used to enter multi-select mode from the feed. */
+  onLongPress?: () => void;
+
+  /** When true, the card renders a selection indicator (multi-select mode). */
+  selectable?: boolean;
+
+  /** Controlled selected state while in multi-select mode. */
+  selected?: boolean;
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -92,6 +101,9 @@ export function ActivityFeedCard({
   isHighFived = false,
   onHighFive,
   onPress,
+  onLongPress,
+  selectable = false,
+  selected = false,
 }: ActivityFeedCardProps) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [imgError, setImgError] = useState(false);
@@ -130,14 +142,22 @@ export function ActivityFeedCard({
   if (variant === 'compact') {
     return (
       <TouchableOpacity
-        style={styles.row}
+        style={[styles.row, selected && styles.rowSelected]}
         activeOpacity={onPress ? 0.85 : 1}
         onPress={onPress}
-        disabled={!onPress}
+        onLongPress={onLongPress}
+        delayLongPress={300}
+        disabled={!onPress && !onLongPress}
         accessible
         accessibilityRole="button"
+        accessibilityState={selectable ? { selected } : undefined}
         accessibilityLabel={`${actorLabel ?? ''} ${parkName}${trailName ? `, ${trailName}` : ''}${dateLabel ? `, ${dateLabel}` : ''}`}
       >
+        {selectable ? (
+          <View style={[styles.selectDot, selected && styles.selectDotOn]}>
+            {selected ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+          </View>
+        ) : null}
         <View>
           <Image source={{ uri: thumbUri }} style={styles.rowThumb} resizeMode="cover" onError={() => setImgError(true)} accessibilityIgnoresInvertColors />
           {photoCount > 1 ? (
@@ -170,12 +190,15 @@ export function ActivityFeedCard({
 
   return (
     <TouchableOpacity
-      style={[styles.card, variant === 'hero' ? styles.cardHero : styles.cardStandard]}
+      style={[styles.card, variant === 'hero' ? styles.cardHero : styles.cardStandard, selected && styles.cardSelected]}
       activeOpacity={onPress ? 0.9 : 1}
       onPress={onPress}
-      disabled={!onPress}
+      onLongPress={onLongPress}
+      delayLongPress={300}
+      disabled={!onPress && !onLongPress}
       accessible
       accessibilityRole="button"
+      accessibilityState={selectable ? { selected } : undefined}
       accessibilityLabel={`${actorLabel ?? ''} ${parkName}${trailName ? `, ${trailName}` : ''}${dateLabel ? `, ${dateLabel}` : ''}`}
     >
       {/* Background image — 3-level fallback chain:
@@ -233,6 +256,12 @@ export function ActivityFeedCard({
         </View>
       ) : null}
 
+      {selectable ? (
+        <View style={[styles.selectDotCard, selected && styles.selectDotOn]}>
+          {selected ? <Ionicons name="checkmark" size={16} color="#fff" /> : null}
+        </View>
+      ) : null}
+
       {/* Content block anchored to bottom */}
       <View style={styles.body}>
         {/* 1 – WHERE */}
@@ -280,6 +309,40 @@ const styles = StyleSheet.create({
   },
   cardHero: {
     height: 268,
+  },
+  cardSelected: {
+    borderWidth: 2,
+    borderColor: C.primary,
+  },
+  selectDotCard: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: 'rgba(8,18,12,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: C.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectDotOn: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  rowSelected: {
+    borderColor: C.primary,
+    borderWidth: 2,
   },
 
   // Compact row

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ import { useFriends } from '@/hooks/useFriends';
 import { LogOutingSheet, TapRipple } from '../../components/LogOutingSheet';
 import { VisitActionSheet } from '@/components/VisitActionSheet';
 import { ActivityFeedCard } from '@/components/ActivityFeedCard';
+import { SwipeToDeleteRow } from '@/components/SwipeToDeleteRow';
 import { LoginGateSheet } from '@/components/LoginGateSheet';
 import { setPendingAction, peekPendingAction, consumePendingAction, type PendingAction } from '@/utils/pendingAction';
 import { AppDrawer } from '@/components/AppDrawer';
@@ -148,6 +150,7 @@ type AdventureCardItem = {
   photoCount: number;
   parkId?: string;
   tag: string;
+  deletableVisitId?: string;
   // ActivityFeedCard fields
   parkName: string;
   trailName?: string;
@@ -458,6 +461,76 @@ export default function HomeScreen() {
     setActionVisit(item.data);
   }, []);
 
+  // ── Multi-select / swipe-to-delete for your own logged visits (issue #5) ──
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedVisitIds, setSelectedVisitIds] = useState<Set<string>>(new Set());
+
+  const enterSelectMode = useCallback((visitId: string) => {
+    haptic.medium();
+    setSelectMode(true);
+    setSelectedVisitIds(new Set([visitId]));
+  }, []);
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedVisitIds(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((visitId: string) => {
+    haptic.select();
+    setSelectedVisitIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(visitId)) next.delete(visitId);
+      else next.add(visitId);
+      return next;
+    });
+  }, []);
+
+  const deleteOneVisit = useCallback((visitId: string, parkName: string) => {
+    Alert.alert(
+      'Delete this visit?',
+      `Remove your logged visit to ${parkName}? This can\u2019t be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void removeVisit(visitId);
+            toast.info('Visit deleted', { silent: true });
+          },
+        },
+      ],
+    );
+  }, [removeVisit, toast]);
+
+  const deleteSelected = useCallback(() => {
+    const ids = Array.from(selectedVisitIds);
+    if (ids.length === 0) return;
+    const n = ids.length;
+    Alert.alert(
+      `Delete ${n} ${n === 1 ? 'visit' : 'visits'}?`,
+      'This can\u2019t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            ids.forEach((id) => { void removeVisit(id); });
+            toast.info(`Deleted ${n} ${n === 1 ? 'visit' : 'visits'}`, { silent: true });
+            exitSelectMode();
+          },
+        },
+      ],
+    );
+  }, [selectedVisitIds, removeVisit, toast, exitSelectMode]);
+
+  // Leaving select mode automatically once there's nothing left to manage.
+  React.useEffect(() => {
+    if (selectMode && visits.length === 0) exitSelectMode();
+  }, [selectMode, visits.length, exitSelectMode]);
+
   const isEventKudosd = useCallback((eventId: string) => {
     if (Object.prototype.hasOwnProperty.call(optimisticKudos, eventId)) {
       return optimisticKudos[eventId];
@@ -658,6 +731,8 @@ export default function HomeScreen() {
         photoCount: isStrava ? 0 : ((item.data as ParkVisit | FriendActivity).photoUris?.length ?? 0),
         parkId,
         tag: contextLabel,
+        // Only the user's own manually-logged visits can be swiped/selected to delete.
+        deletableVisitId: !isStrava && !isFriend ? (item.data as ParkVisit).visitId : undefined,
         // ActivityFeedCard props
         parkName,
         trailName: !isStrava ? ((item.data as any).trailName as string | undefined) || undefined : undefined,
@@ -905,33 +980,55 @@ export default function HomeScreen() {
                   </View>
                 ) : null}
 
-                {adventureCards.map((card) => (
-                  <ActivityFeedCard
-                    key={card.key}
-                    cardKey={card.key}
-                    imageUri={card.imageUri}
-                    photoCount={card.photoCount}
-                    parkId={card.parkId}
-                    parkName={card.parkName}
-                    trailName={card.trailName}
-                    dateLabel={card.timeLabel}
-                    actorLabel={card.actorLabel}
-                    variant={compactFeed ? 'compact' : 'standard'}
-                    canHighFive={card.canKudos}
-                    isHighFived={card.isKudosd}
-                    onHighFive={card.canKudos && card.eventId && card.eventOwnerUid
-                      ? () => {
-                          if (!user?.id) {
-                            const name = card.actorLabel.replace(/ visited$/i, '').trim() || 'them';
-                            showLoginGate({ type: 'highFive', displayName: name, eventId: card.eventId!, eventOwnerUid: card.eventOwnerUid! });
-                            return;
+                {adventureCards.map((card) => {
+                  const deletableVisitId = card.deletableVisitId;
+                  const canManage = !!deletableVisitId && !!user?.id;
+                  const isSelected = canManage ? selectedVisitIds.has(deletableVisitId!) : false;
+                  const cardEl = (
+                    <ActivityFeedCard
+                      key={card.key}
+                      cardKey={card.key}
+                      imageUri={card.imageUri}
+                      photoCount={card.photoCount}
+                      parkId={card.parkId}
+                      parkName={card.parkName}
+                      trailName={card.trailName}
+                      dateLabel={card.timeLabel}
+                      actorLabel={card.actorLabel}
+                      variant={compactFeed ? 'compact' : 'standard'}
+                      selectable={selectMode && canManage}
+                      selected={isSelected}
+                      canHighFive={!selectMode && card.canKudos}
+                      isHighFived={card.isKudosd}
+                      onHighFive={card.canKudos && card.eventId && card.eventOwnerUid
+                        ? () => {
+                            if (!user?.id) {
+                              const name = card.actorLabel.replace(/ visited$/i, '').trim() || 'them';
+                              showLoginGate({ type: 'highFive', displayName: name, eventId: card.eventId!, eventOwnerUid: card.eventOwnerUid! });
+                              return;
+                            }
+                            void onToggleKudos(card.eventId!, card.eventOwnerUid!);
                           }
-                          void onToggleKudos(card.eventId!, card.eventOwnerUid!);
-                        }
-                      : undefined}
-                    onPress={card.onPress}
-                  />
-                ))}
+                        : undefined}
+                      onLongPress={canManage && !selectMode ? () => enterSelectMode(deletableVisitId!) : undefined}
+                      onPress={selectMode
+                        ? (canManage ? () => toggleSelect(deletableVisitId!) : undefined)
+                        : card.onPress}
+                    />
+                  );
+                  if (canManage && !selectMode) {
+                    return (
+                      <SwipeToDeleteRow
+                        key={card.key}
+                        deleteLabel={`Delete visit to ${card.parkName}`}
+                        onDelete={() => deleteOneVisit(deletableVisitId!, card.parkName)}
+                      >
+                        {cardEl}
+                      </SwipeToDeleteRow>
+                    );
+                  }
+                  return cardEl;
+                })}
 
                 {adventureCards.length > 0 ? (
                   <Text style={styles.feedFooterText}>{activeParkFilter ? `That\u2019s every trip to ${activeParkFilter.name}.` : 'You\u2019re all caught up.'}</Text>
@@ -942,7 +1039,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {!isFirstTimeEmpty ? (
+      {!isFirstTimeEmpty && !selectMode ? (
         <TouchableOpacity
           ref={fabRef}
           style={styles.fab}
@@ -953,6 +1050,34 @@ export default function HomeScreen() {
         >
           <MaterialCommunityIcons name="plus" size={26} color="#ffffff" />
         </TouchableOpacity>
+      ) : null}
+
+      {selectMode ? (
+        <View style={styles.selectBar}>
+          <TouchableOpacity
+            style={styles.selectBarBtn}
+            activeOpacity={0.8}
+            onPress={exitSelectMode}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel selection"
+          >
+            <Text style={styles.selectBarCancel}>Cancel</Text>
+          </TouchableOpacity>
+          <Text style={styles.selectBarCount}>
+            {selectedVisitIds.size} selected
+          </Text>
+          <TouchableOpacity
+            style={[styles.selectBarBtn, styles.selectBarDeleteBtn, selectedVisitIds.size === 0 && styles.selectBarDeleteBtnDisabled]}
+            activeOpacity={0.8}
+            disabled={selectedVisitIds.size === 0}
+            onPress={deleteSelected}
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${selectedVisitIds.size} selected`}
+          >
+            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#fff" />
+            <Text style={styles.selectBarDelete}>Delete</Text>
+          </TouchableOpacity>
+        </View>
       ) : null}
       {demoTap && !sheetVisible ? <TapRipple x={demoTap.x} y={demoTap.y} /> : null}
 
@@ -1437,5 +1562,54 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.28,
     shadowRadius: 12,
     elevation: 8,
+  },
+  selectBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 90,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: C.surfaceContainerHighest,
+    shadowColor: '#0f2e0d',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  selectBarBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  selectBarCancel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: C.onSurfaceVariant,
+  },
+  selectBarCount: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.onSurface,
+  },
+  selectBarDeleteBtn: {
+    backgroundColor: C.error,
+  },
+  selectBarDeleteBtnDisabled: {
+    opacity: 0.5,
+  },
+  selectBarDelete: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 });

@@ -25,7 +25,7 @@ import { PARKS, NationalPark } from '../../data/parksData';
 import { STATE_PARKS } from '../../data/stateParksData';
 import { useVisitedParks } from '../../hooks/useVisitedParks';
 import { useWishlist } from '@/hooks/useWishlist';
-import { matchesWildcardQuery, stateDisplayName, stateNameFromCode } from '@/utils/search';
+import { matchesWildcardQuery, nonNpsPlaceHint, stateDisplayName, stateNameFromCode } from '@/utils/search';
 
 const NEAR_ME_RADIUS_MILES = 150;
 const NEAR_ME_RADIUS_KM = NEAR_ME_RADIUS_MILES * 1.60934;
@@ -593,9 +593,25 @@ export default function ExploreScreen() {
               </>
             ) : (
               <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="pine-tree" size={36} color={C.outlineVariant} />
-                <Text style={styles.emptyText}>No parks found for {'"'}{searchText}{'"'}</Text>
-                <Text style={styles.emptyHint}>Try a park name, state, or NPS code like “yose”.</Text>
+                {(() => {
+                  const hint = nonNpsPlaceHint(searchText);
+                  if (hint) {
+                    return (
+                      <>
+                        <MaterialCommunityIcons name="map-marker-question-outline" size={36} color={C.outlineVariant} />
+                        <Text style={styles.emptyText}>{hint.name} isn’t a national park</Text>
+                        <Text style={styles.emptyHint}>{hint.note}</Text>
+                      </>
+                    );
+                  }
+                  return (
+                    <>
+                      <MaterialCommunityIcons name="pine-tree" size={36} color={C.outlineVariant} />
+                      <Text style={styles.emptyText}>No parks found for {'"'}{searchText}{'"'}</Text>
+                      <Text style={styles.emptyHint}>Try a park name, state, or NPS code like “yose”.</Text>
+                    </>
+                  );
+                })()}
               </View>
             )}
           </View>

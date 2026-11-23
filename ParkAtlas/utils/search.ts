@@ -99,6 +99,81 @@ export function stateDisplayName(code: string | null | undefined): string {
   return raw.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+type NonNpsPlace = { name: string; note: string; aliases: string[] };
+
+// Well-known places people often assume are National Parks but that the National
+// Park Service does not manage, so they're correctly absent from the catalog.
+// Used to show a helpful note instead of empty search results (see issue #6).
+const NON_NPS_PLACES: NonNpsPlace[] = [
+  {
+    name: 'Gila',
+    note: 'Gila is a National Forest and Wilderness in New Mexico, managed by the U.S. Forest Service — not a National Park Service unit.',
+    aliases: ['gila'],
+  },
+  {
+    name: 'Sedona',
+    note: 'Sedona is a red-rock area in Arizona within the Coconino National Forest (U.S. Forest Service), not a National Park.',
+    aliases: ['sedona'],
+  },
+  {
+    name: 'Mount St. Helens',
+    note: 'Mount St. Helens is a National Volcanic Monument in Washington, managed by the U.S. Forest Service — not a National Park.',
+    aliases: ['mount st helens', 'mt st helens', 'st helens', 'saint helens'],
+  },
+  {
+    name: 'Columbia River Gorge',
+    note: 'The Columbia River Gorge is a National Scenic Area (U.S. Forest Service) on the Oregon–Washington border, not a National Park.',
+    aliases: ['columbia river gorge', 'columbia gorge'],
+  },
+  {
+    name: 'Flaming Gorge',
+    note: 'Flaming Gorge is a National Recreation Area (U.S. Forest Service) in Utah and Wyoming, not a National Park.',
+    aliases: ['flaming gorge'],
+  },
+  {
+    name: 'Sawtooth',
+    note: 'The Sawtooths are a National Recreation Area and Wilderness in Idaho, managed by the U.S. Forest Service — not a National Park.',
+    aliases: ['sawtooth', 'sawtooths'],
+  },
+  {
+    name: 'Monument Valley',
+    note: 'Monument Valley is a Navajo Nation Tribal Park in Arizona and Utah, not a National Park Service unit.',
+    aliases: ['monument valley'],
+  },
+  {
+    name: 'Antelope Canyon',
+    note: 'Antelope Canyon is on Navajo Nation land in Arizona, visited via Navajo-guided tours — not a National Park.',
+    aliases: ['antelope canyon'],
+  },
+  {
+    name: 'Lake Tahoe',
+    note: 'Lake Tahoe straddles California and Nevada and is managed by several agencies (mostly U.S. Forest Service and state parks), not a single National Park.',
+    aliases: ['lake tahoe', 'tahoe'],
+  },
+  {
+    name: 'Mount Shasta',
+    note: 'Mount Shasta is in the Shasta-Trinity National Forest (U.S. Forest Service) in California, not a National Park.',
+    aliases: ['mount shasta', 'mt shasta', 'shasta'],
+  },
+];
+
+/**
+ * If a query matches a well-known place that is NOT a National Park Service unit,
+ * return a friendly note explaining why it isn't in the catalog. Otherwise null.
+ */
+export function nonNpsPlaceHint(query: string): { name: string; note: string } | null {
+  const q = normalize(query);
+  if (!q) return null;
+  for (const place of NON_NPS_PLACES) {
+    const match = place.aliases.some((alias) => {
+      const a = normalize(alias);
+      return q.includes(a) || (q.length >= 3 && a.startsWith(q));
+    });
+    if (match) return { name: place.name, note: place.note };
+  }
+  return null;
+}
+
 export function matchesWildcardQuery(query: string, fields: (string | null | undefined)[]): boolean {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return true;
