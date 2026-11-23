@@ -1,8 +1,14 @@
-// Only the homepage redirects; shared guides and account links remain accessible.
+// Only the homepage redirects, and only once per device: a website can't tell if the
+// native app is already installed, so returning visitors aren't bounced to the App
+// Store every time. Shared guides and account links remain accessible.
 (function () {
-  if (location.pathname === '/' && /iPhone/i.test(navigator.userAgent)) {
-    location.replace('https://apps.apple.com/app/id6760982981');
-  }
+  if (location.pathname !== '/' || !/iPhone/i.test(navigator.userAgent)) return;
+  var KEY = 'napt_app_redirected';
+  try {
+    if (localStorage.getItem(KEY)) return; // already sent once — don't prompt again
+    localStorage.setItem(KEY, '1');
+  } catch (_) { /* storage blocked (private mode): fall through and redirect this once */ }
+  location.replace('https://apps.apple.com/app/id6760982981');
 })();
 
 // Mobile nav toggle for parkatlas.io.
