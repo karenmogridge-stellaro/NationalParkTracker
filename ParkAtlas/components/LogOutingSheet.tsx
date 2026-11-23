@@ -86,6 +86,7 @@ interface GpsLoggingToggleRowProps {
 
 interface PrimarySaveButtonProps {
   disabled: boolean;
+  saving?: boolean;
   onPress: () => void;
 }
 
@@ -205,7 +206,7 @@ function GpsLoggingToggleRow({ enabled, onToggle }: GpsLoggingToggleRowProps) {
   );
 }
 
-function PrimarySaveButton({ disabled, onPress }: PrimarySaveButtonProps) {
+function PrimarySaveButton({ disabled, saving, onPress }: PrimarySaveButtonProps) {
   return (
     <TouchableOpacity
       style={[styles.saveBtn, disabled && styles.saveBtnDisabled]}
@@ -213,7 +214,7 @@ function PrimarySaveButton({ disabled, onPress }: PrimarySaveButtonProps) {
       disabled={disabled}
       onPress={onPress}
     >
-      <Text style={styles.saveBtnText}>Save Adventure</Text>
+      <Text style={styles.saveBtnText}>{saving ? 'Saving…' : 'Save Adventure'}</Text>
       <Ionicons name="arrow-forward" size={18} color={C.onPrimary} />
     </TouchableOpacity>
   );
@@ -227,6 +228,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: P
   const [showParkResults, setShowParkResults] = useState(false);
   const [parkError, setParkError] = useState('');
   const [tap, setTap] = useState<{ x: number; y: number; k: number } | null>(null);
+  const [saving, setSaving] = useState(false);
   const quickSaveRef = useRef<View>(null);
   const firstResultRef = useRef<View>(null);
   const demoFire = useRef<(() => void) | null>(null);
@@ -503,6 +505,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: P
   }
 
   async function handleSave() {
+    if (saving) return;
     if (!selectedPark) {
       setParkError('Please select a park before saving.');
       setShowParkResults(true);
@@ -532,24 +535,37 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: P
 
     const newPark = !editVisit && !visits.some((v) => v.parkId === selectedPark.id);
 
-    if (editVisit) {
-      await updateVisit(editVisit.visitId, selectedPark.id, selectedPark.name, finalTrailName, opts);
-    } else {
-      await logVisit(selectedPark.id, selectedPark.name, finalTrailName, opts);
+    setSaving(true);
+    try {
+      if (editVisit) {
+        await updateVisit(editVisit.visitId, selectedPark.id, selectedPark.name, finalTrailName, opts);
+      } else {
+        await logVisit(selectedPark.id, selectedPark.name, finalTrailName, opts);
+      }
+      onSaved?.({ edited: !!editVisit, newPark });
+      onClose();
+    } catch {
+      setParkError('Could not save — please try again.');
+    } finally {
+      setSaving(false);
     }
-
-    onSaved?.({ edited: !!editVisit, newPark });
-    onClose();
   }
 
   // One tap: today's date, nothing else. Details can be added later from the feed.
   async function handleQuickSave() {
-    if (!selectedPark || editVisit) return;
+    if (saving || !selectedPark || editVisit) return;
     haptic.medium();
     const newPark = !visits.some((v) => v.parkId === selectedPark.id);
-    await logVisit(selectedPark.id, selectedPark.name, '', { dateVisited: new Date().toISOString(), dateUnknown: false, datePrecision: 'day' });
-    onSaved?.({ edited: false, newPark });
-    onClose();
+    setSaving(true);
+    try {
+      await logVisit(selectedPark.id, selectedPark.name, '', { dateVisited: new Date().toISOString(), dateUnknown: false, datePrecision: 'day' });
+      onSaved?.({ edited: false, newPark });
+      onClose();
+    } catch {
+      setParkError('Could not save — please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
   demoFire.current = () => { void handleQuickSave(); };
 
@@ -632,7 +648,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: P
 
             {selectedPark && !showDetails ? (
               <>
-                <TouchableOpacity ref={quickSaveRef} style={styles.quickSaveBtn} activeOpacity={0.85} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
+                <TouchableOpacity ref={quickSaveRef} style={[styles.quickSaveBtn, saving && styles.saveBtnDisabled]} activeOpacity={0.85} disabled={saving} onPress={() => { void handleQuickSave(); }} accessibilityRole="button">
                   <Ionicons name="checkmark-circle" size={22} color={C.onPrimary} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.quickSaveTitle}>Log {selectedPark.name} now</Text>
@@ -778,7 +794,7 @@ export function LogOutingSheet({ visible, onClose, onSaved, editVisit, demo }: P
         </ScrollView>
         {showDetails ? (
           <View style={styles.footer}>
-            <PrimarySaveButton disabled={!selectedPark} onPress={handleSave} />
+            <PrimarySaveButton disabled={!selectedPark || saving} saving={saving} onPress={handleSave} />
           </View>
         ) : null}
       </KeyboardAvoidingView>
