@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
 import { LogBox, StyleSheet, View } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
@@ -124,6 +125,10 @@ const hostStyles = StyleSheet.create({
   offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
 
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});
+
 /** Shake the phone (or tap "Send feedback" in Settings) → grab a screenshot → feedback sheet. */
 function FeedbackHost() {
   const pathname = usePathname();
@@ -152,6 +157,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <GestureHandlerRootView style={styles.root}>
     <AuthProvider>
       <VisitedParksProvider>
       <WishlistProvider>
@@ -183,5 +189,6 @@ export default function RootLayout() {
       </WishlistProvider>
       </VisitedParksProvider>
     </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
